@@ -1,56 +1,76 @@
-# Welcome to your Expo app 👋
+# TD-Android (Torrent Debrid Android) 🚀
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+TD-Android is the ultimate premium torrent-debrid streaming client built on React Native & Expo. 
 
-## Get started
+Say goodbye to buffering, public P2P warning letters, and slow peers. TD-Android aggregates movie and series metadata using **Cinemeta** (Stremio catalogs), queries torrent streams via **Torrentio**, and resolves links on-the-fly through high-speed direct links from **Real-Debrid** and **Torbox** APIs.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## ✨ Features
 
-2. Start the app
+- **🔒 Zero P2P Traffic**: Stream cached media directly from high-speed HTTP servers. No peer-to-peer uploading, no VPN required.
+- **⚡ Buffer-Free 4K/HDR**: Experience immediate start and seek times, streaming directly from Debrid premium hosts.
+- **🔌 Multi-Debrid Support**: Native integration with both **Real-Debrid** and **Torbox** APIs.
+- **🎬 Stremio Ecosystem Integration**: 
+  - Complete catalogs powered by **Cinemeta** (Movies & TV Shows).
+  - Instant aggregation of stream links using **Torrentio** addons.
+- **📺 Advanced Video Player**: Smooth playback controls, full gestures, audio track selection, and sub-title toggling.
+- **📱 Clean Modern UI**: Beautifully crafted dark mode theme, detailed metadata info pages, robust search engines, and carousel highlights.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🛠️ Tech Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **Framework**: [Expo](https://expo.dev) & [React Native](https://reactnative.dev)
+- **Navigation**: Expo Router (File-based Routing)
+- **Language**: TypeScript
+- **Styling**: Native CSS styled variables for perfect dark-mode adaptability
+- **Storage**: AsyncStorage & Expo SecureStore for safe credential handling
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🚀 Getting Started
 
-When you're ready, run:
+Follow these steps to set up the development environment and run TD-Android:
 
+### 1. Prerequisites
+- **Node.js** (LTS version recommended)
+- **Git**
+- A **Real-Debrid** or **Torbox** account with an API token.
+- **Expo Go** app on your Android device (or Android Studio for emulator setup).
+
+### 2. Installation
+Clone the repository and install all dependencies:
 ```bash
-npm run reset-project
+# Clone the repository
+git clone https://github.com/veerverma828/TD-android.git
+cd TD-android
+
+# Install dependencies
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 3. Start Development Server
+Boot up the Expo bundler:
+```bash
+npx expo start
+```
 
-### Other setup steps
+- Press **`a`** to open in an Android emulator.
+- Scan the QR code with your **Expo Go** app to run on your physical Android device.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+---
 
-## Learn more
+## ⚙️ Configuration
 
-To learn more about developing your project with Expo, look at the following resources:
+1. Launch the app on your device/emulator.
+2. Go to the **Settings** tab.
+3. Select your active Debrid Provider: **Real-Debrid** or **Torbox**.
+4. Paste your API key (obtained from your provider's API page) and save.
+5. You're ready to stream! Browse the catalog or search, select an episode or movie, choose your torrent stream, and play.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## 📄 License
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
