@@ -7,16 +7,16 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
-  light: {
-    text: '#ffffff', // Forcing dark mode colors even in light mode
-    background: '#080808',
-    backgroundElement: '#111111',
-    backgroundSelected: '#1a1a1a',
-    textSecondary: '#999999',
-    accent: '#e50914',
+export const Palettes = {
+  marquee: {
+    text: '#f2ead9',
+    background: '#0b0d12',
+    backgroundElement: '#161a22',
+    backgroundSelected: '#1f2530',
+    textSecondary: '#a99d84',
+    accent: '#e8823f',
   },
-  dark: {
+  classic: {
     text: '#ffffff',
     background: '#080808',
     backgroundElement: '#111111',
@@ -26,7 +26,11 @@ export const Colors = {
   },
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export type PaletteName = keyof typeof Palettes;
+export type ThemeColor = keyof typeof Palettes.marquee;
+
+/** Static fallback for module-scope contexts (e.g. StyleSheet.create) that can't use the theme hook. */
+export const Colors = { light: Palettes.marquee, dark: Palettes.marquee } as const;
 
 export const Fonts = Platform.select({
   ios: {

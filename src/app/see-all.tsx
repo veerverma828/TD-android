@@ -1,21 +1,24 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/IconSymbol';
 import { PosterCard } from '@/components/PosterCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { fetchCatalog, MetaItem } from '@/services/cinemeta';
+import { useSettings } from '@/contexts/SettingsContext';
+import { padToColumns } from '@/utils/gridHelpers';
 
 export default function SeeAllScreen() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { colors } = useAppTheme();
   const router = useRouter();
+  const { showRating } = useSettings();
 
-  const { type, category, title } = useLocalSearchParams<{ type: string; category: string; title: string }>();
+  const { type, category, title, genre } = useLocalSearchParams<{ type: string; category: string; title: string; genre?: string }>();
 
   const [items, setItems] = useState<MetaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,8 +27,10 @@ export default function SeeAllScreen() {
     async function loadData() {
       if (!type || !category) return;
       try {
-        const data = await fetchCatalog(type, category);
+        const data = await fetchCatalog(type, category, genre);
         setItems(data);
+        const visibleUrls = data.slice(0, 12).map((item) => item.poster).filter(Boolean) as string[];
+        if (visibleUrls.length) Image.prefetch(visibleUrls, 'memory-disk');
       } catch (err) {
         console.error("Failed to fetch catalog:", err);
       } finally {
@@ -33,7 +38,7 @@ export default function SeeAllScreen() {
       }
     }
     loadData();
-  }, [type, category]);
+  }, [type, category, genre]);
 
   const handleNavigateToDetails = (id: string, itemType: string) => {
     router.push({ pathname: '/details', params: { id, type: itemType } });
@@ -67,24 +72,31 @@ export default function SeeAllScreen() {
           </View>
         ) : (
           <FlatList
-            data={items}
-            keyExtractor={(item) => item.id}
+            data={padToColumns(items, 3)}
+            keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
             numColumns={3}
             contentContainerStyle={styles.listContent}
             columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
             initialNumToRender={12}
-            maxToRenderPerBatch={12}
-            windowSize={5}
-            renderItem={({ item }) => (
-              <PosterCard
-                title={item.name}
-                subtitle={item.releaseInfo}
-                imageUrl={item.poster || ''}
-                onPress={() => handleNavigateToDetails(item.id, item.type)}
-                style={styles.posterCard}
-              />
-            )}
+            maxToRenderPerBatch={9}
+            updateCellsBatchingPeriod={50}
+            windowSize={7}
+            removeClippedSubviews
+            renderItem={({ item }) =>
+              item ? (
+                <PosterCard
+                  title={item.name}
+                  subtitle={item.releaseInfo}
+                  imageUrl={item.poster || ''}
+                  rating={showRating ? item.imdbRating : undefined}
+                  onPress={() => handleNavigateToDetails(item.id, item.type)}
+                  style={styles.posterCard}
+                />
+              ) : (
+                <View style={styles.posterCard} />
+              )
+            }
           />
         )}
       </SafeAreaView>

@@ -1,8 +1,9 @@
 import { FlatList, StyleSheet, View, Pressable } from 'react-native';
 import { ThemedText } from './themed-text';
 import { PosterCard } from './PosterCard';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
+import { useAppTheme } from '@/contexts/ThemeContext';
+
+const CARD_WIDTH = 132; // PosterCard width (120) + marginRight (12)
 
 interface CarouselItem {
   id: string;
@@ -10,18 +11,20 @@ interface CarouselItem {
   subtitle?: string;
   imageUrl: string;
   progress?: number;
+  rating?: string;
 }
 
 interface CarouselProps {
   title: string;
   data: CarouselItem[];
   onPressItem?: (item: CarouselItem) => void;
+  onLongPressItem?: (item: CarouselItem) => void;
   onPressSeeAll?: () => void;
+  getProgressColor?: (item: CarouselItem) => string | undefined;
 }
 
-export function Carousel({ title, data, onPressItem, onPressSeeAll }: CarouselProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+export function Carousel({ title, data, onPressItem, onLongPressItem, onPressSeeAll, getProgressColor }: CarouselProps) {
+  const { colors } = useAppTheme();
 
   return (
     <View style={styles.container}>
@@ -46,13 +49,18 @@ export function Carousel({ title, data, onPressItem, onPressSeeAll }: CarouselPr
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={5}
+        removeClippedSubviews
+        getItemLayout={(_, index) => ({ length: CARD_WIDTH, offset: CARD_WIDTH * index, index })}
         renderItem={({ item }) => (
           <PosterCard
             title={item.title}
             subtitle={item.subtitle}
             imageUrl={item.imageUrl}
             progress={item.progress}
+            progressColor={getProgressColor?.(item)}
+            rating={item.rating}
             onPress={() => onPressItem?.(item)}
+            onLongPress={() => onLongPressItem?.(item)}
           />
         )}
       />

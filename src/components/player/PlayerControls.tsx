@@ -1,233 +1,160 @@
-import { Colors } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, useState } from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { IconSymbol } from '../IconSymbol';
-import { ThemedText } from '../themed-text';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { IconSymbol } from '@/components/IconSymbol';
+import { ThemedText } from '@/components/themed-text';
+import { SeekBar } from './SeekBar';
 
 interface PlayerControlsProps {
-  player: any; // expo-video player instance
   title: string;
+  paused: boolean;
+  buffering: boolean;
+  currentTime: number;
+  duration: number;
+  accentColor: string;
+  onTogglePlay: () => void;
+  onSeekStart: () => void;
+  onSeekEnd: (time: number) => void;
+  onSkip: (deltaSeconds: number) => void;
   onBack: () => void;
   onShowAudioTracks: () => void;
+  onShowSubtitles: () => void;
+  onShowSettings: () => void;
+  onEnterPiP?: () => void;
+  onLock: () => void;
 }
 
-function formatTime(seconds: number) {
-  if (isNaN(seconds) || seconds < 0) return '00:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
-  }
-  return `${m}:${s < 10 ? '0' + s : s}`;
-}
-
-export function PlayerControls({ player, title, onBack, onShowAudioTracks }: PlayerControlsProps) {
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const resetControlsTimeout = () => {
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    setControlsVisible(true);
-    controlsTimeoutRef.current = setTimeout(() => {
-      setControlsVisible(false);
-    }, 4000);
-  };
-
-  useEffect(() => {
-    resetControlsTimeout();
-    return () => {
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    };
-  }, []);
-
-  // Poll player state every 500ms
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (player) {
-        setIsPlaying(player.playing);
-        setCurrentTime(player.currentTime);
-        if (player.duration > 0) setDuration(player.duration);
-      }
-    }, 500);
-    return () => clearInterval(interval);
-  }, [player]);
-
-  const togglePlayPause = () => {
-    if (player) {
-      if (player.playing) {
-        player.pause();
-      } else {
-        player.play();
-      }
-      setIsPlaying(!player.playing);
-    }
-    resetControlsTimeout();
-  };
-
-  const handleScreenTap = () => {
-    if (controlsVisible) {
-      setControlsVisible(false);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    } else {
-      resetControlsTimeout();
-    }
-  };
-
-  const seekbarPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
-
+export function PlayerControls({
+  title,
+  paused,
+  buffering,
+  currentTime,
+  duration,
+  accentColor,
+  onTogglePlay,
+  onSeekStart,
+  onSeekEnd,
+  onSkip,
+  onBack,
+  onShowAudioTracks,
+  onShowSubtitles,
+  onShowSettings,
+  onEnterPiP,
+  onLock,
+}: PlayerControlsProps) {
   return (
-    // Simple TouchableOpacity on the whole screen to toggle controls visibility
-    <TouchableOpacity
-      style={styles.container}
-      onPress={handleScreenTap}
-      activeOpacity={1}
-    >
-      {controlsVisible && (
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
-          style={StyleSheet.absoluteFill}
-        >
-          {/* Top gradient + bar */}
-          <LinearGradient colors={['rgba(0,0,0,0.8)', 'transparent']} style={styles.topGradient}>
-            <View style={styles.topBar}>
-              <TouchableOpacity onPress={onBack} style={styles.iconButton}>
-                <IconSymbol name="chevron.left" size={32} color="#fff" />
-              </TouchableOpacity>
-              <ThemedText style={styles.titleText} numberOfLines={1}>{title}</ThemedText>
-              <TouchableOpacity onPress={onShowAudioTracks} style={styles.iconButton}>
-                <IconSymbol name="waveform" size={28} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-
-          {/* Center play/pause */}
-          <View style={styles.centerContainer}>
-            <TouchableOpacity onPress={togglePlayPause} style={styles.playPauseBtn}>
-              <IconSymbol name={isPlaying ? 'pause' : 'play.fill'} size={64} color="#fff" />
-            </TouchableOpacity>
+    <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <LinearGradient colors={['rgba(0,0,0,0.85)', 'transparent']} style={styles.topGradient}>
+        <View style={styles.topBar}>
+          <Pressable onPress={onBack} style={styles.iconButton} hitSlop={12}>
+            <IconSymbol name="chevron.left" size={28} color="#fff" />
+          </Pressable>
+          <ThemedText style={styles.titleText} numberOfLines={1}>{title}</ThemedText>
+          <View style={styles.topBarActions}>
+            {onEnterPiP && (
+              <Pressable onPress={onEnterPiP} style={styles.iconButton} hitSlop={10}>
+                <IconSymbol name="pip" size={22} color="#fff" />
+              </Pressable>
+            )}
+            <Pressable onPress={onShowSubtitles} style={styles.iconButton} hitSlop={10}>
+              <IconSymbol name="captions.bubble" size={22} color="#fff" />
+            </Pressable>
+            <Pressable onPress={onShowAudioTracks} style={styles.iconButton} hitSlop={10}>
+              <IconSymbol name="waveform" size={22} color="#fff" />
+            </Pressable>
+            <Pressable onPress={onShowSettings} style={styles.iconButton} hitSlop={10}>
+              <IconSymbol name="gearshape.fill" size={22} color="#fff" />
+            </Pressable>
+            <Pressable onPress={onLock} style={styles.iconButton} hitSlop={10}>
+              <IconSymbol name="lock.open.fill" size={22} color="#fff" />
+            </Pressable>
           </View>
+        </View>
+      </LinearGradient>
 
-          {/* Bottom gradient + scrubber */}
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.bottomGradient}>
-            <View style={styles.bottomBar}>
-              <ThemedText style={styles.timeText}>{formatTime(currentTime)}</ThemedText>
-              <View style={styles.scrubberContainer}>
-                <View style={styles.scrubberTrack}>
-                  <View style={[styles.scrubberFill, { width: `${seekbarPercentage}%` }]} />
-                  <View style={[styles.scrubberThumb, { left: `${seekbarPercentage}%` }]} />
-                </View>
-              </View>
-              <ThemedText style={styles.timeText}>{formatTime(duration)}</ThemedText>
-            </View>
-          </LinearGradient>
-        </Animated.View>
-      )}
-    </TouchableOpacity>
+      <View style={styles.centerRow} pointerEvents="box-none">
+        <Pressable onPress={() => onSkip(-10)} style={styles.skipBtn} hitSlop={16}>
+          <IconSymbol name="backward.end.fill" size={26} color="#fff" />
+        </Pressable>
+        <Pressable onPress={onTogglePlay} style={styles.playPauseBtn} hitSlop={16}>
+          <IconSymbol name={paused ? 'play.fill' : 'pause'} size={40} color="#fff" />
+        </Pressable>
+        <Pressable onPress={() => onSkip(10)} style={styles.skipBtn} hitSlop={16}>
+          <IconSymbol name="forward.end.fill" size={26} color="#fff" />
+        </Pressable>
+      </View>
+
+      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.bottomGradient}>
+        <SeekBar
+          currentTime={currentTime}
+          duration={duration}
+          accentColor={accentColor}
+          onSeekStart={onSeekStart}
+          onSeekEnd={onSeekEnd}
+        />
+        <View style={{ height: 20 }} />
+      </LinearGradient>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFill as any,
-    zIndex: 100,
-  },
   topGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 90,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 20,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+  },
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   iconButton: {
-    padding: 12,
+    padding: 10,
   },
   titleText: {
     flex: 1,
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center',
-    marginHorizontal: 16,
+    marginHorizontal: 8,
   },
-  centerContainer: {
+  centerRow: {
     flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 48,
+  },
+  skipBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   playPauseBtn: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   bottomGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 120,
+    paddingTop: 60,
     justifyContent: 'flex-end',
-    paddingBottom: 40,
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 30,
-  },
-  timeText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
-    width: 50,
-    textAlign: 'center',
-  },
-  scrubberContainer: {
-    flex: 1,
-    height: 40,
-    justifyContent: 'center',
-    marginHorizontal: 16,
-  },
-  scrubberTrack: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 2,
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  scrubberFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: Colors.light.accent,
-    borderRadius: 2,
-  },
-  scrubberThumb: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.light.accent,
-    marginLeft: -8,
   },
 });

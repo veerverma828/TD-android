@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { DebridFile } from '@/services/debridService';
 import { formatBytes } from '@/utils/streamHelpers';
 
@@ -17,7 +17,7 @@ interface FileSelectionModalProps {
 
 export function FileSelectionModal({ visible, onClose, files, onSelectFile }: FileSelectionModalProps) {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { colors } = useAppTheme();
 
   if (!visible) return null;
 

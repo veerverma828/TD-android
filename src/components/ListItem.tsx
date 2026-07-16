@@ -1,8 +1,10 @@
-import { StyleSheet, Pressable, ViewStyle, View, useColorScheme } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, Pressable, ViewStyle, View } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from './themed-text';
 import { IconSymbol, IconSymbolName } from './IconSymbol';
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 
 interface ListItemProps {
   title: string;
@@ -14,9 +16,8 @@ interface ListItemProps {
   style?: ViewStyle;
 }
 
-export function ListItem({ title, subtitle, icon, imageUrl, trailingIcon, onPress, style }: ListItemProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+export const ListItem = memo(function ListItem({ title, subtitle, icon, imageUrl, trailingIcon, onPress, style }: ListItemProps) {
+  const { colors } = useAppTheme();
 
   return (
     <Pressable
@@ -35,6 +36,9 @@ export function ListItem({ title, subtitle, icon, imageUrl, trailingIcon, onPres
             style={styles.thumbnail}
             contentFit="cover"
             cachePolicy="memory-disk"
+            transition={200}
+            placeholder={DARK_IMAGE_PLACEHOLDER}
+            placeholderContentFit="cover"
           />
         ) : icon ? (
           <View style={styles.iconContainer}>
@@ -57,7 +61,7 @@ export function ListItem({ title, subtitle, icon, imageUrl, trailingIcon, onPres
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

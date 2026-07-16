@@ -1,26 +1,30 @@
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+
+// Routes that live inside the Tabs navigator (for `href: null` screens) but must
+// render fully immersive, with no tab bar chrome at all — not just hidden from the tab row.
+const NO_TAB_BAR_ROUTES = new Set(['player', 'preplay']);
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { colors } = useAppTheme();
 
   return (
     <Tabs
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopColor: colors.backgroundElement,
-          elevation: 0, // Android shadow
-          shadowOpacity: 0, // iOS shadow
-        },
+        tabBarStyle: NO_TAB_BAR_ROUTES.has(route.name)
+          ? { display: 'none' }
+          : {
+              backgroundColor: colors.background,
+              borderTopColor: colors.backgroundElement,
+              elevation: 0, // Android shadow
+              shadowOpacity: 0, // iOS shadow
+            },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
-      }}>
+      })}>
       <Tabs.Screen
         name="index"
         options={{
@@ -85,6 +89,18 @@ export default function AppTabs() {
       />
       <Tabs.Screen
         name="player"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="preplay"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="discover"
         options={{
           href: null,
         }}

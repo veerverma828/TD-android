@@ -1,46 +1,69 @@
 import { Image } from 'expo-image';
+import { memo, useState } from 'react';
 import { StyleSheet, View, Pressable, ViewStyle } from 'react-native';
 
 import { ThemedText } from './themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
+import { IconSymbol } from './IconSymbol';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 
 interface PosterCardProps {
   title: string;
   subtitle?: string;
   imageUrl: string;
   progress?: number; // 0 to 1
+  progressColor?: string;
+  rating?: string;
   onPress?: () => void;
+  onLongPress?: () => void;
   style?: ViewStyle;
 }
 
-export function PosterCard({ title, subtitle, imageUrl, progress, onPress, style }: PosterCardProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style }: PosterCardProps) {
+  const { colors } = useAppTheme();
+  const [failed, setFailed] = useState(false);
+  const showFallback = !imageUrl || failed;
 
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
       style={({ pressed }) => [
         styles.container,
         style,
         { opacity: pressed ? 0.8 : 1 },
       ]}>
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: imageUrl }}
-          style={[styles.image, { backgroundColor: colors.backgroundElement }]}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory-disk"
-        />
+        {showFallback ? (
+          <View style={[styles.image, styles.fallback, { backgroundColor: colors.backgroundElement }]}>
+            <IconSymbol name="photo" color={colors.textSecondary} size={28} />
+          </View>
+        ) : (
+          <Image
+            source={{ uri: imageUrl }}
+            style={[styles.image, { backgroundColor: colors.backgroundElement }]}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+            placeholder={DARK_IMAGE_PLACEHOLDER}
+            placeholderContentFit="cover"
+            onError={() => setFailed(true)}
+          />
+        )}
+        {rating && (
+          <View style={styles.ratingBadge}>
+            <IconSymbol name="star.fill" color="#FFD700" size={10} />
+            <ThemedText style={styles.ratingText}>{rating}</ThemedText>
+          </View>
+        )}
         {progress !== undefined && (
           <View style={styles.progressContainer}>
             <View style={[styles.progressTrack, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${progress * 100}%`, backgroundColor: colors.accent },
+                  { width: `${progress * 100}%`, backgroundColor: progressColor ?? colors.accent },
                 ]}
               />
             </View>
@@ -57,7 +80,7 @@ export function PosterCard({ title, subtitle, imageUrl, progress, onPress, style
       )}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -67,7 +90,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: '100%',
     aspectRatio: 2 / 3,
-    borderRadius: 8,
+    borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 6,
     elevation: 4,
@@ -78,6 +101,10 @@ const styles = StyleSheet.create({
   },
   image: {
     flex: 1,
+  },
+  fallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressContainer: {
     position: 'absolute',
@@ -93,6 +120,23 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 2,
+  },
+  ratingBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  ratingText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   title: {
     fontSize: 12,

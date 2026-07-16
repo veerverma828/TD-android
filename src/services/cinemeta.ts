@@ -28,6 +28,7 @@ export interface Video {
   episode: number;
   thumbnail?: string;
   overview?: string;
+  rating?: string;
 }
 
 export interface DetailedMetaItem extends MetaItem {
@@ -124,7 +125,8 @@ async function fetchWithRetry(url: string, options: FetchOptions = {}): Promise<
         }
       }
 
-      if (error?.name === 'AbortError') {
+      const isAbort = error?.name === 'AbortError' || /abort|cancel/i.test(error?.message || '');
+      if (isAbort) {
         if (signal?.aborted) {
           throw new Error('AbortError');
         } else {
@@ -182,8 +184,10 @@ export async function searchSeries(query: string): Promise<MetaItem[]> {
   return data.metas || [];
 }
 
-export async function fetchCatalog(type: string, category: string): Promise<MetaItem[]> {
-  const data = await fetchWithRetry(`${CINEMETA_BASE}/catalog/${encodePathPart(type)}/${encodePathPart(category)}.json`);
+export async function fetchCatalog(type: string, category: string, genre?: string): Promise<MetaItem[]> {
+  const base = `${CINEMETA_BASE}/catalog/${encodePathPart(type)}/${encodePathPart(category)}`;
+  const url = genre ? `${base}/genre=${encodePathPart(genre)}.json` : `${base}.json`;
+  const data = await fetchWithRetry(url);
   return data.metas || [];
 }
 
@@ -193,7 +197,11 @@ export async function fetchMeta(type: string, id: string, options?: FetchOptions
       `${CINEMETA_BASE}/meta/${encodePathPart(type)}/${encodePathPart(id)}.json`,
       options
     );
-    return data.meta || null;
+    const meta = data.meta;
+    if (meta?.videos) {
+      meta.videos = meta.videos.map((v: any) => ({ ...v, title: v.title || v.name }));
+    }
+    return meta || null;
   } catch (err: any) {
     if (err.message !== 'AbortError') console.error("Failed to fetch meta:", err);
     return null;

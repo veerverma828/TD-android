@@ -1,8 +1,8 @@
-import { StyleSheet, View, Modal, Pressable, ScrollView, useColorScheme, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { TorrentioStream, formatBytes } from '@/utils/streamHelpers';
 import { useStreamActions } from '@/hooks/useStreamActions';
 import { FileSelectionModal } from '@/components/FileSelectionModal';
@@ -13,24 +13,24 @@ interface TorrentModalProps {
   options: TorrentioStream[];
   loading?: boolean;
   error?: string | null;
+  contentTitle?: string;
+  contentPoster?: string;
+  contentBackdrop?: string;
+  contentId?: string;
 }
 
-export function TorrentModal({ visible, onClose, options, loading, error }: TorrentModalProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-  const { play, playExternal, copyUrl, download, resolvingId, fileSelection, setFileSelection, resolveAndPlay } = useStreamActions();
+export function TorrentModal({ visible, onClose, options, loading, error, contentTitle, contentPoster, contentBackdrop, contentId }: TorrentModalProps) {
+  const { colors } = useAppTheme();
+  const { play, playExternal, copyUrl, download, resolvingId, fileSelection, setFileSelection, resolveAndPlay } = useStreamActions({
+    title: contentTitle,
+    poster: contentPoster,
+    backdrop: contentBackdrop,
+    contentId,
+  });
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => (prev === id ? null : id));
-  };
-
-  const getQualityBadge = (title: string) => {
-    if (title.includes('2160p') || title.includes('4k') || title.includes('4K')) return '4K';
-    if (title.includes('1080p')) return '1080p';
-    if (title.includes('720p')) return '720p';
-    if (title.includes('480p')) return '480p';
-    return 'SD';
   };
 
   return (
@@ -75,8 +75,24 @@ export function TorrentModal({ visible, onClose, options, loading, error }: Torr
               {options.map((opt, idx) => {
                 const uniqueId = `stream-${opt.infoHash || 'unknown'}-${idx}`;
                 const isExpanded = expandedId === uniqueId;
-                const quality = getQualityBadge(opt.title);
-                
+
+                const badges: { text: string; color?: string }[] = [];
+                if (opt.quality) badges.push({ text: opt.quality, color: colors.accent });
+                if (opt.dolbyVision) badges.push({ text: 'Dolby Vision', color: '#8b5cf6' });
+                if (opt.hdr) badges.push({ text: opt.hdr, color: '#f5a623' });
+                if (opt.is3D) badges.push({ text: '3D' });
+                if (opt.codec) badges.push({ text: opt.codec });
+                if (opt.bitDepth) badges.push({ text: opt.bitDepth });
+                if (opt.source) badges.push({ text: opt.source });
+
+                const metaParts: string[] = [];
+                if (opt.size) metaParts.push(formatBytes(opt.size));
+                if (opt.seeders != null) metaParts.push(`👤 ${opt.seeders}`);
+                if (opt.audio) metaParts.push(opt.audio);
+                if (opt.provider) metaParts.push(opt.provider);
+                if (opt.releaseGroup) metaParts.push(opt.releaseGroup);
+                if (opt.languages.length) metaParts.push(opt.languages.join(' '));
+
                 return (
                   <View key={uniqueId} style={[styles.optionContainer, { backgroundColor: isExpanded ? colors.backgroundElement : 'transparent' }]}>
                     <Pressable
@@ -87,30 +103,31 @@ export function TorrentModal({ visible, onClose, options, loading, error }: Torr
                       onPress={() => toggleExpand(uniqueId)}
                     >
                       <View style={styles.optionLeft}>
-                        <ThemedText style={styles.provider}>{opt.provider}</ThemedText>
-                        <ThemedText style={styles.streamTitle} numberOfLines={1}>{opt.title}</ThemedText>
-                        <View style={styles.metaContainer}>
-                          <View style={[styles.badge, { backgroundColor: colors.backgroundSelected }]}>
-                            <ThemedText style={styles.badgeText}>{quality}</ThemedText>
+                        <ThemedText style={styles.streamTitle} numberOfLines={2}>{opt.title}</ThemedText>
+                        {badges.length > 0 && (
+                          <View style={styles.metaContainer}>
+                            {badges.map((badge, i) => (
+                              <View
+                                key={i}
+                                style={[styles.badge, { backgroundColor: badge.color ? badge.color + '33' : colors.backgroundSelected }]}
+                              >
+                                <ThemedText style={[styles.badgeText, badge.color ? { color: badge.color } : undefined]}>
+                                  {badge.text}
+                                </ThemedText>
+                              </View>
+                            ))}
                           </View>
-                          <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>
-                            {formatBytes(opt.size)}
+                        )}
+                        {metaParts.length > 0 && (
+                          <ThemedText style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
+                            {metaParts.join('  •  ')}
                           </ThemedText>
-                          {opt.isDirect ? (
-                            <ThemedText style={[styles.metaText, { color: '#1db954' }]}>
-                              • Direct
-                            </ThemedText>
-                          ) : (
-                            <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>
-                              • P2P
-                            </ThemedText>
-                          )}
-                        </View>
+                        )}
                       </View>
-                      <IconSymbol 
-                        name={isExpanded ? "chevron.up" : "chevron.down"} 
-                        color={colors.textSecondary} 
-                        size={20} 
+                      <IconSymbol
+                        name={isExpanded ? "chevron.up" : "chevron.down"}
+                        color={colors.textSecondary}
+                        size={20}
                       />
                     </Pressable>
 
@@ -161,7 +178,7 @@ export function TorrentModal({ visible, onClose, options, loading, error }: Torr
           onClose={() => setFileSelection(null)}
           files={fileSelection.files}
           onSelectFile={(fileId) => {
-            resolveAndPlay(fileSelection.torrentId, fileId, fileSelection.provider, fileSelection.apiKey);
+            resolveAndPlay(fileSelection.torrentId, fileId, fileSelection.provider, fileSelection.apiKey, fileSelection.sourceKey);
           }}
         />
       )}
@@ -239,21 +256,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 16,
   },
-  provider: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
   streamTitle: {
-    fontSize: 12,
-    color: '#aaa',
+    fontSize: 13,
+    fontWeight: '600',
     marginBottom: 8,
   },
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    marginBottom: 6,
   },
   badge: {
     paddingHorizontal: 6,
@@ -261,11 +274,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   metaText: {
-    fontSize: 13,
+    fontSize: 12,
   },
   actionsContainer: {
     flexDirection: 'row',

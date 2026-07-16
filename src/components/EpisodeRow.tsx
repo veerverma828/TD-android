@@ -1,20 +1,23 @@
-import { StyleSheet, View, Pressable, useColorScheme } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, View, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 
 interface EpisodeRowProps {
   episodeNumber: number;
   title: string;
   duration: string;
   imageUrl: string;
+  overview?: string;
+  rating?: string;
   onPress?: () => void;
 }
 
-export function EpisodeRow({ episodeNumber, title, duration, imageUrl, onPress }: EpisodeRowProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, duration, imageUrl, overview, rating, onPress }: EpisodeRowProps) {
+  const { colors } = useAppTheme();
 
   return (
     <Pressable
@@ -29,6 +32,9 @@ export function EpisodeRow({ episodeNumber, title, duration, imageUrl, onPress }
           style={styles.image}
           contentFit="cover"
           transition={200}
+          cachePolicy="memory-disk"
+          placeholder={DARK_IMAGE_PLACEHOLDER}
+          placeholderContentFit="cover"
         />
         <View style={styles.playIconOverlay}>
           <IconSymbol name="play.circle.fill" color="#ffffff" size={28} />
@@ -39,9 +45,22 @@ export function EpisodeRow({ episodeNumber, title, duration, imageUrl, onPress }
         <ThemedText style={styles.title} numberOfLines={1}>
           {episodeNumber}. {title}
         </ThemedText>
-        <ThemedText style={[styles.duration, { color: colors.textSecondary }]}>
-          {duration}
-        </ThemedText>
+        <View style={styles.metaRow}>
+          <ThemedText style={[styles.duration, { color: colors.textSecondary }]}>
+            {duration}
+          </ThemedText>
+          {rating && parseFloat(rating) > 0 ? (
+            <View style={styles.ratingPill}>
+              <IconSymbol name="star.fill" color="#f5c518" size={11} />
+              <ThemedText style={styles.ratingText}>{rating}</ThemedText>
+            </View>
+          ) : null}
+        </View>
+        {overview ? (
+          <ThemedText style={[styles.overview, { color: colors.textSecondary }]} numberOfLines={2}>
+            {overview}
+          </ThemedText>
+        ) : null}
       </View>
       
       <View style={styles.downloadIcon}>
@@ -49,7 +68,7 @@ export function EpisodeRow({ episodeNumber, title, duration, imageUrl, onPress }
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -88,6 +107,26 @@ const styles = StyleSheet.create({
   },
   duration: {
     fontSize: 13,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  ratingText: {
+    fontSize: 12,
+    color: '#f5c518',
+    fontWeight: '600',
+  },
+  overview: {
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 16,
   },
   downloadIcon: {
     marginLeft: 12,

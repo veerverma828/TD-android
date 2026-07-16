@@ -1,35 +1,42 @@
-"use no memo";
-import { View, StyleSheet } from 'react-native';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import { NavigationBar } from 'expo-navigation-bar';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback } from 'react';
 
 import { VideoPlayer } from '@/components/player/VideoPlayer';
+import { ThemedText } from '@/components/themed-text';
+import { IconSymbol } from '@/components/IconSymbol';
 
 export default function PlayerScreen() {
-  const { url, title, poster } = useLocalSearchParams<{ url: string; title: string; poster?: string }>();
+  const { url, title, poster, contentId } = useLocalSearchParams<{
+    url: string;
+    title?: string;
+    poster?: string;
+    contentId?: string;
+  }>();
   const router = useRouter();
 
-  // "use no memo" at the top opts this entire file out of the React Compiler.
-  // This is required because the React Compiler breaks useFocusEffect cleanup
-  // semantics — it transforms the useCallback in a way that Expo Router's focus
-  // event system can no longer trigger the cleanup correctly.
-  useFocusEffect(
-    useCallback(() => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-      NavigationBar.setHidden(true);
-
-      return () => {
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-        NavigationBar.setHidden(false);
-      };
-    }, [])
-  );
+  // The player screen can be reached via router.replace() (e.g. auto-advancing to
+  // the next episode), which leaves nothing to go "back" to — guard against that
+  // instead of letting router.back() no-op with a GO_BACK navigator warning.
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
 
   if (!url) {
-    return <View style={styles.container} />;
+    return (
+      <View style={[styles.container, styles.emptyState]}>
+        <StatusBar hidden={false} />
+        <ThemedText style={styles.emptyText}>No stream URL was provided.</ThemedText>
+        <Pressable style={styles.backButton} onPress={goBack}>
+          <IconSymbol name="chevron.left" color="#fff" size={20} />
+          <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
+        </Pressable>
+      </View>
+    );
   }
 
   return (
@@ -39,7 +46,8 @@ export default function PlayerScreen() {
         streamUrl={url}
         title={title}
         poster={poster}
-        onClose={() => router.back()}
+        contentId={contentId ?? null}
+        onClose={goBack}
       />
     </View>
   );
@@ -49,5 +57,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  emptyState: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    padding: 24,
+  },
+  emptyText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

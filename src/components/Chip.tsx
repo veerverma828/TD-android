@@ -1,6 +1,6 @@
-import { StyleSheet, Pressable, ViewStyle, useColorScheme } from 'react-native';
+import { StyleSheet, Pressable, ViewStyle } from 'react-native';
 import { ThemedText } from './themed-text';
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface ChipProps {
   label: string;
@@ -10,8 +10,7 @@ interface ChipProps {
 }
 
 export function Chip({ label, isActive, onPress, style }: ChipProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { colors } = useAppTheme();
 
   return (
     <Pressable

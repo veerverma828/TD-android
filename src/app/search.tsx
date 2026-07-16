@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput, ScrollView, useColorScheme, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, TextInput, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
@@ -8,17 +8,12 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Chip } from '@/components/Chip';
 import { ListItem } from '@/components/ListItem';
-import { Colors } from '@/constants/theme';
-import { searchMovies, searchSeries, MetaItem } from '@/services/cinemeta';
-
-const GENRES = [
-  'Action', 'Sci-Fi', 'Horror', 'Comedy', 
-  'Drama', 'Anime', 'Documentary', 'Thriller'
-];
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { searchMovies, searchSeries, fetchCatalog, MetaItem } from '@/services/cinemeta';
+import { GENRES } from '@/constants/genres';
 
 export default function SearchScreen() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { colors } = useAppTheme();
   const router = useRouter();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,9 +22,35 @@ export default function SearchScreen() {
   const [results, setResults] = useState<MetaItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [genreResults, setGenreResults] = useState<MetaItem[]>([]);
+  const [genreLoading, setGenreLoading] = useState(false);
+
+  useEffect(() => {
+    if (!activeGenre) {
+      setGenreResults([]);
+      return;
+    }
+    let ignore = false;
+    setGenreLoading(true);
+    Promise.all([
+      fetchCatalog('movie', 'top', activeGenre).catch(() => []),
+      fetchCatalog('series', 'top', activeGenre).catch(() => []),
+    ])
+      .then(([movies, series]) => {
+        if (ignore) return;
+        setGenreResults([...movies, ...series]);
+      })
+      .finally(() => {
+        if (!ignore) setGenreLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [activeGenre]);
+
   useEffect(() => {
     let ignore = false;
-    
+
     const delayDebounceFn = setTimeout(async () => {
       if (searchQuery.length > 2) {
         setLoading(true);
@@ -89,6 +110,16 @@ export default function SearchScreen() {
               selectionColor={colors.accent}
             />
           </View>
+          <Pressable
+            onPress={() => router.push('/discover')}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.discoverButton,
+              { backgroundColor: colors.backgroundElement, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <IconSymbol name="compass" color={colors.text} size={20} />
+          </Pressable>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -128,6 +159,25 @@ export default function SearchScreen() {
                   />
                 ))}
               </View>
+
+              {activeGenre && (
+                genreLoading ? (
+                  <ActivityIndicator color={colors.accent} style={{ marginTop: 20 }} />
+                ) : genreResults.length > 0 ? (
+                  genreResults.map((item) => (
+                    <ListItem
+                      key={`${item.type}:${item.id}`}
+                      title={item.name}
+                      subtitle={item.releaseInfo}
+                      icon="play.fill"
+                      imageUrl={item.poster}
+                      onPress={() => handleNavigateToDetails(item.id, item.type)}
+                    />
+                  ))
+                ) : (
+                  <ThemedText style={{ color: colors.textSecondary, marginTop: 16 }}>No results found.</ThemedText>
+                )
+              )}
             </View>
           )}
 
@@ -153,10 +203,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
+    gap: 10,
     marginBottom: 24,
   },
   searchInputWrapper: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -168,6 +222,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     height: '100%',
+  },
+  discoverButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: 16,

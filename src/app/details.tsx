@@ -1,4 +1,4 @@
-import { StyleSheet, View, ScrollView, Pressable, useColorScheme, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -10,17 +10,26 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
 import { EpisodeRow } from '@/components/EpisodeRow';
 import { TorrentModal } from '@/components/TorrentModal';
-import { Colors } from '@/constants/theme';
 import { fetchMeta, DetailedMetaItem, Video, fetchMovieStreams, fetchEpisodeStreams } from '@/services/cinemeta';
 import { TorrentioStream } from '@/utils/streamHelpers';
+import { useMyList } from '@/contexts/MyListContext';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { buildContentId } from '@/utils/contentId';
 
 export default function DetailsScreen() {
   const router = useRouter();
-  const { id, type } = useLocalSearchParams<{ id: string; type: string }>();
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { id, type, autoplay, autoplaySeason, autoplayEpisode } = useLocalSearchParams<{
+    id: string;
+    type: string;
+    autoplay?: string;
+    autoplaySeason?: string;
+    autoplayEpisode?: string;
+  }>();
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  
+  const { toggle: toggleMyList, isInList } = useMyList();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [meta, setMeta] = useState<DetailedMetaItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,10 +39,18 @@ export default function DetailsScreen() {
   const [streamsLoading, setStreamsLoading] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [activeTitle, setActiveTitle] = useState<string>('');
+  const [activeContentId, setActiveContentId] = useState<string>('');
+  const autoplayTriggeredRef = useRef(false);
 
   // Series state
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
-  const seasons = Array.from(new Set(meta?.videos?.map(v => v.season) || [])).sort((a, b) => a - b);
+  const [coverFailed, setCoverFailed] = useState(false);
+  const seasons = Array.from(new Set(meta?.videos?.map(v => v.season) || [])).sort((a, b) => {
+    if (a === 0) return 1;
+    if (b === 0) return -1;
+    return a - b;
+  });
   const visibleEpisodes = meta?.videos?.filter(v => v.season === selectedSeason) || [];
 
   useEffect(() => {
@@ -47,11 +64,15 @@ export default function DetailsScreen() {
   useEffect(() => {
     async function loadMeta() {
       if (!id || !type) return;
+      setMeta(null);
+      setLoading(true);
+      setCoverFailed(false);
       try {
         const data = await fetchMeta(type, id);
         setMeta(data);
         if (type === 'series' && data?.videos && data.videos.length > 0) {
-          const firstSeason = Math.min(...data.videos.map(v => v.season));
+          const nonSpecialSeasons = data.videos.map(v => v.season).filter(s => s !== 0);
+          const firstSeason = nonSpecialSeasons.length > 0 ? Math.min(...nonSpecialSeasons) : 0;
           setSelectedSeason(firstSeason);
         }
       } catch (err) {
@@ -73,6 +94,8 @@ export default function DetailsScreen() {
     setStreamError(null);
     setModalVisible(true);
     setStreamsLoading(true);
+    setActiveTitle(meta?.name || '');
+    setActiveContentId(buildContentId(type, id));
     try {
       const data = await fetchMovieStreams(id, undefined, { signal: abortControllerRef.current.signal });
       setStreams(data);
@@ -94,6 +117,9 @@ export default function DetailsScreen() {
     setStreamError(null);
     setModalVisible(true);
     setStreamsLoading(true);
+    const episodeMeta = meta?.videos?.find((v) => v.season === season && v.episode === episode);
+    setActiveTitle(episodeMeta ? `${meta?.name} — S${season}:E${episode} ${episodeMeta.title}` : meta?.name || '');
+    setActiveContentId(buildContentId(type, id, season, episode));
     try {
       const data = await fetchEpisodeStreams(id, season, episode, undefined, { signal: abortControllerRef.current.signal });
       setStreams(data);
@@ -104,6 +130,17 @@ export default function DetailsScreen() {
       setStreamsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!meta || autoplayTriggeredRef.current || autoplay !== '1') return;
+    autoplayTriggeredRef.current = true;
+    if (autoplaySeason && autoplayEpisode) {
+      handlePlayEpisode(Number(autoplaySeason), Number(autoplayEpisode));
+    } else {
+      handlePlayMovie();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta, autoplay, autoplaySeason, autoplayEpisode]);
 
   if (loading) {
     return (
@@ -124,25 +161,35 @@ export default function DetailsScreen() {
     );
   }
 
-  const backgroundImageUrl = meta.background || meta.poster || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=1200';
+  const inMyList = isInList(meta.id, meta.type);
+  const fallbackImageUrl = 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=1200';
+  const backgroundImageUrl = coverFailed
+    ? (meta.poster && meta.poster !== meta.background ? meta.poster : fallbackImageUrl)
+    : (meta.background || meta.poster || fallbackImageUrl);
 
   return (
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-        
+
         {/* Cinematic Header */}
         <View style={styles.headerContainer}>
           <Image
             source={{ uri: backgroundImageUrl }}
             style={styles.coverImage}
             contentFit="cover"
+            cachePolicy="memory-disk"
+            priority="high"
+            placeholder={DARK_IMAGE_PLACEHOLDER}
+            placeholderContentFit="cover"
+            transition={200}
+            onError={() => setCoverFailed(true)}
           />
           <LinearGradient
-            colors={['rgba(0,0,0,0.6)', 'transparent', colors.background]}
-            locations={[0, 0.4, 1]}
+            colors={['rgba(0,0,0,0.6)', 'transparent', 'rgba(0,0,0,0.3)', colors.background]}
+            locations={[0, 0.35, 0.7, 1]}
             style={styles.gradient}
           />
-          
+
           {/* Back Button */}
           <View style={[styles.backButtonContainer, { top: Math.max(insets.top, 16) }]}>
             <Pressable
@@ -152,24 +199,28 @@ export default function DetailsScreen() {
                 { backgroundColor: 'rgba(0,0,0,0.5)', opacity: pressed ? 0.7 : 1 }
               ]}
             >
-              <IconSymbol name="house.fill" color="#fff" size={24} /> 
+              <IconSymbol name="house.fill" color="#fff" size={24} />
             </Pressable>
+          </View>
+
+          {/* Title + meta overlaid on the artwork itself */}
+          <View style={styles.headerContent} pointerEvents="none">
+            <ThemedText style={styles.title} type="title">{meta.name}</ThemedText>
+
+            <View style={styles.metaRow}>
+              {meta.imdbRating && (
+                <ThemedText style={[styles.metaText, styles.metaTextShadow, { color: colors.accent }]}>IMDb {meta.imdbRating}</ThemedText>
+              )}
+              <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{meta.releaseInfo}</ThemedText>
+              {meta.runtime && (
+                <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{meta.runtime}</ThemedText>
+              )}
+            </View>
           </View>
         </View>
 
         {/* Content Body */}
         <View style={styles.contentContainer}>
-          <ThemedText style={styles.title} type="title">{meta.name}</ThemedText>
-          
-          <View style={styles.metaRow}>
-            {meta.imdbRating && (
-              <ThemedText style={[styles.metaText, { color: colors.accent }]}>IMDb {meta.imdbRating}</ThemedText>
-            )}
-            <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>{meta.releaseInfo}</ThemedText>
-            {meta.runtime && (
-              <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>{meta.runtime}</ThemedText>
-            )}
-          </View>
 
           {/* Primary Action */}
           <Pressable
@@ -201,9 +252,11 @@ export default function DetailsScreen() {
               <IconSymbol name="tv" color={colors.textSecondary} size={28} />
               <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>Streams</ThemedText>
             </Pressable>
-            <Pressable style={styles.actionItem}>
-              <IconSymbol name="plus" color={colors.textSecondary} size={28} />
-              <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>My List</ThemedText>
+            <Pressable style={styles.actionItem} onPress={() => toggleMyList(meta)}>
+              <IconSymbol name={inMyList ? 'checkmark' : 'plus'} color={colors.textSecondary} size={28} />
+              <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>
+                {inMyList ? 'In List' : 'My List'}
+              </ThemedText>
             </Pressable>
           </View>
 
@@ -234,7 +287,7 @@ export default function DetailsScreen() {
                       styles.seasonText,
                       { color: s === selectedSeason ? '#fff' : colors.text }
                     ]}>
-                      Season {s}
+                      {s === 0 ? 'Specials' : `Season ${s}`}
                     </ThemedText>
                   </Pressable>
                 ))}
@@ -248,6 +301,8 @@ export default function DetailsScreen() {
                     title={ep.title || `Episode ${ep.episode}`}
                     duration={ep.released ? new Date(ep.released).toLocaleDateString() : ''}
                     imageUrl={ep.thumbnail || meta.poster || ''}
+                    overview={ep.overview}
+                    rating={ep.rating}
                     onPress={() => handlePlayEpisode(ep.season, ep.episode)}
                   />
                 ))}
@@ -270,6 +325,10 @@ export default function DetailsScreen() {
         options={streams}
         loading={streamsLoading}
         error={streamError}
+        contentTitle={activeTitle}
+        contentPoster={meta.poster}
+        contentBackdrop={meta.background}
+        contentId={activeContentId}
       />
     </ThemedView>
   );
@@ -285,6 +344,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   coverImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
     width: '100%',
     height: '100%',
   },
@@ -303,27 +365,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerContent: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+  },
   contentContainer: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 40,
-    marginTop: -80, // overlap with gradient
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
     marginBottom: 12,
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 24,
   },
   metaText: {
     fontSize: 14,
     fontWeight: '500',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  metaTextShadow: {
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   badge: {
     paddingHorizontal: 6,
