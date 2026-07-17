@@ -8,14 +8,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
-import { EpisodeRow } from '@/components/EpisodeRow';
 import { TorrentModal } from '@/components/TorrentModal';
-import { fetchMeta, DetailedMetaItem, Video, fetchMovieStreams, fetchEpisodeStreams } from '@/services/cinemeta';
+import { fetchMeta, DetailedMetaItem, fetchMovieStreams, fetchEpisodeStreams } from '@/services/cinemeta';
 import { TorrentioStream } from '@/utils/streamHelpers';
+import { getActiveDebridProvider, getDebridKey, checkCachedHashes } from '@/services/debridService';
 import { useMyList } from '@/contexts/MyListContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 import { buildContentId } from '@/utils/contentId';
+import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { EPISODE_SELECTORS } from '@/components/episodes';
 
 export default function DetailsScreen() {
   const router = useRouter();
@@ -29,8 +33,17 @@ export default function DetailsScreen() {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { toggle: toggleMyList, isInList } = useMyList();
+  const { episodeLayout } = useSettings();
 
   const [modalVisible, setModalVisible] = useState(false);
+
+  useScreenBackHandler(() => {
+    if (modalVisible) {
+      setModalVisible(false);
+      return true;
+    }
+    router.back();
+  });
   const [meta, setMeta] = useState<DetailedMetaItem | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -38,6 +51,7 @@ export default function DetailsScreen() {
   const [streams, setStreams] = useState<TorrentioStream[]>([]);
   const [streamsLoading, setStreamsLoading] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [cachedHashes, setCachedHashes] = useState<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
   const [activeTitle, setActiveTitle] = useState<string>('');
   const [activeContentId, setActiveContentId] = useState<string>('');
@@ -84,6 +98,19 @@ export default function DetailsScreen() {
     loadMeta();
   }, [id, type]);
 
+  // Resolves the debrid cache badges for a freshly-fetched stream list before
+  // it's committed to state, so the fire icons land in the same render as the
+  // list itself instead of popping in a beat later.
+  const resolveCachedHashes = async (data: TorrentioStream[]): Promise<Set<string>> => {
+    const hashes = data.map((s) => s.infoHash).filter((h): h is string => !!h);
+    if (hashes.length === 0) return new Set();
+    const provider = await getActiveDebridProvider();
+    if (!provider) return new Set();
+    const apiKey = await getDebridKey(provider);
+    if (!apiKey) return new Set();
+    return checkCachedHashes(hashes, provider, apiKey);
+  };
+
   const handlePlayMovie = async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -92,12 +119,15 @@ export default function DetailsScreen() {
 
     setStreams([]);
     setStreamError(null);
+    setCachedHashes(new Set());
     setModalVisible(true);
     setStreamsLoading(true);
     setActiveTitle(meta?.name || '');
     setActiveContentId(buildContentId(type, id));
     try {
       const data = await fetchMovieStreams(id, undefined, { signal: abortControllerRef.current.signal });
+      const cached = await resolveCachedHashes(data);
+      setCachedHashes(cached);
       setStreams(data);
       setStreamsLoading(false);
     } catch (err: any) {
@@ -115,6 +145,7 @@ export default function DetailsScreen() {
 
     setStreams([]);
     setStreamError(null);
+    setCachedHashes(new Set());
     setModalVisible(true);
     setStreamsLoading(true);
     const episodeMeta = meta?.videos?.find((v) => v.season === season && v.episode === episode);
@@ -122,6 +153,8 @@ export default function DetailsScreen() {
     setActiveContentId(buildContentId(type, id, season, episode));
     try {
       const data = await fetchEpisodeStreams(id, season, episode, undefined, { signal: abortControllerRef.current.signal });
+      const cached = await resolveCachedHashes(data);
+      setCachedHashes(cached);
       setStreams(data);
       setStreamsLoading(false);
     } catch (err: any) {
@@ -192,15 +225,18 @@ export default function DetailsScreen() {
 
           {/* Back Button */}
           <View style={[styles.backButtonContainer, { top: Math.max(insets.top, 16) }]}>
-            <Pressable
+            <FocusablePressable
               onPress={() => router.back()}
+              focusRingBorderRadius={20}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
               style={({ pressed }) => [
                 styles.iconButton,
                 { backgroundColor: 'rgba(0,0,0,0.5)', opacity: pressed ? 0.7 : 1 }
               ]}
             >
               <IconSymbol name="house.fill" color="#fff" size={24} />
-            </Pressable>
+            </FocusablePressable>
           </View>
 
           {/* Title + meta overlaid on the artwork itself */}
@@ -223,11 +259,15 @@ export default function DetailsScreen() {
         <View style={styles.contentContainer}>
 
           {/* Primary Action */}
-          <Pressable
+          <FocusablePressable
             style={({ pressed }) => [
               styles.playButton,
               { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }
             ]}
+            hasTVPreferredFocus
+            focusRingBorderRadius={6}
+            accessibilityRole="button"
+            accessibilityLabel="Play"
             onPress={() => {
               if (type === 'series' && meta.videos?.length) {
                 // Play first episode of selected season
@@ -238,26 +278,26 @@ export default function DetailsScreen() {
               }
             }}
           >
-            <IconSymbol name="play.fill" color="#fff" size={20} />
-            <ThemedText style={styles.playButtonText}>
-              {type === 'series' && meta.videos?.length 
+            <IconSymbol name="play.fill" color={colors.textOnAccent} size={20} />
+            <ThemedText style={[styles.playButtonText, { color: colors.textOnAccent }]}>
+              {type === 'series' && meta.videos?.length
                 ? (visibleEpisodes[0] ? `Play S${visibleEpisodes[0].season}:E${visibleEpisodes[0].episode}` : 'Play')
                 : 'Play'}
             </ThemedText>
-          </Pressable>
+          </FocusablePressable>
 
           {/* Secondary Actions */}
           <View style={styles.actionsRow}>
-            <Pressable style={styles.actionItem} onPress={() => setModalVisible(true)}>
+            <FocusablePressable style={styles.actionItem} onPress={() => setModalVisible(true)} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Streams">
               <IconSymbol name="tv" color={colors.textSecondary} size={28} />
               <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>Streams</ThemedText>
-            </Pressable>
-            <Pressable style={styles.actionItem} onPress={() => toggleMyList(meta)}>
+            </FocusablePressable>
+            <FocusablePressable style={styles.actionItem} onPress={() => toggleMyList(meta)} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
               <IconSymbol name={inMyList ? 'checkmark' : 'plus'} color={colors.textSecondary} size={28} />
               <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>
                 {inMyList ? 'In List' : 'My List'}
               </ThemedText>
-            </Pressable>
+            </FocusablePressable>
           </View>
 
           {/* Synopsis */}
@@ -265,50 +305,22 @@ export default function DetailsScreen() {
             {meta.description || 'No description available.'}
           </ThemedText>
 
-          {type === 'series' && meta.videos && meta.videos.length > 0 && (
-            <View style={styles.episodesSection}>
-              <ThemedText style={styles.sectionTitle}>Seasons</ThemedText>
-              
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.seasonScroll}
-              >
-                {seasons.map((s) => (
-                  <Pressable
-                    key={s}
-                    style={[
-                      styles.seasonPill,
-                      { backgroundColor: s === selectedSeason ? colors.accent : colors.backgroundElement }
-                    ]}
-                    onPress={() => setSelectedSeason(s)}
-                  >
-                    <ThemedText style={[
-                      styles.seasonText,
-                      { color: s === selectedSeason ? '#fff' : colors.text }
-                    ]}>
-                      {s === 0 ? 'Specials' : `Season ${s}`}
-                    </ThemedText>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              <View style={{ marginTop: 16 }}>
-                {visibleEpisodes.map((ep: Video) => (
-                  <EpisodeRow
-                    key={ep.id}
-                    episodeNumber={ep.episode}
-                    title={ep.title || `Episode ${ep.episode}`}
-                    duration={ep.released ? new Date(ep.released).toLocaleDateString() : ''}
-                    imageUrl={ep.thumbnail || meta.poster || ''}
-                    overview={ep.overview}
-                    rating={ep.rating}
-                    onPress={() => handlePlayEpisode(ep.season, ep.episode)}
-                  />
-                ))}
+          {type === 'series' && meta.videos && meta.videos.length > 0 && (() => {
+            const EpisodeSelector = EPISODE_SELECTORS[episodeLayout];
+            return (
+              <View style={styles.episodesSection}>
+                <ThemedText style={styles.sectionTitle}>Seasons</ThemedText>
+                <EpisodeSelector
+                  seasons={seasons}
+                  selectedSeason={selectedSeason}
+                  onSelectSeason={setSelectedSeason}
+                  allVideos={meta.videos}
+                  posterFallback={meta.poster}
+                  onPlayEpisode={handlePlayEpisode}
+                />
               </View>
-            </View>
-          )}
+            );
+          })()}
 
         </View>
       </ScrollView>
@@ -323,6 +335,7 @@ export default function DetailsScreen() {
           setModalVisible(false);
         }}
         options={streams}
+        cachedHashes={cachedHashes}
         loading={streamsLoading}
         error={streamError}
         contentTitle={activeTitle}
@@ -449,18 +462,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
-  },
-  seasonScroll: {
-    gap: 8,
-    paddingBottom: 4,
-  },
-  seasonPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  seasonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
 });

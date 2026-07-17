@@ -1,7 +1,9 @@
+import { useRef } from 'react';
 import { FlatList, StyleSheet, View, Pressable } from 'react-native';
 import { ThemedText } from './themed-text';
 import { PosterCard } from './PosterCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useIsTV } from '@/contexts/DeviceModeContext';
 
 const CARD_WIDTH = 132; // PosterCard width (120) + marginRight (12)
 
@@ -25,6 +27,8 @@ interface CarouselProps {
 
 export function Carousel({ title, data, onPressItem, onLongPressItem, onPressSeeAll, getProgressColor }: CarouselProps) {
   const { colors } = useAppTheme();
+  const isTV = useIsTV();
+  const listRef = useRef<FlatList<CarouselItem>>(null);
 
   return (
     <View style={styles.container}>
@@ -39,6 +43,7 @@ export function Carousel({ title, data, onPressItem, onLongPressItem, onPressSee
         )}
       </View>
       <FlatList
+        ref={listRef}
         data={data}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -51,7 +56,7 @@ export function Carousel({ title, data, onPressItem, onLongPressItem, onPressSee
         windowSize={5}
         removeClippedSubviews
         getItemLayout={(_, index) => ({ length: CARD_WIDTH, offset: CARD_WIDTH * index, index })}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <PosterCard
             title={item.title}
             subtitle={item.subtitle}
@@ -61,6 +66,7 @@ export function Carousel({ title, data, onPressItem, onLongPressItem, onPressSee
             rating={item.rating}
             onPress={() => onPressItem?.(item)}
             onLongPress={() => onLongPressItem?.(item)}
+            onFocus={isTV ? () => listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true }) : undefined}
           />
         )}
       />

@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import Animated, {
   Easing,
@@ -57,6 +57,17 @@ export default function PreplayScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const { settings, loaded } = usePlayerSettings();
+  const navigation = useNavigation();
+  const [isFocused, setIsFocused] = useState(navigation.isFocused());
+
+  useEffect(() => {
+    const unsubFocus = navigation.addListener('focus', () => setIsFocused(true));
+    const unsubBlur = navigation.addListener('blur', () => setIsFocused(false));
+    return () => {
+      unsubFocus();
+      unsubBlur();
+    };
+  }, [navigation]);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
@@ -65,11 +76,11 @@ export default function PreplayScreen() {
   useEffect(() => {
     if (!loaded) return;
     const timer = setTimeout(() => {
-      router.replace({ pathname: '/player', params });
+      if (isFocused) router.replace({ pathname: '/player', params });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, HOLD_MS);
     return () => clearTimeout(timer);
-  }, [loaded]);
+  }, [loaded, isFocused]);
 
   const artwork = params.backdrop || params.poster;
   const title = params.title || 'Preparing playback';

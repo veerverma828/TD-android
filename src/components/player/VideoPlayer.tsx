@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Video, {
   SelectedTrackType,
   VideoRef,
@@ -13,6 +13,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePlayerSettings } from '@/contexts/PlayerSettingsContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useTrakt } from '@/contexts/TraktContext';
+import { useIsTV } from '@/contexts/DeviceModeContext';
 import { getEffectiveSource } from '@/utils/continueWatchingSource';
 import { getTraktProgressPct } from '@/services/traktService';
 import { usePlaybackState } from '@/hooks/player/usePlaybackState';
@@ -38,6 +39,7 @@ import { LockOverlay } from './LockOverlay';
 import { SubtitleOverlay } from './SubtitleOverlay';
 import { TrackSelectionModal, SelectableTrack } from './TrackSelectionModal';
 import { SubtitleSourceSheet } from './SubtitleSourceSheet';
+import { SubtitleAppearanceSheet } from './SubtitleAppearanceSheet';
 import { SettingsSheet } from './SettingsSheet';
 
 interface VideoPlayerProps {
@@ -50,6 +52,7 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlayerProps) {
   const { colors } = useAppTheme();
+  const isTV = useIsTV();
   const { settings, updateSettings } = usePlayerSettings();
   const { continueWatchingSource } = useSettings();
   const { connected: traktConnected } = useTrakt();
@@ -70,8 +73,10 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
   useKeepAwake(settings.keepScreenAwake);
   const pip = usePictureInPicture(videoRef);
 
-  const brightnessGesture = useBrightnessGesture(settings.gesturesEnabled && settings.brightnessGestureEnabled);
-  const volumeGesture = useVolumeGesture(settings.gesturesEnabled && settings.volumeGestureEnabled);
+  // TV has no touchscreen: keep these hooks fully inert there so they don't
+  // request brightness permissions or suppress the remote's native volume OSD.
+  const brightnessGesture = useBrightnessGesture(!isTV && settings.gesturesEnabled && settings.brightnessGestureEnabled);
+  const volumeGesture = useVolumeGesture(!isTV && settings.gesturesEnabled && settings.volumeGestureEnabled);
 
   const [audioTracks, setAudioTracks] = useState<SelectableTrack[]>([]);
   const [textTracks, setTextTracks] = useState<SelectableTrack[]>([]);
@@ -84,6 +89,7 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
   const [showAudioModal, setShowAudioModal] = useState(false);
   const [showTextModal, setShowTextModal] = useState(false);
   const [showSubtitleSource, setShowSubtitleSource] = useState(false);
+  const [showSubtitleAppearance, setShowSubtitleAppearance] = useState(false);
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
 
   const hasResumePrompt = resolved && resumeFrom != null && !resumeDialogDismissed && !settings.resumeAutomatically;
@@ -166,6 +172,7 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
   }, [playback.handlers, clearPosition, scrobble, settings.autoPlayNextEpisode, nextEpisode]);
 
   const handleAudioTracks = useCallback((e: OnAudioTracksData) => {
+    if (__DEV__) console.log('[VideoPlayer] onAudioTracks count:', e.audioTracks.length, JSON.stringify(e.audioTracks));
     setAudioTracks(e.audioTracks);
     const active = e.audioTracks.find((t) => t.selected);
     if (active) {
@@ -257,23 +264,41 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
         <ErrorOverlay message={playback.error} accentColor={colors.accent} onRetry={playback.retry} onBack={onClose} />
       ) : (
         <>
-          <GestureLayer
-            accentColor={colors.accent}
-            brightnessEnabled={settings.gesturesEnabled && settings.brightnessGestureEnabled && !controlsLocked}
-            volumeEnabled={settings.gesturesEnabled && settings.volumeGestureEnabled && !controlsLocked}
-            horizontalSeekEnabled={settings.gesturesEnabled && settings.horizontalSeekGestureEnabled && !controlsLocked}
-            doubleTapEnabled={settings.gesturesEnabled && settings.doubleTapSeekEnabled && !controlsLocked}
-            sensitivity={settings.gestureSensitivity}
-            seekDurationSeconds={settings.seekDurationSeconds}
-            duration={playback.duration}
-            brightness={brightnessGesture.brightness}
-            onBrightnessChange={brightnessGesture.setBrightness}
-            volume={volumeGesture.volume}
-            onVolumeChange={volumeGesture.setVolume}
-            onSeekCommit={skipBy}
-            onDoubleTapSeek={skipBy}
-            onSingleTap={controlsLocked ? () => {} : controls.toggle}
-          />
+          {/* No touchscreen on TV hardware — brightness/volume swipe and double-tap
+              seek have no D-pad equivalent, so this whole gesture layer is mobile-only. */}
+          {!isTV && (
+            <GestureLayer
+              accentColor={colors.accent}
+              brightnessEnabled={settings.gesturesEnabled && settings.brightnessGestureEnabled && !controlsLocked}
+              volumeEnabled={settings.gesturesEnabled && settings.volumeGestureEnabled && !controlsLocked}
+              horizontalSeekEnabled={settings.gesturesEnabled && settings.horizontalSeekGestureEnabled && !controlsLocked}
+              doubleTapEnabled={settings.gesturesEnabled && settings.doubleTapSeekEnabled && !controlsLocked}
+              sensitivity={settings.gestureSensitivity}
+              seekDurationSeconds={settings.seekDurationSeconds}
+              duration={playback.duration}
+              brightness={brightnessGesture.brightness}
+              onBrightnessChange={brightnessGesture.setBrightness}
+              volume={volumeGesture.volume}
+              onVolumeChange={volumeGesture.setVolume}
+              onSeekCommit={skipBy}
+              onDoubleTapSeek={skipBy}
+              onSingleTap={controlsLocked ? () => {} : controls.toggle}
+            />
+          )}
+
+          {/* With GestureLayer gone and PlayerControls unmounted after auto-hide,
+              a TV remote would have nothing focusable left — this invisible
+              full-screen catcher takes focus and re-opens the controls on select. */}
+          {isTV && !controlsLocked && !controls.visible && (
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              focusable
+              hasTVPreferredFocus
+              accessibilityRole="button"
+              accessibilityLabel="Show playback controls"
+              onPress={controls.show}
+            />
+          )}
 
           {controlsLocked ? (
             <LockOverlay onUnlock={() => setControlsLocked(false)} />
@@ -296,6 +321,7 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
                 onShowSettings={() => setShowSettingsSheet(true)}
                 onEnterPiP={pip.enterPiP}
                 onLock={() => setControlsLocked(true)}
+                onActivity={isTV ? controls.show : undefined}
               />
             )
           )}
@@ -343,13 +369,22 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
           setShowTextModal(false);
         }}
         onClose={() => setShowTextModal(false)}
-        extraOption={{
-          label: externalSubtitleUrl ? 'Change subtitle file…' : 'Load subtitle file…',
-          onPress: () => {
-            setShowTextModal(false);
-            setShowSubtitleSource(true);
+        extraOptions={[
+          {
+            label: externalSubtitleUrl ? 'Change subtitle file…' : 'Load subtitle file…',
+            onPress: () => {
+              setShowTextModal(false);
+              setShowSubtitleSource(true);
+            },
           },
-        }}
+          {
+            label: 'Appearance…',
+            onPress: () => {
+              setShowTextModal(false);
+              setShowSubtitleAppearance(true);
+            },
+          },
+        ]}
       />
 
       <SubtitleSourceSheet
@@ -361,6 +396,13 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
         }}
       />
 
+      <SubtitleAppearanceSheet
+        visible={showSubtitleAppearance}
+        onClose={() => setShowSubtitleAppearance(false)}
+        appearance={settings.subtitleAppearance}
+        onChange={(subtitleAppearance) => updateSettings({ subtitleAppearance })}
+      />
+
       <SettingsSheet
         visible={showSettingsSheet}
         onClose={() => setShowSettingsSheet(false)}
@@ -369,8 +411,8 @@ export function VideoPlayer({ streamUrl, title, contentId, onClose }: VideoPlaye
           playback.setPlaybackRate(speed);
           updateSettings({ defaultSpeed: speed });
         }}
-        resizeMode={settings.resizeMode}
-        onResizeModeChange={(mode) => updateSettings({ resizeMode: mode })}
+        settings={settings}
+        updateSettings={updateSettings}
       />
     </GestureHandlerRootView>
   );

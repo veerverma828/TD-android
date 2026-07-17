@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +9,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { padToColumns } from '@/utils/gridHelpers';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 type MediaType = 'movie' | 'series';
 
@@ -43,12 +44,26 @@ export function DiscoverRailSwitch() {
             { backgroundColor: colors.accent, left: type === 'movie' ? 3 : '50%' },
           ]}
         />
-        <Pressable style={styles.switchOption} onPress={() => setType('movie')}>
-          <ThemedText style={[styles.switchText, { color: type === 'movie' ? '#fff' : colors.textSecondary }]}>Movies</ThemedText>
-        </Pressable>
-        <Pressable style={styles.switchOption} onPress={() => setType('series')}>
-          <ThemedText style={[styles.switchText, { color: type === 'series' ? '#fff' : colors.textSecondary }]}>Series</ThemedText>
-        </Pressable>
+        <FocusablePressable
+          style={styles.switchOption}
+          onPress={() => setType('movie')}
+          focusRingBorderRadius={18}
+          accessibilityRole="button"
+          accessibilityState={{ selected: type === 'movie' }}
+          accessibilityLabel="Movies"
+        >
+          <ThemedText style={[styles.switchText, { color: type === 'movie' ? colors.textOnAccent : colors.textSecondary }]}>Movies</ThemedText>
+        </FocusablePressable>
+        <FocusablePressable
+          style={styles.switchOption}
+          onPress={() => setType('series')}
+          focusRingBorderRadius={18}
+          accessibilityRole="button"
+          accessibilityState={{ selected: type === 'series' }}
+          accessibilityLabel="Series"
+        >
+          <ThemedText style={[styles.switchText, { color: type === 'series' ? colors.textOnAccent : colors.textSecondary }]}>Series</ThemedText>
+        </FocusablePressable>
       </View>
 
       <FlatList
@@ -69,15 +84,19 @@ export function DiscoverRailSwitch() {
           const isAll = g.id === '__all__';
           const isOn = isAll ? activeGenre === null : activeGenre === g.id;
           return (
-            <Pressable
+            <FocusablePressable
               style={[
                 styles.chip,
                 { borderColor: colors.backgroundSelected, backgroundColor: isOn ? colors.accent : 'transparent' },
               ]}
               onPress={() => setActiveGenre(isAll ? null : g.id)}
+              focusRingBorderRadius={16}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isOn }}
+              accessibilityLabel={g.name}
             >
-              <ThemedText style={{ color: isOn ? '#fff' : colors.text, fontWeight: '600', fontSize: 12 }}>{g.name}</ThemedText>
-            </Pressable>
+              <ThemedText style={{ color: isOn ? colors.textOnAccent : colors.text, fontWeight: '600', fontSize: 12 }}>{g.name}</ThemedText>
+            </FocusablePressable>
           );
         }}
       />

@@ -12,11 +12,16 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { useSettings } from '@/contexts/SettingsContext';
 import { padToColumns } from '@/utils/gridHelpers';
+import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 export default function SeeAllScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const { showRating } = useSettings();
+
+  useScreenBackHandler(() => {
+    router.back();
+  });
 
   const { type, category, title, genre } = useLocalSearchParams<{ type: string; category: string; title: string; genre?: string }>();
 

@@ -8,6 +8,7 @@ import { ChipPicker } from '@/components/settings/ChipPicker';
 import { settingsStyles } from '@/components/settings/settingsStyles';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePlayerSettings } from '@/contexts/PlayerSettingsContext';
+import { useDeviceMode } from '@/contexts/DeviceModeContext';
 
 const SENSITIVITY_OPTIONS = [
   { value: 0.5, label: 'Low' },
@@ -18,6 +19,22 @@ const SENSITIVITY_OPTIONS = [
 export default function GesturesSettingsScreen() {
   const { colors } = useAppTheme();
   const { settings: playerSettings, updateSettings: updatePlayerSettings } = usePlayerSettings();
+  const { effectiveMode } = useDeviceMode();
+
+  if (effectiveMode === 'tv') {
+    return (
+      <ThemedView style={settingsStyles.container}>
+        <SafeAreaView edges={['top']} style={settingsStyles.safeArea}>
+          <SettingsSubHeader title="Gestures" />
+          <View style={{ padding: 16 }}>
+            <ThemedText style={{ color: colors.textSecondary }}>
+              Gesture controls apply to touchscreens and aren&apos;t used in TV Mode. Playback is controlled entirely with the remote — see Playback settings for seek step and speed options.
+            </ThemedText>
+          </View>
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={settingsStyles.container}>

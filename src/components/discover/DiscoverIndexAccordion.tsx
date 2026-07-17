@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
@@ -8,6 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 type MediaType = 'movie' | 'series';
 
@@ -58,16 +59,16 @@ export function DiscoverIndexAccordion() {
       <View style={styles.header}>
         <ThemedText type="title" style={styles.title}>Discover</ThemedText>
         <View style={styles.toggle}>
-          <Pressable onPress={() => changeType('movie')}>
+          <FocusablePressable onPress={() => changeType('movie')} focusRingBorderRadius={4} accessibilityRole="button" accessibilityState={{ selected: type === 'movie' }} accessibilityLabel="Movies">
             <ThemedText style={[styles.toggleText, { color: type === 'movie' ? colors.text : colors.textSecondary, borderBottomColor: type === 'movie' ? colors.accent : 'transparent' }]}>
               Movies
             </ThemedText>
-          </Pressable>
-          <Pressable onPress={() => changeType('series')}>
+          </FocusablePressable>
+          <FocusablePressable onPress={() => changeType('series')} focusRingBorderRadius={4} accessibilityRole="button" accessibilityState={{ selected: type === 'series' }} accessibilityLabel="Series">
             <ThemedText style={[styles.toggleText, { color: type === 'series' ? colors.text : colors.textSecondary, borderBottomColor: type === 'series' ? colors.accent : 'transparent' }]}>
               Series
             </ThemedText>
-          </Pressable>
+          </FocusablePressable>
         </View>
       </View>
 
@@ -78,13 +79,13 @@ export function DiscoverIndexAccordion() {
           const items = preview[cacheKey];
           return (
             <View key={genre} style={[styles.row, { borderColor: colors.backgroundSelected }]}>
-              <Pressable style={styles.rowHead} onPress={() => toggleGenre(genre)}>
+              <FocusablePressable style={styles.rowHead} onPress={() => toggleGenre(genre)} focusRingBorderRadius={4} accessibilityRole="button" accessibilityState={{ expanded: isOpen }} accessibilityLabel={genre}>
                 <ThemedText style={[styles.num, { color: isOpen ? colors.accent : colors.textSecondary }]}>
                   {String(i + 1).padStart(2, '0')}
                 </ThemedText>
                 <ThemedText style={[styles.name, { color: isOpen ? colors.text : colors.textSecondary }]}>{genre}</ThemedText>
                 <ThemedText style={{ color: colors.accent, fontSize: 12 }}>{isOpen ? '︿' : '﹀'}</ThemedText>
-              </Pressable>
+              </FocusablePressable>
 
               {isOpen && (
                 <View style={styles.previewWrap}>
@@ -93,10 +94,13 @@ export function DiscoverIndexAccordion() {
                   ) : (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                       {(items || []).map((item) => (
-                        <Pressable
+                        <FocusablePressable
                           key={item.id}
                           onPress={() => router.push({ pathname: '/details', params: { id: item.id, type: item.type } })}
                           style={{ width: 78 }}
+                          focusRingBorderRadius={4}
+                          accessibilityRole="button"
+                          accessibilityLabel={item.name}
                         >
                           <Image
                             source={{ uri: item.poster || '' }}
@@ -107,11 +111,11 @@ export function DiscoverIndexAccordion() {
                             placeholder={DARK_IMAGE_PLACEHOLDER}
                             placeholderContentFit="cover"
                           />
-                        </Pressable>
+                        </FocusablePressable>
                       ))}
-                      <Pressable onPress={() => goToGenre(genre)} style={styles.seeAll}>
+                      <FocusablePressable onPress={() => goToGenre(genre)} style={styles.seeAll} focusRingBorderRadius={4} accessibilityRole="button" accessibilityLabel={`See all ${genre}`}>
                         <ThemedText style={{ color: colors.accent, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>See{'\n'}all ›</ThemedText>
-                      </Pressable>
+                      </FocusablePressable>
                     </ScrollView>
                   )}
                 </View>

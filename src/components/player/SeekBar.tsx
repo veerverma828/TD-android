@@ -9,6 +9,13 @@ import Animated, {
 
 import { ThemedText } from '@/components/themed-text';
 import { formatTime } from '@/utils/timeFormat';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+
+// Stock react-native (not the tvos fork) has no global TV remote key-event API,
+// so D-pad seeking uses discrete focusable steps — Left/Right move focus between
+// them via the native focus engine, and each step's onFocus commits a seek.
+const TV_SEEK_STEPS = 20;
 
 interface SeekBarProps {
   currentTime: number;
@@ -16,9 +23,11 @@ interface SeekBarProps {
   accentColor: string;
   onSeekStart?: () => void;
   onSeekEnd: (time: number) => void;
+  onActivity?: () => void;
 }
 
-export function SeekBar({ currentTime, duration, accentColor, onSeekStart, onSeekEnd }: SeekBarProps) {
+export function SeekBar({ currentTime, duration, accentColor, onSeekStart, onSeekEnd, onActivity }: SeekBarProps) {
+  const isTV = useIsTV();
   const [trackWidth, setTrackWidth] = useState(0);
   const [dragTime, setDragTime] = useState<number | null>(null);
   const dragX = useSharedValue(0);
@@ -79,6 +88,40 @@ export function SeekBar({ currentTime, duration, accentColor, onSeekStart, onSee
   const thumbStyle = useAnimatedStyle(() => ({
     left: `${progress * 100}%`,
   }));
+
+  if (isTV) {
+    return (
+      <View style={styles.container}>
+        <ThemedText style={styles.time}>{formatTime(displayTime)}</ThemedText>
+        <View style={styles.hitSlop}>
+          <View style={styles.track}>
+            <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: accentColor }]} />
+            <View style={[styles.thumb, { backgroundColor: accentColor, left: `${progress * 100}%` }]} />
+          </View>
+          {/* Focus (D-pad left/right) only previews a position and keeps the
+              controls awake; the seek itself commits on select — otherwise just
+              traversing into this row would scrub playback accidentally. */}
+          <View style={styles.tvStepRow} pointerEvents="box-none">
+            {Array.from({ length: TV_SEEK_STEPS }, (_, i) => (
+              <FocusablePressable
+                key={i}
+                style={styles.tvStep}
+                focusRingBorderRadius={4}
+                accessibilityRole="adjustable"
+                accessibilityLabel={`Seek to ${formatTime((i / (TV_SEEK_STEPS - 1)) * duration)}`}
+                onFocus={() => onActivity?.()}
+                onPress={() => {
+                  onActivity?.();
+                  if (duration > 0) onSeekEnd((i / (TV_SEEK_STEPS - 1)) * duration);
+                }}
+              />
+            ))}
+          </View>
+        </View>
+        <ThemedText style={styles.time}>{formatTime(duration)}</ThemedText>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -141,5 +184,16 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     marginLeft: -7,
     top: -5,
+  },
+  tvStepRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -14,
+    bottom: -14,
+    flexDirection: 'row',
+  },
+  tvStep: {
+    flex: 1,
   },
 });

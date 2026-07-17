@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useTVBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 export interface SelectableTrack {
   index: number;
@@ -21,7 +23,7 @@ interface TrackSelectionModalProps {
   activeIndex: number | null;
   onSelect: (index: number) => void;
   onClose: () => void;
-  extraOption?: { label: string; onPress: () => void };
+  extraOptions?: { label: string; onPress: () => void }[];
 }
 
 export function TrackSelectionModal({
@@ -32,10 +34,15 @@ export function TrackSelectionModal({
   activeIndex,
   onSelect,
   onClose,
-  extraOption,
+  extraOptions,
 }: TrackSelectionModalProps) {
   const scheme = useColorScheme();
   const { colors } = useAppTheme();
+
+  useTVBackHandler(() => {
+    if (!visible) return false;
+    onClose();
+  }, visible);
 
   if (!visible) return null;
 
@@ -50,20 +57,24 @@ export function TrackSelectionModal({
           <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
             <View style={styles.header}>
               <ThemedText style={styles.title}>{heading}</ThemedText>
-              <Pressable onPress={onClose} style={styles.closeButton}>
+              <FocusablePressable onPress={onClose} style={styles.closeButton} focusRingBorderRadius={16} accessibilityRole="button" accessibilityLabel="Close">
                 <IconSymbol name="xmark.circle.fill" size={26} color={colors.textSecondary} />
-              </Pressable>
+              </FocusablePressable>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-              {extraOption && (
-                <Pressable
+              {extraOptions?.map((option) => (
+                <FocusablePressable
+                  key={option.label}
                   style={[styles.row, { backgroundColor: colors.backgroundElement }]}
-                  onPress={extraOption.onPress}
+                  onPress={option.onPress}
+                  focusRingBorderRadius={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
                 >
-                  <ThemedText style={styles.rowText}>{extraOption.label}</ThemedText>
-                </Pressable>
-              )}
+                  <ThemedText style={styles.rowText}>{option.label}</ThemedText>
+                </FocusablePressable>
+              ))}
 
               {tracks.length === 0 ? (
                 <ThemedText style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 12 }}>
@@ -72,17 +83,20 @@ export function TrackSelectionModal({
               ) : (
                 tracks.map((track) => {
                   const isSelected = activeIndex === track.index;
+                  const label = track.title || track.language || `Track ${track.index + 1}`;
                   return (
-                    <Pressable
+                    <FocusablePressable
                       key={track.index}
                       style={[styles.row, { backgroundColor: colors.backgroundElement }]}
                       onPress={() => onSelect(track.index)}
+                      focusRingBorderRadius={10}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={label}
                     >
-                      <ThemedText style={styles.rowText}>
-                        {track.title || track.language || `Track ${track.index + 1}`}
-                      </ThemedText>
+                      <ThemedText style={styles.rowText}>{label}</ThemedText>
                       {isSelected && <IconSymbol name="checkmark" size={18} color={colors.accent} />}
-                    </Pressable>
+                    </FocusablePressable>
                   );
                 })
               )}

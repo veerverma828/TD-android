@@ -1,10 +1,11 @@
 import { memo } from 'react';
-import { StyleSheet, View, Pressable } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { FocusablePressable } from './tv/FocusablePressable';
 
 interface EpisodeRowProps {
   episodeNumber: number;
@@ -20,8 +21,11 @@ export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, durat
   const { colors } = useAppTheme();
 
   return (
-    <Pressable
+    <FocusablePressable
       onPress={onPress}
+      focusRingBorderRadius={8}
+      accessibilityRole="button"
+      accessibilityLabel={`Episode ${episodeNumber}. ${title}`}
       style={({ pressed }) => [
         styles.container,
         { backgroundColor: pressed ? colors.backgroundElement : 'transparent' },
@@ -62,11 +66,7 @@ export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, durat
           </ThemedText>
         ) : null}
       </View>
-      
-      <View style={styles.downloadIcon}>
-        <IconSymbol name="arrow.down.circle.fill" color={colors.textSecondary} size={24} />
-      </View>
-    </Pressable>
+    </FocusablePressable>
   );
 });
 
@@ -127,9 +127,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     lineHeight: 16,
-  },
-  downloadIcon: {
-    marginLeft: 12,
-    padding: 4,
   },
 });

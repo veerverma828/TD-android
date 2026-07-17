@@ -56,6 +56,7 @@ const MAPPING = {
   'forward.end.fill': 'skip-next',
   'backward.end.fill': 'skip-previous',
   'hand.tap': 'touch-app',
+  'flame.fill': 'local-fire-department',
 };
 
 export type IconSymbolName = keyof typeof MAPPING;

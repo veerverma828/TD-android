@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { IconSymbol } from '@/components/IconSymbol';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 interface LockOverlayProps {
   onUnlock: () => void;
@@ -8,9 +9,17 @@ interface LockOverlayProps {
 
 export function LockOverlay({ onUnlock }: LockOverlayProps) {
   return (
-    <Pressable style={styles.container} onPress={onUnlock} hitSlop={20}>
+    <FocusablePressable
+      style={styles.container}
+      onPress={onUnlock}
+      hitSlop={20}
+      hasTVPreferredFocus
+      focusRingBorderRadius={22}
+      accessibilityRole="button"
+      accessibilityLabel="Unlock controls"
+    >
       <IconSymbol name="lock.fill" size={22} color="#fff" />
-    </Pressable>
+    </FocusablePressable>
   );
 }
 

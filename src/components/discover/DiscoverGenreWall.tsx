@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, View, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { fetchCatalog } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 type MediaType = 'movie' | 'series';
 
@@ -52,18 +53,26 @@ export function DiscoverGenreWall() {
       <View style={styles.header}>
         <ThemedText type="title" style={styles.title}>Discover</ThemedText>
         <View style={[styles.toggle, { backgroundColor: colors.backgroundElement }]}>
-          <Pressable
+          <FocusablePressable
             style={[styles.toggleBtn, type === 'movie' && { backgroundColor: colors.accent }]}
             onPress={() => setType('movie')}
+            focusRingBorderRadius={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected: type === 'movie' }}
+            accessibilityLabel="Movies"
           >
-            <ThemedText style={{ fontSize: 11, fontWeight: '800', color: type === 'movie' ? '#fff' : colors.textSecondary }}>M</ThemedText>
-          </Pressable>
-          <Pressable
+            <ThemedText style={{ fontSize: 11, fontWeight: '800', color: type === 'movie' ? colors.textOnAccent : colors.textSecondary }}>M</ThemedText>
+          </FocusablePressable>
+          <FocusablePressable
             style={[styles.toggleBtn, type === 'series' && { backgroundColor: colors.accent }]}
             onPress={() => setType('series')}
+            focusRingBorderRadius={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected: type === 'series' }}
+            accessibilityLabel="Series"
           >
-            <ThemedText style={{ fontSize: 11, fontWeight: '800', color: type === 'series' ? '#fff' : colors.textSecondary }}>S</ThemedText>
-          </Pressable>
+            <ThemedText style={{ fontSize: 11, fontWeight: '800', color: type === 'series' ? colors.textOnAccent : colors.textSecondary }}>S</ThemedText>
+          </FocusablePressable>
         </View>
       </View>
 
@@ -71,9 +80,12 @@ export function DiscoverGenreWall() {
         {GENRES.map((genre) => {
           const cover = covers[genre];
           return (
-            <Pressable
+            <FocusablePressable
               key={`${type}-${genre}`}
               onPress={() => goToGenre(genre)}
+              focusRingBorderRadius={6}
+              accessibilityRole="button"
+              accessibilityLabel={genre}
               style={({ pressed }) => [
                 styles.tile,
                 TALL_GENRES.has(genre) && styles.tileTall,
@@ -98,7 +110,7 @@ export function DiscoverGenreWall() {
               />
               <View style={[styles.tileAccent, { backgroundColor: colors.accent }]} />
               <ThemedText style={styles.tileLabel}>{genre}</ThemedText>
-            </Pressable>
+            </FocusablePressable>
           );
         })}
       </View>

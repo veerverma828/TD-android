@@ -1,10 +1,11 @@
 import { memo } from 'react';
-import { StyleSheet, Pressable, ViewStyle, View } from 'react-native';
+import { StyleSheet, ViewStyle, View } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from './themed-text';
 import { IconSymbol, IconSymbolName } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { FocusablePressable } from './tv/FocusablePressable';
 
 interface ListItemProps {
   title: string;
@@ -20,8 +21,11 @@ export const ListItem = memo(function ListItem({ title, subtitle, icon, imageUrl
   const { colors } = useAppTheme();
 
   return (
-    <Pressable
+    <FocusablePressable
       onPress={onPress}
+      focusRingBorderRadius={8}
+      accessibilityRole="button"
+      accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
       style={({ pressed }) => [
         styles.container,
         {
@@ -59,7 +63,7 @@ export const ListItem = memo(function ListItem({ title, subtitle, icon, imageUrl
           </View>
         )}
       </View>
-    </Pressable>
+    </FocusablePressable>
   );
 });
 

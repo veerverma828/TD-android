@@ -1,6 +1,7 @@
-import { StyleSheet, Pressable, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
 import { ThemedText } from './themed-text';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { FocusablePressable } from './tv/FocusablePressable';
 
 interface ChipProps {
   label: string;
@@ -13,8 +14,12 @@ export function Chip({ label, isActive, onPress, style }: ChipProps) {
   const { colors } = useAppTheme();
 
   return (
-    <Pressable
+    <FocusablePressable
       onPress={onPress}
+      focusRingBorderRadius={20}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!isActive }}
+      accessibilityLabel={label}
       style={({ pressed }) => [
         styles.container,
         {
@@ -27,11 +32,11 @@ export function Chip({ label, isActive, onPress, style }: ChipProps) {
       <ThemedText
         style={[
           styles.label,
-          { color: isActive ? '#ffffff' : colors.text },
+          { color: isActive ? colors.textOnAccent : colors.text },
         ]}>
         {label}
       </ThemedText>
-    </Pressable>
+    </FocusablePressable>
   );
 }
 

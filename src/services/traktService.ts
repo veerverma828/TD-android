@@ -84,6 +84,17 @@ export async function isConnected(): Promise<boolean> {
   return !!(await getSecureItem(ACCESS_TOKEN_KEY));
 }
 
+// Lets TraktContext know when the service layer disconnects on its own (e.g.
+// a request() call finds the refresh token dead) — without this, the UI kept
+// showing "Connected" forever after a silent, un-recoverable session expiry.
+type DisconnectListener = () => void;
+const disconnectListeners = new Set<DisconnectListener>();
+
+export function onDisconnected(listener: DisconnectListener): () => void {
+  disconnectListeners.add(listener);
+  return () => disconnectListeners.delete(listener);
+}
+
 export async function disconnect(): Promise<void> {
   const accessToken = await getSecureItem(ACCESS_TOKEN_KEY);
   await Promise.all([
@@ -106,6 +117,7 @@ export async function disconnect(): Promise<void> {
       // best-effort only — local tokens are already cleared
     }
   }
+  disconnectListeners.forEach((listener) => listener());
 }
 
 export async function startDeviceAuth(): Promise<DeviceAuthStart> {
@@ -214,7 +226,20 @@ export function pollDeviceToken(
   return { promise, cancel };
 }
 
-export async function refreshToken(): Promise<boolean> {
+// Parallel in-flight requests can all hit an expired token at once; share one
+// refresh call between them instead of issuing redundant token exchanges.
+let refreshInFlight: Promise<boolean> | null = null;
+
+export function refreshToken(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefreshToken().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function doRefreshToken(): Promise<boolean> {
   if (!isTraktConfigured()) return false;
   const refresh = await getSecureItem(REFRESH_TOKEN_KEY);
   if (!refresh) return false;
@@ -288,6 +313,8 @@ async function request<T>(path: string, init: RequestInit = {}, isRetry = false)
   }
 
   if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    if (__DEV__) console.log('[TRAKT-DEBUG-ERR]', path, 'status=', res.status, 'body=', errBody);
     throw new Error(`Trakt request failed (${res.status}).`);
   }
 
@@ -328,8 +355,8 @@ function mapPlaybackEntry(item: any): TraktPlaybackEntry | null {
   return null;
 }
 
-export async function getPlaybackProgress(): Promise<TraktPlaybackEntry[]> {
-  const data = await request<any[]>('/sync/playback');
+export async function getPlaybackProgress(limit = 50): Promise<TraktPlaybackEntry[]> {
+  const data = await request<any[]>(`/sync/playback?limit=${limit}`);
   return (data || [])
     .map(mapPlaybackEntry)
     .filter((entry): entry is TraktPlaybackEntry => entry !== null);
@@ -399,6 +426,7 @@ async function scrobble(action: 'start' | 'pause' | 'stop', contentId: string, p
   try {
     const body = buildScrobbleBody(contentId, Math.min(100, Math.max(0, progressPct)));
     if (!body) return;
+    if (__DEV__) console.log('[TRAKT-DEBUG-BODY]', action, JSON.stringify(body));
     await request(`/scrobble/${action}`, { method: 'POST', body: JSON.stringify(body) });
   } catch (err) {
     console.warn(`Trakt scrobble/${action} failed:`, err);

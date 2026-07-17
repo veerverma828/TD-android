@@ -1,9 +1,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { IconSymbol } from '@/components/IconSymbol';
 import { ThemedText } from '@/components/themed-text';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { SeekBar } from './SeekBar';
 
 interface PlayerControlsProps {
@@ -23,6 +24,7 @@ interface PlayerControlsProps {
   onShowSettings: () => void;
   onEnterPiP?: () => void;
   onLock: () => void;
+  onActivity?: () => void;
 }
 
 export function PlayerControls({
@@ -42,47 +44,48 @@ export function PlayerControls({
   onShowSettings,
   onEnterPiP,
   onLock,
+  onActivity,
 }: PlayerControlsProps) {
   return (
     <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <LinearGradient colors={['rgba(0,0,0,0.85)', 'transparent']} style={styles.topGradient}>
         <View style={styles.topBar}>
-          <Pressable onPress={onBack} style={styles.iconButton} hitSlop={12}>
+          <FocusablePressable onPress={onBack} onFocus={onActivity} style={styles.iconButton} hitSlop={12} focusRingBorderRadius={22} accessibilityRole="button" accessibilityLabel="Back">
             <IconSymbol name="chevron.left" size={28} color="#fff" />
-          </Pressable>
+          </FocusablePressable>
           <ThemedText style={styles.titleText} numberOfLines={1}>{title}</ThemedText>
           <View style={styles.topBarActions}>
             {onEnterPiP && (
-              <Pressable onPress={onEnterPiP} style={styles.iconButton} hitSlop={10}>
+              <FocusablePressable onPress={onEnterPiP} onFocus={onActivity} style={styles.iconButton} hitSlop={10} focusRingBorderRadius={20} accessibilityRole="button" accessibilityLabel="Picture in picture">
                 <IconSymbol name="pip" size={22} color="#fff" />
-              </Pressable>
+              </FocusablePressable>
             )}
-            <Pressable onPress={onShowSubtitles} style={styles.iconButton} hitSlop={10}>
+            <FocusablePressable onPress={onShowSubtitles} onFocus={onActivity} style={styles.iconButton} hitSlop={10} focusRingBorderRadius={20} accessibilityRole="button" accessibilityLabel="Subtitles">
               <IconSymbol name="captions.bubble" size={22} color="#fff" />
-            </Pressable>
-            <Pressable onPress={onShowAudioTracks} style={styles.iconButton} hitSlop={10}>
+            </FocusablePressable>
+            <FocusablePressable onPress={onShowAudioTracks} onFocus={onActivity} style={styles.iconButton} hitSlop={10} focusRingBorderRadius={20} accessibilityRole="button" accessibilityLabel="Audio tracks">
               <IconSymbol name="waveform" size={22} color="#fff" />
-            </Pressable>
-            <Pressable onPress={onShowSettings} style={styles.iconButton} hitSlop={10}>
+            </FocusablePressable>
+            <FocusablePressable onPress={onShowSettings} onFocus={onActivity} style={styles.iconButton} hitSlop={10} focusRingBorderRadius={20} accessibilityRole="button" accessibilityLabel="Playback settings">
               <IconSymbol name="gearshape.fill" size={22} color="#fff" />
-            </Pressable>
-            <Pressable onPress={onLock} style={styles.iconButton} hitSlop={10}>
+            </FocusablePressable>
+            <FocusablePressable onPress={onLock} onFocus={onActivity} style={styles.iconButton} hitSlop={10} focusRingBorderRadius={20} accessibilityRole="button" accessibilityLabel="Lock controls">
               <IconSymbol name="lock.open.fill" size={22} color="#fff" />
-            </Pressable>
+            </FocusablePressable>
           </View>
         </View>
       </LinearGradient>
 
       <View style={styles.centerRow} pointerEvents="box-none">
-        <Pressable onPress={() => onSkip(-10)} style={styles.skipBtn} hitSlop={16}>
+        <FocusablePressable onPress={() => onSkip(-10)} onFocus={onActivity} style={styles.skipBtn} hitSlop={16} focusRingBorderRadius={24} accessibilityRole="button" accessibilityLabel="Skip back 10 seconds">
           <IconSymbol name="backward.end.fill" size={26} color="#fff" />
-        </Pressable>
-        <Pressable onPress={onTogglePlay} style={styles.playPauseBtn} hitSlop={16}>
+        </FocusablePressable>
+        <FocusablePressable onPress={onTogglePlay} onFocus={onActivity} style={styles.playPauseBtn} hitSlop={16} hasTVPreferredFocus focusRingBorderRadius={42} accessibilityRole="button" accessibilityLabel={paused ? 'Play' : 'Pause'}>
           <IconSymbol name={paused ? 'play.fill' : 'pause'} size={40} color="#fff" />
-        </Pressable>
-        <Pressable onPress={() => onSkip(10)} style={styles.skipBtn} hitSlop={16}>
+        </FocusablePressable>
+        <FocusablePressable onPress={() => onSkip(10)} onFocus={onActivity} style={styles.skipBtn} hitSlop={16} focusRingBorderRadius={24} accessibilityRole="button" accessibilityLabel="Skip forward 10 seconds">
           <IconSymbol name="forward.end.fill" size={26} color="#fff" />
-        </Pressable>
+        </FocusablePressable>
       </View>
 
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.bottomGradient}>
@@ -92,6 +95,7 @@ export function PlayerControls({
           accentColor={accentColor}
           onSeekStart={onSeekStart}
           onSeekEnd={onSeekEnd}
+          onActivity={onActivity}
         />
         <View style={{ height: 20 }} />
       </LinearGradient>

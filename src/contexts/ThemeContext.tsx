@@ -22,7 +22,7 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((value) => {
-      if (value === 'marquee' || value === 'classic') setThemeNameState(value);
+      if (value && value in Palettes) setThemeNameState(value as PaletteName);
     });
   }, []);
 

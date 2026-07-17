@@ -7,6 +7,8 @@ import { IconSymbol } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { DebridFile } from '@/services/debridService';
 import { formatBytes } from '@/utils/streamHelpers';
+import { FocusablePressable } from './tv/FocusablePressable';
+import { useTVBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 interface FileSelectionModalProps {
   visible: boolean;
@@ -19,29 +21,35 @@ export function FileSelectionModal({ visible, onClose, files, onSelectFile }: Fi
   const scheme = useColorScheme();
   const { colors } = useAppTheme();
 
-  if (!visible) return null;
+  useTVBackHandler(() => {
+    if (!visible) return false;
+    onClose();
+  }, visible);
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000 }]}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
           <BlurView intensity={40} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         </Pressable>
-        
+
         <SafeAreaView edges={['bottom']} style={styles.safeArea}>
           <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            
+
             <View style={styles.header}>
               <ThemedText style={styles.title}>Select File</ThemedText>
-              <Pressable onPress={onClose} style={styles.closeButton}>
+              <FocusablePressable onPress={onClose} style={styles.closeButton} focusRingBorderRadius={16} accessibilityRole="button" accessibilityLabel="Close">
                 <IconSymbol name="xmark.circle.fill" size={28} color={colors.textSecondary} />
-              </Pressable>
+              </FocusablePressable>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
               {files.map((file) => (
-                <Pressable
+                <FocusablePressable
                   key={file.id.toString()}
+                  focusRingBorderRadius={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={file.name}
                   style={({ pressed }) => [
                     styles.fileItem,
                     { backgroundColor: colors.backgroundElement, opacity: pressed ? 0.7 : 1 }
@@ -58,7 +66,7 @@ export function FileSelectionModal({ visible, onClose, files, onSelectFile }: Fi
                     </ThemedText>
                   </View>
                   <IconSymbol name="chevron.right" size={20} color={colors.textSecondary} />
-                </Pressable>
+                </FocusablePressable>
               ))}
               <View style={{ height: 20 }} />
             </ScrollView>
@@ -66,7 +74,7 @@ export function FileSelectionModal({ visible, onClose, files, onSelectFile }: Fi
           </View>
         </SafeAreaView>
       </View>
-    </View>
+    </Modal>
   );
 }
 

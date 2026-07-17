@@ -9,11 +9,16 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { DiscoverRailSwitch } from '@/components/discover/DiscoverRailSwitch';
 import { DiscoverGenreWall } from '@/components/discover/DiscoverGenreWall';
 import { DiscoverIndexAccordion } from '@/components/discover/DiscoverIndexAccordion';
+import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const { discoverLayout } = useSettings();
+
+  useScreenBackHandler(() => {
+    router.back();
+  });
 
   return (
     <ThemedView style={styles.container}>

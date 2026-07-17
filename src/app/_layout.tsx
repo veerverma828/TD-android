@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { MyListProvider } from '@/contexts/MyListContext';
 import { AppThemeProvider } from '@/contexts/ThemeContext';
+import { DeviceModeProvider } from '@/contexts/DeviceModeContext';
 import { PlayerSettingsProvider } from '@/contexts/PlayerSettingsContext';
 import { TraktProvider } from '@/contexts/TraktContext';
 
@@ -18,18 +19,20 @@ export default function TabLayout() {
   return (
     <ErrorBoundary>
       <AppThemeProvider>
-        <SettingsProvider>
-          <MyListProvider>
-            <PlayerSettingsProvider>
-              <TraktProvider>
-                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                  <AnimatedSplashOverlay />
-                  <AppTabs />
-                </ThemeProvider>
-              </TraktProvider>
-            </PlayerSettingsProvider>
-          </MyListProvider>
-        </SettingsProvider>
+        <DeviceModeProvider>
+          <SettingsProvider>
+            <MyListProvider>
+              <PlayerSettingsProvider>
+                <TraktProvider>
+                  <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                    <AnimatedSplashOverlay />
+                    <AppTabs />
+                  </ThemeProvider>
+                </TraktProvider>
+              </PlayerSettingsProvider>
+            </MyListProvider>
+          </SettingsProvider>
+        </DeviceModeProvider>
       </AppThemeProvider>
     </ErrorBoundary>
   );

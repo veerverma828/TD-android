@@ -1,8 +1,8 @@
 import { StyleSheet, ScrollView, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ThemedView } from '@/components/themed-view';
 import { HeroBanner, HeroItem } from '@/components/HeroBanner';
@@ -25,6 +25,21 @@ interface RowConfig {
   genre?: string;
 }
 
+const HERO_SLIDE_COUNT = 5;
+
+// Deterministic per-seed shuffle — same seed always yields the same order,
+// so picks stay stable within a day instead of reshuffling on every re-render.
+function seededShuffle<T>(items: T[], seed: number): T[] {
+  const arr = [...items];
+  let s = seed;
+  for (let i = arr.length - 1; i > 0; i--) {
+    s = (s * 9301 + 49297) % 233280;
+    const j = Math.floor((s / 233280) * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 const EXTRA_ROWS: RowConfig[] = [
   { key: 'topRatedMovies', title: 'Top Rated Movies', type: 'movie', category: 'imdbRating' },
   { key: 'topRatedSeries', title: 'Top Rated Series', type: 'series', category: 'imdbRating' },
@@ -42,24 +57,26 @@ export default function HomeScreen() {
   const router = useRouter();
   const { showRating } = useSettings();
   const { list: myList, toggle: toggleMyList, isInList } = useMyList();
-  const { items: continueWatchingItems, removeItem: removeContinueWatchingItem } = useContinueWatching();
+  const { items: continueWatchingItems, removeItem: removeContinueWatchingItem, refresh: refreshContinueWatching } = useContinueWatching();
   const [selectedContinueWatchingItem, setSelectedContinueWatchingItem] = useState<ContinueWatchingItem | null>(null);
+
+  // Home stays mounted in the background while the player is open, so coming
+  // back from watching something needs an explicit refetch — otherwise newly
+  // synced progress (local or Trakt) never appears until the app restarts.
+  useFocusEffect(
+    useCallback(() => {
+      refreshContinueWatching();
+    }, [refreshContinueWatching])
+  );
 
   const [movies, setMovies] = useState<MetaItem[]>([]);
   const [series, setSeries] = useState<MetaItem[]>([]);
   const [extraRows, setExtraRows] = useState<Record<string, MetaItem[]>>({});
-  const [heroSourceItems, setHeroSourceItems] = useState<MetaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<MetaItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    const pickRandom = (list: MetaItem[]) => {
-      if (list.length === 0) return undefined;
-      const pool = list.slice(0, Math.min(5, list.length));
-      return pool[Math.floor(Math.random() * pool.length)];
-    };
 
     const prefetchPosters = (items: MetaItem[]) => {
       const urls = items.map((item) => item.poster).filter(Boolean) as string[];
@@ -77,7 +94,6 @@ export default function HomeScreen() {
         setSeries(fetchedSeries);
         prefetchPosters(fetchedMovies);
         prefetchPosters(fetchedSeries);
-        setHeroSourceItems([pickRandom(fetchedMovies), pickRandom(fetchedSeries)].filter(Boolean) as MetaItem[]);
       } catch (err) {
         console.error("Failed to fetch cinemeta:", err);
       } finally {
@@ -92,12 +108,6 @@ export default function HomeScreen() {
             if (cancelled) return;
             setExtraRows((prev) => ({ ...prev, [row.key]: data }));
             prefetchPosters(data.slice(0, 8));
-            const candidate = pickRandom(data);
-            if (candidate) {
-              setHeroSourceItems((prev) =>
-                prev.some((item) => item.id === candidate.id) ? prev : [...prev, candidate]
-              );
-            }
           })
           .catch((err) => {
             console.error(`Failed to fetch ${row.key}:`, err);
@@ -112,6 +122,28 @@ export default function HomeScreen() {
       cancelled = true;
     };
   }, []);
+
+  // Hero picks: continue-watching leads (resuming is the highest-intent action
+  // a returning user can take), then a fixed-size, artwork-only pool from the
+  // reliably-loaded top movies/series, shuffled with a per-day seed so the
+  // lineup feels editorial — stable through the day, not reshuffled on every
+  // focus, but still rotates daily instead of being frozen forever.
+  const heroSourceItems = useMemo(() => {
+    const pool = [...movies, ...series].filter((m) => m.background || m.poster);
+    if (pool.length === 0) return [];
+
+    const daySeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    const shuffled = seededShuffle(pool, daySeed);
+
+    const inProgressIds = new Set(
+      continueWatchingItems.filter((i) => !i.isNext && i.progress > 0).map((i) => i.id)
+    );
+    const leadItem = pool.find((m) => inProgressIds.has(m.id));
+
+    const rest = leadItem ? shuffled.filter((m) => m.id !== leadItem.id) : shuffled;
+    const picks = leadItem ? [leadItem, ...rest] : rest;
+    return picks.slice(0, HERO_SLIDE_COUNT);
+  }, [movies, series, continueWatchingItems]);
 
   const handleNavigateToDetails = (id: string, type: string) => {
     router.push({ pathname: '/details', params: { id, type } });

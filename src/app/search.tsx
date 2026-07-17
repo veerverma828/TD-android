@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { StyleSheet, View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
@@ -11,11 +11,14 @@ import { ListItem } from '@/components/ListItem';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { searchMovies, searchSeries, fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useScreenInitialFocus } from '@/hooks/tv/useScreenInitialFocus';
 
 export default function SearchScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
-  
+  const searchInputRef = useScreenInitialFocus<TextInput>();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   
@@ -101,6 +104,7 @@ export default function SearchScreen() {
           <View style={[styles.searchInputWrapper, { backgroundColor: colors.backgroundElement }]}>
             <IconSymbol name="magnifyingglass" color={colors.textSecondary} size={20} />
             <TextInput
+              ref={searchInputRef}
               style={[styles.searchInput, { color: colors.text }]}
               placeholder="Movies, Series, Actors..."
               placeholderTextColor={colors.textSecondary}
@@ -110,16 +114,19 @@ export default function SearchScreen() {
               selectionColor={colors.accent}
             />
           </View>
-          <Pressable
+          <FocusablePressable
             onPress={() => router.push('/discover')}
             hitSlop={10}
+            focusRingBorderRadius={26}
+            accessibilityRole="button"
+            accessibilityLabel="Browse discover"
             style={({ pressed }) => [
               styles.discoverButton,
               { backgroundColor: colors.backgroundElement, opacity: pressed ? 0.7 : 1 },
             ]}
           >
             <IconSymbol name="compass" color={colors.text} size={20} />
-          </Pressable>
+          </FocusablePressable>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>

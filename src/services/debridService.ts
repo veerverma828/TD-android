@@ -83,6 +83,50 @@ export async function verifyDebridKey(service: DebridProvider, apiKey: string): 
   }
 }
 
+export async function checkCachedHashes(hashes: string[], service: DebridProvider, apiKey: string): Promise<Set<string>> {
+  const cached = new Set<string>();
+  const uniqueHashes = [...new Set(hashes.filter(Boolean).map((h) => h.toLowerCase()))];
+  if (uniqueHashes.length === 0) return cached;
+
+  try {
+    if (service === 'real-debrid') {
+      const res = await fetchWithTimeout(
+        `https://api.real-debrid.com/rest/1.0/torrents/instantAvailability/${uniqueHashes.join('/')}`,
+        { headers: { Authorization: `Bearer ${apiKey}` } }
+      );
+      if (!res.ok) return cached;
+      const data = await res.json();
+      for (const hash of uniqueHashes) {
+        const entry = data[hash] ?? data[hash.toUpperCase()];
+        const hosters = entry ? Object.values(entry) : [];
+        if (hosters.some((variants: any) => Array.isArray(variants) && variants.length > 0)) {
+          cached.add(hash);
+        }
+      }
+      return cached;
+    }
+
+    if (service === 'torbox') {
+      const res = await fetchWithTimeout(
+        `https://api.torbox.app/v1/api/torrents/checkcached?hash=${uniqueHashes.join(',')}&format=list`,
+        { headers: { Authorization: `Bearer ${apiKey}` } }
+      );
+      if (!res.ok) return cached;
+      const data = await res.json();
+      const list = Array.isArray(data?.data) ? data.data : [];
+      for (const entry of list) {
+        const hash = (typeof entry === 'string' ? entry : entry?.hash)?.toLowerCase();
+        if (hash) cached.add(hash);
+      }
+      return cached;
+    }
+  } catch {
+    // Best-effort: no fire badges if the check fails.
+  }
+
+  return cached;
+}
+
 export async function getFiles(magnet: string, service: DebridProvider, apiKey: string): Promise<DebridFilesResult> {
   if (service === 'real-debrid') {
     const addRes = await fetchWithTimeout("https://api.real-debrid.com/rest/1.0/torrents/addMagnet", {
@@ -188,7 +232,8 @@ export async function generateLink(torrentId: string | number, fileId: string | 
     return pollUntil<string>(async () => {
       try {
         const res = await fetchWithTimeout(
-          `https://api.torbox.app/v1/api/torrents/requestdl?token=${encodeURIComponent(apiKey)}&torrent_id=${torrentId}&file_id=${fileId}`
+          `https://api.torbox.app/v1/api/torrents/requestdl?token=${encodeURIComponent(apiKey)}&torrent_id=${torrentId}&file_id=${fileId}`,
+          { headers: { Authorization: `Bearer ${apiKey}` } }
         );
         const dlData = await res.json();
         if (dlData.success && dlData.data) {

@@ -2,6 +2,8 @@ import { Tabs } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { TVTabBar, TV_RAIL_WIDTH } from '@/components/TVTabBar';
 
 // Routes that live inside the Tabs navigator (for `href: null` screens) but must
 // render fully immersive, with no tab bar chrome at all — not just hidden from the tab row.
@@ -9,12 +11,19 @@ const NO_TAB_BAR_ROUTES = new Set(['player', 'preplay']);
 
 export default function AppTabs() {
   const { colors } = useAppTheme();
+  const isTV = useIsTV();
 
   return (
     <Tabs
+      tabBar={isTV ? (props) => <TVTabBar {...props} /> : undefined}
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: NO_TAB_BAR_ROUTES.has(route.name)
+        // The TV rail is absolute-positioned; inset every non-immersive screen
+        // so content doesn't render underneath it.
+        sceneStyle: isTV && !NO_TAB_BAR_ROUTES.has(route.name)
+          ? { paddingLeft: TV_RAIL_WIDTH }
+          : undefined,
+        tabBarStyle: isTV || NO_TAB_BAR_ROUTES.has(route.name)
           ? { display: 'none' }
           : {
               backgroundColor: colors.background,

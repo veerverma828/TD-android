@@ -1,11 +1,12 @@
 import { Image } from 'expo-image';
 import { memo, useState } from 'react';
-import { StyleSheet, View, Pressable, ViewStyle } from 'react-native';
+import { StyleSheet, View, ViewStyle } from 'react-native';
 
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { FocusablePressable } from './tv/FocusablePressable';
 
 interface PosterCardProps {
   title: string;
@@ -17,18 +18,25 @@ interface PosterCardProps {
   onPress?: () => void;
   onLongPress?: () => void;
   style?: ViewStyle;
+  hasTVPreferredFocus?: boolean;
+  onFocus?: () => void;
 }
 
-export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style }: PosterCardProps) {
+export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style, hasTVPreferredFocus, onFocus }: PosterCardProps) {
   const { colors } = useAppTheme();
   const [failed, setFailed] = useState(false);
   const showFallback = !imageUrl || failed;
 
   return (
-    <Pressable
+    <FocusablePressable
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+      onFocus={onFocus}
+      focusRingBorderRadius={4}
+      accessibilityRole="button"
+      accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
       style={({ pressed }) => [
         styles.container,
         style,
@@ -78,7 +86,7 @@ export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, 
           {subtitle}
         </ThemedText>
       )}
-    </Pressable>
+    </FocusablePressable>
   );
 });
 

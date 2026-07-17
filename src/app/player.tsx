@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
+import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 export default function PlayerScreen() {
   const { url, title, poster, contentId } = useLocalSearchParams<{
@@ -26,6 +27,10 @@ export default function PlayerScreen() {
     }
   };
 
+  useScreenBackHandler(() => {
+    goBack();
+  });
+
   if (!url) {
     return (
       <View style={[styles.container, styles.emptyState]}>
@@ -43,6 +48,7 @@ export default function PlayerScreen() {
     <View style={styles.container}>
       <StatusBar hidden />
       <VideoPlayer
+        key={contentId || url}
         streamUrl={url}
         title={title}
         poster={poster}

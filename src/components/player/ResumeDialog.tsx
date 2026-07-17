@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { formatTime } from '@/utils/timeFormat';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface ResumeDialogProps {
   resumeFrom: number;
@@ -11,18 +13,19 @@ interface ResumeDialogProps {
 }
 
 export function ResumeDialog({ resumeFrom, accentColor, onResume, onStartOver }: ResumeDialogProps) {
+  const { colors } = useAppTheme();
   return (
     <View style={styles.container}>
       <View style={styles.card}>
         <ThemedText style={styles.title}>Resume playback?</ThemedText>
         <ThemedText style={styles.subtitle}>You left off at {formatTime(resumeFrom)}</ThemedText>
         <View style={styles.actions}>
-          <Pressable style={styles.secondaryButton} onPress={onStartOver}>
+          <FocusablePressable style={styles.secondaryButton} onPress={onStartOver} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Start over">
             <ThemedText style={styles.secondaryText}>Start Over</ThemedText>
-          </Pressable>
-          <Pressable style={[styles.primaryButton, { backgroundColor: accentColor }]} onPress={onResume}>
-            <ThemedText style={styles.primaryText}>Resume</ThemedText>
-          </Pressable>
+          </FocusablePressable>
+          <FocusablePressable style={[styles.primaryButton, { backgroundColor: accentColor }]} onPress={onResume} hasTVPreferredFocus focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Resume">
+            <ThemedText style={[styles.primaryText, { color: colors.textOnAccent }]}>Resume</ThemedText>
+          </FocusablePressable>
         </View>
       </View>
     </View>

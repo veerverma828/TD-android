@@ -54,6 +54,16 @@ export function TraktProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // The service layer can disconnect on its own (a request finds the refresh
+  // token dead) — without this, "Connected" would keep showing forever after
+  // a silent, un-recoverable session expiry.
+  useEffect(() => {
+    return traktService.onDisconnected(() => {
+      setConnected(false);
+      setUsername(null);
+    });
+  }, []);
+
   const startAuth = useCallback(async () => {
     if (!traktService.isTraktConfigured()) {
       setAuthStatus('error');

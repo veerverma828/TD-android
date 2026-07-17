@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useTVBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 interface SubtitleSourceSheetProps {
   visible: boolean;
@@ -18,6 +20,11 @@ export function SubtitleSourceSheet({ visible, onClose, onLoad }: SubtitleSource
   const { colors } = useAppTheme();
   const [url, setUrl] = useState('');
 
+  useTVBackHandler(() => {
+    if (!visible) return false;
+    onClose();
+  }, visible);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={StyleSheet.absoluteFill}>
@@ -29,9 +36,9 @@ export function SubtitleSourceSheet({ visible, onClose, onLoad }: SubtitleSource
           <View style={[styles.card, { backgroundColor: colors.background }]}>
             <View style={styles.header}>
               <ThemedText style={styles.title}>Load Subtitle File</ThemedText>
-              <Pressable onPress={onClose}>
+              <FocusablePressable onPress={onClose} focusRingBorderRadius={16} accessibilityRole="button" accessibilityLabel="Close">
                 <IconSymbol name="xmark.circle.fill" size={26} color={colors.textSecondary} />
-              </Pressable>
+              </FocusablePressable>
             </View>
             <ThemedText style={[styles.hint, { color: colors.textSecondary }]}>
               Paste a direct .srt or .vtt link
@@ -45,7 +52,7 @@ export function SubtitleSourceSheet({ visible, onClose, onLoad }: SubtitleSource
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Pressable
+            <FocusablePressable
               style={[styles.button, { backgroundColor: colors.accent, opacity: url.trim() ? 1 : 0.5 }]}
               disabled={!url.trim()}
               onPress={() => {
@@ -53,9 +60,12 @@ export function SubtitleSourceSheet({ visible, onClose, onLoad }: SubtitleSource
                 setUrl('');
                 onClose();
               }}
+              focusRingBorderRadius={8}
+              accessibilityRole="button"
+              accessibilityLabel="Load"
             >
-              <ThemedText style={styles.buttonText}>Load</ThemedText>
-            </Pressable>
+              <ThemedText style={[styles.buttonText, { color: colors.textOnAccent }]}>Load</ThemedText>
+            </FocusablePressable>
           </View>
         </SafeAreaView>
       </View>

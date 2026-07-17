@@ -7,7 +7,7 @@ export function useVolumeGesture(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) return;
-    VolumeManager.showNativeVolumeUI({ enabled: false });
+    VolumeManager.showNativeVolumeUI({ enabled: true });
     VolumeManager.getVolume().then((res) => {
       setVolumeState(res.volume);
       initialized.current = true;

@@ -43,7 +43,8 @@
           "enableAndroidPictureInPicture": true,
           "enableCacheExtension": true
         }
-      ]
+      ],
+      "./plugins/withAndroidTVBanner.js"
     ],
     "experiments": {
       "typedRoutes": true,

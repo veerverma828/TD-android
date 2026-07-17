@@ -15,7 +15,9 @@ import { IconSymbol } from './IconSymbol';
 import { ThemedText } from './themed-text';
 import { ThemeColor } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useIsTV } from '@/contexts/DeviceModeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { FocusablePressable } from './tv/FocusablePressable';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AUTO_PLAY_INTERVAL = 60000;
@@ -97,6 +99,7 @@ const ProgressBubble = memo(function ProgressBubble({
 
 export function HeroBanner({ items, onPlayPress, onListPress }: HeroBannerProps) {
   const { colors } = useAppTheme();
+  const isTV = useIsTV();
   const listRef = useRef<FlatList<HeroItem>>(null);
   const indexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -182,19 +185,30 @@ export function HeroBanner({ items, onPlayPress, onListPress }: HeroBannerProps)
         </ThemedText>
 
         <View style={styles.actions}>
-          <Pressable
+          <FocusablePressable
             onPress={() => onPlayPress?.(current)}
+            onFocus={isTV ? pauseAutoplay : undefined}
+            onBlur={isTV ? resumeAutoplay : undefined}
+            hasTVPreferredFocus
+            focusRingBorderRadius={3}
+            accessibilityRole="button"
+            accessibilityLabel="Play"
             style={({ pressed }) => [
               styles.button,
               styles.primaryButton,
               { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
             ]}>
-            <IconSymbol name="play.fill" color="#fff" size={13} />
-            <ThemedText style={styles.primaryButtonText}>Play</ThemedText>
-          </Pressable>
+            <IconSymbol name="play.fill" color={colors.textOnAccent} size={13} />
+            <ThemedText style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>Play</ThemedText>
+          </FocusablePressable>
 
-          <Pressable
+          <FocusablePressable
             onPress={() => onListPress?.(current)}
+            onFocus={isTV ? pauseAutoplay : undefined}
+            onBlur={isTV ? resumeAutoplay : undefined}
+            focusRingBorderRadius={3}
+            accessibilityRole="button"
+            accessibilityLabel={current.isInMyList ? 'Remove from My List' : 'Add to My List'}
             style={({ pressed }) => [
               styles.button,
               styles.secondaryButton,
@@ -202,7 +216,7 @@ export function HeroBanner({ items, onPlayPress, onListPress }: HeroBannerProps)
             ]}>
             <IconSymbol name={current.isInMyList ? 'checkmark' : 'plus'} color={colors.text} size={13} />
             <ThemedText style={styles.secondaryButtonText}>{current.isInMyList ? 'In List' : 'My List'}</ThemedText>
-          </Pressable>
+          </FocusablePressable>
         </View>
       </View>
 

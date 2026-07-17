@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { IconSymbol } from '@/components/IconSymbol';
 import { ThemedText } from '@/components/themed-text';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface ErrorOverlayProps {
   message: string;
@@ -11,20 +13,21 @@ interface ErrorOverlayProps {
 }
 
 export function ErrorOverlay({ message, accentColor, onRetry, onBack }: ErrorOverlayProps) {
+  const { colors } = useAppTheme();
   return (
     <View style={styles.container}>
       <IconSymbol name="slash.circle" size={48} color="#ef4444" />
       <ThemedText style={styles.title}>Playback Error</ThemedText>
       <ThemedText style={styles.message}>{message}</ThemedText>
       <View style={styles.actions}>
-        <Pressable style={[styles.button, { backgroundColor: accentColor }]} onPress={onRetry}>
-          <IconSymbol name="arrow.down.circle" size={16} color="#fff" />
-          <ThemedText style={styles.buttonText}>Retry</ThemedText>
-        </Pressable>
-        <Pressable style={[styles.button, styles.backButton]} onPress={onBack}>
+        <FocusablePressable style={[styles.button, { backgroundColor: accentColor }]} onPress={onRetry} hasTVPreferredFocus focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Retry">
+          <IconSymbol name="arrow.down.circle" size={16} color={colors.textOnAccent} />
+          <ThemedText style={[styles.buttonText, { color: colors.textOnAccent }]}>Retry</ThemedText>
+        </FocusablePressable>
+        <FocusablePressable style={[styles.button, styles.backButton]} onPress={onBack} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Go back">
           <IconSymbol name="chevron.left" size={16} color="#fff" />
           <ThemedText style={styles.buttonText}>Go Back</ThemedText>
-        </Pressable>
+        </FocusablePressable>
       </View>
     </View>
   );

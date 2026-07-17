@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 import { IconSymbol, IconSymbolName } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { FocusablePressable } from './tv/FocusablePressable';
+import { useTVBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 export interface PosterAction {
   label: string;
@@ -24,6 +26,11 @@ export function PosterActionsSheet({ visible, title, actions, onClose }: PosterA
   const scheme = useColorScheme();
   const { colors } = useAppTheme();
 
+  useTVBackHandler(() => {
+    if (!visible) return false;
+    onClose();
+  }, visible);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={StyleSheet.absoluteFill}>
@@ -39,12 +46,15 @@ export function PosterActionsSheet({ visible, title, actions, onClose }: PosterA
               </ThemedText>
             )}
             {actions.map((action) => (
-              <Pressable
+              <FocusablePressable
                 key={action.label}
                 onPress={() => {
                   onClose();
                   action.onPress();
                 }}
+                focusRingBorderRadius={10}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
                 style={({ pressed }) => [
                   styles.row,
                   { backgroundColor: pressed ? colors.backgroundElement : 'transparent' },
@@ -58,7 +68,7 @@ export function PosterActionsSheet({ visible, title, actions, onClose }: PosterA
                 <ThemedText style={[styles.rowLabel, { color: action.destructive ? '#ff5c5c' : colors.text }]}>
                   {action.label}
                 </ThemedText>
-              </Pressable>
+              </FocusablePressable>
             ))}
           </View>
         </SafeAreaView>

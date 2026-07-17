@@ -5,11 +5,14 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { NavigationBar } from 'expo-navigation-bar';
 
 import type { DefaultOrientation } from '@/contexts/PlayerSettingsContext';
+import { useDeviceMode } from '@/contexts/DeviceModeContext';
 
 export function useOrientation(defaultOrientation: DefaultOrientation) {
+  const { isPhysicalTV } = useDeviceMode();
   const [locked, setLocked] = useState(defaultOrientation !== 'auto');
 
   const applyDefault = useCallback(async () => {
+    if (isPhysicalTV) return;
     if (defaultOrientation === 'landscape') {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
     } else if (defaultOrientation === 'portrait') {
@@ -17,10 +20,11 @@ export function useOrientation(defaultOrientation: DefaultOrientation) {
     } else {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
     }
-  }, [defaultOrientation]);
+  }, [defaultOrientation, isPhysicalTV]);
 
   useFocusEffect(
     useCallback(() => {
+      if (isPhysicalTV) return;
       applyDefault();
       NavigationBar.setHidden(true);
 
@@ -29,10 +33,11 @@ export function useOrientation(defaultOrientation: DefaultOrientation) {
         NavigationBar.setHidden(false);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [isPhysicalTV])
   );
 
   const toggleOrientation = useCallback(async () => {
+    if (isPhysicalTV) return;
     const current = await ScreenOrientation.getOrientationAsync();
     const isLandscape =
       current === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
@@ -40,9 +45,10 @@ export function useOrientation(defaultOrientation: DefaultOrientation) {
     await ScreenOrientation.lockAsync(
       isLandscape ? ScreenOrientation.OrientationLock.PORTRAIT_UP : ScreenOrientation.OrientationLock.LANDSCAPE
     );
-  }, []);
+  }, [isPhysicalTV]);
 
   const toggleLock = useCallback(async () => {
+    if (isPhysicalTV) return;
     if (locked) {
       await ScreenOrientation.unlockAsync();
       setLocked(false);
@@ -55,7 +61,7 @@ export function useOrientation(defaultOrientation: DefaultOrientation) {
       );
       setLocked(true);
     }
-  }, [locked]);
+  }, [locked, isPhysicalTV]);
 
   return { locked, toggleLock, toggleOrientation };
 }
