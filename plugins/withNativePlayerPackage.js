@@ -1,4 +1,5 @@
-const { withMainApplication, mergeContents } = require('expo/config-plugins');
+const { withMainApplication } = require('expo/config-plugins');
+const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
 
 /**
  * Registers NativePlayerPackage (android/app/src/main/java/.../player/NativePlayerModule.kt
