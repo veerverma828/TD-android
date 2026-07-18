@@ -1,0 +1,138 @@
+Starting project at C:\Users\veerk\OneDrive\Desktop\Project\TD-android
+Logs: C:\Users\veerk\OneDrive\Desktop\Project\TD-android\.expo\dev\logs\start.log
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+
+Error while reading cache, falling back to a full crawl:
+ Error: Unable to deserialize cloned data due to invalid or unsupported version.
+    at deserialize (node:v8:468:7)
+    at DiskCacheManager.read (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\@expo\metro-file-map\build\cache\DiskCacheManager.js:55:41)
+    at async FileMap.read (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\@expo\metro-file-map\build\index.js:371:20)
+    at async C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\@expo\metro-file-map\build\index.js:262:35
+    at async DependencyGraph.ready (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\metro\src\node-haste\DependencyGraph.js:94:5)
+    at async Bundler.ready (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\metro\src\Bundler.js:62:5)
+    at async IncrementalBundler.ready (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\metro\src\IncrementalBundler.js:310:5)
+    at async Server.ready (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\metro\src\Server.js:1446:5)
+    at async runMetro (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\metro\src\index.flow.js:142:5)
+    at async createConnectMiddleware (C:\Users\veerk\OneDrive\Desktop\Project\TD-android\node_modules\metro\src\index.flow.js:147:23)
+Waiting on http://localhost:8081
+
+Logs for your project will appear below.
+Android Bundled 4841ms node_modules\expo-router\entry.js (1900 modules)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "playback" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+ WARN  [Layout children]: No route named "subtitles" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+Android Bundled 87ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+Android Bundled 3027ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "playback" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+ WARN  [Layout children]: No route named "subtitles" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+Android Bundled 3808ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "playback" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+ WARN  [Layout children]: No route named "subtitles" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+Android Bundled 84ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+Android Bundled 4060ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "playback" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+ WARN  [Layout children]: No route named "subtitles" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+Android Bundled 4302ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":0.13389573907538774,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-ERR] /scrobble/pause status= 422 body= {"message":"Progress should be at least 1.0% to pause."}
+ WARN  Trakt scrobble/pause failed: [Error: Trakt request failed (422).]
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":0.8899811949580144,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-ERR] /scrobble/pause status= 422 body= {"message":"Progress should be at least 1.0% to pause."}
+ WARN  Trakt scrobble/pause failed: [Error: Trakt request failed (422).]
+ LOG  [TRAKT-DEBUG-BODY] stop {"progress":1.1570162821873429,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":1.1570162821873429,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":1.1731768651436445,"movie":{"ids":{"imdb":"tt32565993"}}}
+Android Bundled 80ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":1.2469977098810254,"movie":{"ids":{"imdb":"tt32565993"}}}
+Android Bundled 3487ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ ERROR  Failed to fetch meta: [SyntaxError: JSON Parse error: Unexpected end of input] 
+
+Call Stack
+  parse (<native>)
+  json (node_modules\expo\src\winter\fetch\FetchResponse.ts:323:22)
+  next (<native>)
+  anonymous (address at (InternalBytecode.js:1:8991)
+  step (address at (InternalBytecode.js:1:6731)
+  anonymous (address at (InternalBytecode.js:1:7890)
+  tryCallOne (address at (InternalBytecode.js:1:1296)
+  anonymous (address at (InternalBytecode.js:1:4984)
+Android Bundled 82ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":0.08624311102422312,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-ERR] /scrobble/pause status= 422 body= {"message":"Progress should be at least 1.0% to pause."}
+ WARN  Trakt scrobble/pause failed: [Error: Trakt request failed (422).]
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":0.2023491174663464,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-ERR] /scrobble/pause status= 422 body= {"message":"Progress should be at least 1.0% to pause."}
+ WARN  Trakt scrobble/pause failed: [Error: Trakt request failed (422).]
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":23.1508860246886,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] stop {"progress":23.1508860246886,"movie":{"ids":{"imdb":"tt32565993"}}}
+Android Bundled 80ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt12042730"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":0.9768272905400913,"movie":{"ids":{"imdb":"tt12042730"}}}
+ LOG  [TRAKT-DEBUG-ERR] /scrobble/pause status= 422 body= {"message":"Progress should be at least 1.0% to pause."}
+ WARN  Trakt scrobble/pause failed: [Error: Trakt request failed (422).]
+Android Bundled 110ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":27.43144770895008,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":27.36536532517827,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":27.616603478932767,"movie":{"ids":{"imdb":"tt32565993"}}}
+Android Bundled 86ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":1.8124581075797352,"movie":{"ids":{"imdb":"tt32565993"}}}
+Android Bundled 78ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":1.3393501321938595,"movie":{"ids":{"imdb":"tt32565993"}}}
+Android Bundled 100ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":2.535815110130518,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] stop {"progress":2.535858748068294,"movie":{"ids":{"imdb":"tt32565993"}}}
+Error [ERR_STREAM_UNABLE_TO_PIPE]: Cannot pipe to a closed or destroyed stream
+Android Bundled 2929ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ LOG  [TRAKT-DEBUG-BODY] start {"progress":0,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-BODY] pause {"progress":0.21450955612653372,"movie":{"ids":{"imdb":"tt32565993"}}}
+ LOG  [TRAKT-DEBUG-ERR] /scrobble/pause status= 422 body= {"message":"Progress should be at least 1.0% to pause."}
+ WARN  Trakt scrobble/pause failed: [Error: Trakt request failed (422).]
+Android Bundled 102ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+Android Bundled 3615ms node_modules\expo-router\entry.js (1 module)
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "explore" exists in nested children: ["calendar", "details", "discover", "downloads", "index", "library", "player", "preplay", "search", "see-all", "settings"]
+ WARN  [Layout children]: No route named "playback" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+ WARN  [Layout children]: No route named "subtitles" exists in nested children: ["addons", "appearance", "continue-watching", "debrid", "display-mode", "gestures", "index", "notifications", "preplay", "storage"]
+Android Bundled 3856ms node_modules\expo-router\entry.js (1 module)

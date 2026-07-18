@@ -6,7 +6,7 @@ import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { EpisodeSelectorProps, seasonLabel } from './types';
 
-export function EpisodeSelectorAccordion({ seasons, selectedSeason, onSelectSeason, allVideos, posterFallback, onPlayEpisode }: EpisodeSelectorProps) {
+export function EpisodeSelectorAccordion({ seasons, selectedSeason, onSelectSeason, allVideos, posterFallback, onPlayEpisode, watchedEpisodeKeys, onToggleWatched }: EpisodeSelectorProps) {
   const { colors } = useAppTheme();
   const [expanded, setExpanded] = useState<number | null>(selectedSeason);
 
@@ -46,7 +46,9 @@ export function EpisodeSelectorAccordion({ seasons, selectedSeason, onSelectSeas
                     imageUrl={ep.thumbnail || posterFallback || ''}
                     overview={ep.overview}
                     rating={ep.rating}
+                    watched={watchedEpisodeKeys?.has(`${ep.season}:${ep.episode}`)}
                     onPress={() => onPlayEpisode(ep.season, ep.episode)}
+                    onToggleWatched={onToggleWatched ? () => onToggleWatched(ep.season, ep.episode) : undefined}
                   />
                 ))}
               </View>

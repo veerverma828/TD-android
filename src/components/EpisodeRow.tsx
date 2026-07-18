@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
@@ -14,10 +14,12 @@ interface EpisodeRowProps {
   imageUrl: string;
   overview?: string;
   rating?: string;
+  watched?: boolean;
   onPress?: () => void;
+  onToggleWatched?: () => void;
 }
 
-export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, duration, imageUrl, overview, rating, onPress }: EpisodeRowProps) {
+export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, duration, imageUrl, overview, rating, watched, onPress, onToggleWatched }: EpisodeRowProps) {
   const { colors } = useAppTheme();
 
   return (
@@ -43,6 +45,17 @@ export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, durat
         <View style={styles.playIconOverlay}>
           <IconSymbol name="play.circle.fill" color="#ffffff" size={28} />
         </View>
+        {onToggleWatched && (
+          <Pressable
+            onPress={onToggleWatched}
+            hitSlop={8}
+            style={[styles.watchedBadge, { backgroundColor: watched ? colors.accent : 'rgba(0,0,0,0.55)' }]}
+            accessibilityRole="button"
+            accessibilityLabel={watched ? 'Mark as unwatched' : 'Mark as watched'}
+          >
+            <IconSymbol name="checkmark" color="#fff" size={12} />
+          </Pressable>
+        )}
       </View>
       
       <View style={styles.infoContainer}>
@@ -95,6 +108,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  watchedBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoContainer: {
     flex: 1,

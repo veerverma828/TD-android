@@ -18,6 +18,7 @@ export interface TorrentioStream {
   isDirect: boolean;
   fileIdx: number | null;
   infoHash: string | null;
+  addonName: string | null;
 }
 
 const SIZE_UNIT_EXPONENT: Record<string, number> = { KB: 1, MB: 2, GB: 3, TB: 4 };
@@ -50,16 +51,26 @@ function parseMetaLine(lines: string[]) {
     if (!Number.isNaN(value)) size = Math.round(value * Math.pow(1024, exponent));
   }
 
+  // Requires an actual gear (Torrentio) or magnifier (Comet) glyph — without
+  // this, the optional-emoji version matched at index 0 and swallowed the
+  // whole meta line (seeders/size included) as "provider".
   let provider: string | null = null;
-  const providerMatch = metaLine.match(/⚙️?\s*(.+)$/);
+  const providerMatch = metaLine.match(/(?:⚙️|🔎)\s*(.+)$/);
   if (providerMatch) provider = providerMatch[1].trim() || null;
 
   return { metaLineIdx, seeders, size, provider };
 }
 
+// Different addons put quality/resolution tags in different places — Torrentio
+// puts them on the second line of `name`, Comet appends them to a single-line
+// `name` alongside a service tag. Scanning every line/token instead of a fixed
+// line index keeps this working across addons without per-addon special-casing.
 function parseQualityTag(name: string) {
-  const tagLine = (name || '').split('\n')[1] || '';
-  const tokens = tagLine.split(/\s*\|\s*|\s+/).map((t) => t.trim()).filter(Boolean);
+  const tokens = (name || '')
+    .split('\n')
+    .flatMap((line) => line.split(/\s*\|\s*|\s+/))
+    .map((t) => t.trim())
+    .filter(Boolean);
 
   let quality: string | null = null;
   let sourceTag: string | null = null;
@@ -118,14 +129,19 @@ export function formatTorrentio(data: any): TorrentioStream[] {
   return streams
     .filter((item: any) => item.infoHash || item.url)
     .map((item: any) => {
-      const rawTitle: string = item.title || item.name || 'Unknown Stream';
+      // Torrentio puts the human-readable details in `title`; addons like Comet
+      // leave `title` unset and put the same kind of multi-line details in
+      // `description` instead, using `name` for a short badge (service + resolution).
+      // Falling back to `name` first (as before) meant every Comet stream showed
+      // that near-identical badge as its "title" — prefer `description` instead.
+      const rawTitle: string = item.title || item.description || item.name || 'Unknown Stream';
       const lines = rawTitle.split('\n').map((l: string) => l.trim()).filter(Boolean);
       const { metaLineIdx, seeders, size, provider } = parseMetaLine(lines);
 
       const beforeLines = metaLineIdx >= 0 ? lines.slice(0, metaLineIdx) : lines;
       const afterLines = metaLineIdx >= 0 ? lines.slice(metaLineIdx + 1) : [];
 
-      const releaseTitle = beforeLines[0] || 'Unknown Stream';
+      const releaseTitle = (beforeLines[0] || 'Unknown Stream').replace(/^[^\w(]+\s*/, '');
       const derivedFilename = beforeLines.length > 1 ? beforeLines[beforeLines.length - 1] : null;
 
       const languages = afterLines
@@ -134,7 +150,10 @@ export function formatTorrentio(data: any): TorrentioStream[] {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      const { quality, sourceTag, hdr, dolbyVision, is3D } = parseQualityTag(item.name || '');
+      // Torrentio puts quality/HDR/DV tags in `name`; Comet's `name` only has
+      // the resolution and puts HDR/DV/source tags in `description`'s own
+      // lines (📹/⭐). Scanning both together catches either layout.
+      const { quality, sourceTag, hdr, dolbyVision, is3D } = parseQualityTag(`${item.name || ''}\n${rawTitle}`);
       const { codec, bitDepth, source, audio, releaseGroup } = extractFromReleaseTitle(releaseTitle);
 
       return {
@@ -157,6 +176,7 @@ export function formatTorrentio(data: any): TorrentioStream[] {
         isDirect: !item.infoHash && !!item.url,
         fileIdx: typeof item.fileIdx === 'number' ? item.fileIdx : null,
         infoHash: item.infoHash || null,
+        addonName: null,
       };
     });
 }

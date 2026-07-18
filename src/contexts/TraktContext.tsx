@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import * as traktService from '@/services/traktService';
 import { DeviceAuthResult } from '@/services/traktService';
+import { syncFromTrakt } from '@/services/watchedService';
 
 export type TraktAuthStatus = 'idle' | 'pending' | 'success' | 'expired' | 'denied' | 'error';
 
@@ -50,6 +51,7 @@ export function TraktProvider({ children }: { children: ReactNode }) {
         traktService.getUserProfile().then((profile) => {
           if (profile) setUsername(profile.username);
         });
+        syncFromTrakt();
       }
     });
   }, []);
@@ -93,6 +95,7 @@ export function TraktProvider({ children }: { children: ReactNode }) {
         setConnected(true);
         const profile = await traktService.getUserProfile();
         if (profile) setUsername(profile.username);
+        syncFromTrakt();
       } else if (result === 'expired') {
         setAuthStatus('expired');
         setAuthError('The Trakt activation code expired. Try connecting again.');

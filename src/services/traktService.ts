@@ -436,3 +436,31 @@ async function scrobble(action: 'start' | 'pause' | 'stop', contentId: string, p
 export const scrobbleStart = (contentId: string, progressPct: number) => scrobble('start', contentId, progressPct);
 export const scrobblePause = (contentId: string, progressPct: number) => scrobble('pause', contentId, progressPct);
 export const scrobbleStop = (contentId: string, progressPct: number) => scrobble('stop', contentId, progressPct);
+
+function buildHistoryBody(contentId: string): Record<string, any> | null {
+  const parsed = parseContentId(contentId);
+  if (!parsed) return null;
+  if (parsed.season != null && parsed.episode != null) {
+    return {
+      shows: [
+        {
+          ids: { imdb: parsed.id },
+          seasons: [{ number: parsed.season, episodes: [{ number: parsed.episode }] }],
+        },
+      ],
+    };
+  }
+  return { movies: [{ ids: { imdb: parsed.id } }] };
+}
+
+export async function addToHistory(contentId: string): Promise<void> {
+  const body = buildHistoryBody(contentId);
+  if (!body) return;
+  await request('/sync/history', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function removeFromHistory(contentId: string): Promise<void> {
+  const body = buildHistoryBody(contentId);
+  if (!body) return;
+  await request('/sync/history/remove', { method: 'POST', body: JSON.stringify(body) });
+}

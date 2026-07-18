@@ -208,20 +208,26 @@ export async function fetchMeta(type: string, id: string, options?: FetchOptions
   }
 }
 
-async function fetchAddonStreams(url: string, options?: FetchOptions): Promise<TorrentioStream[]> {
-  const data = await fetchWithRetry(url, { 
-    ttl: 60 * 1000, 
+async function fetchAddonStreams(url: string, addonName: string, options?: FetchOptions): Promise<TorrentioStream[]> {
+  const data = await fetchWithRetry(url, {
+    ttl: 60 * 1000,
     timeoutMs: 20000,
-    retries: 2, 
-    ...options 
+    retries: 2,
+    ...options
   });
-  return formatTorrentio(data);
+  return formatTorrentio(data).map((s) => ({ ...s, addonName }));
 }
 
-export async function fetchMovieStreams(id: string, addonApis: string[] = ["https://torrentio.strem.fun/manifest.json"], options?: FetchOptions): Promise<TorrentioStream[]> {
-  const fetchPromises = addonApis.map((api) => {
-    const baseUrl = api.replace(/\/manifest\.json$/, "");
-    return fetchAddonStreams(`${baseUrl}/stream/movie/${encodePathPart(id)}.json`, options).catch(err => {
+export interface StreamSourceAddon {
+  manifestUrl: string;
+  name: string;
+}
+
+export async function fetchMovieStreams(id: string, addons: StreamSourceAddon[], options?: FetchOptions): Promise<TorrentioStream[]> {
+  if (addons.length === 0) return [];
+  const fetchPromises = addons.map((addon) => {
+    const baseUrl = addon.manifestUrl.replace(/\/manifest\.json$/, "");
+    return fetchAddonStreams(`${baseUrl}/stream/movie/${encodePathPart(id)}.json`, addon.name, options).catch(err => {
       if (err.message !== 'AbortError') console.error(err);
       throw err;
     });
@@ -230,11 +236,13 @@ export async function fetchMovieStreams(id: string, addonApis: string[] = ["http
   return dataArray.flat();
 }
 
-export async function fetchEpisodeStreams(id: string, season: number, episode: number, addonApis: string[] = ["https://torrentio.strem.fun/manifest.json"], options?: FetchOptions): Promise<TorrentioStream[]> {
-  const fetchPromises = addonApis.map((api) => {
-    const baseUrl = api.replace(/\/manifest\.json$/, "");
+export async function fetchEpisodeStreams(id: string, season: number, episode: number, addons: StreamSourceAddon[], options?: FetchOptions): Promise<TorrentioStream[]> {
+  if (addons.length === 0) return [];
+  const fetchPromises = addons.map((addon) => {
+    const baseUrl = addon.manifestUrl.replace(/\/manifest\.json$/, "");
     return fetchAddonStreams(
       `${baseUrl}/stream/series/${encodePathPart(id)}:${encodePathPart(season)}:${encodePathPart(episode)}.json`,
+      addon.name,
       options
     ).catch(err => {
       if (err.message !== 'AbortError') console.error(err);

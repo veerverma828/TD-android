@@ -12,11 +12,13 @@ import { TorrentModal } from '@/components/TorrentModal';
 import { fetchMeta, DetailedMetaItem, fetchMovieStreams, fetchEpisodeStreams } from '@/services/cinemeta';
 import { TorrentioStream } from '@/utils/streamHelpers';
 import { getActiveDebridProvider, getDebridKey, checkCachedHashes } from '@/services/debridService';
+import { getEnabledAddons } from '@/services/addonService';
+import { getWatchedSet, setWatched, syncFromTrakt } from '@/services/watchedService';
 import { useMyList } from '@/contexts/MyListContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
-import { buildContentId } from '@/utils/contentId';
+import { buildContentId, parseContentId } from '@/utils/contentId';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { EPISODE_SELECTORS } from '@/components/episodes';
@@ -46,6 +48,7 @@ export default function DetailsScreen() {
   });
   const [meta, setMeta] = useState<DetailedMetaItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   
   // Stream state
   const [streams, setStreams] = useState<TorrentioStream[]>([]);
@@ -75,6 +78,14 @@ export default function DetailsScreen() {
     };
   }, []);
 
+  // Guards the one-shot autoplay-from-Continue-Watching effect below. Reset per
+  // id/type so a reused screen instance (screen dedup, or a future router.replace
+  // navigation) can't skip autoplay for a new title using a stale flag from the
+  // previous one.
+  useEffect(() => {
+    autoplayTriggeredRef.current = false;
+  }, [id, type]);
+
   useEffect(() => {
     async function loadMeta() {
       if (!id || !type) return;
@@ -98,6 +109,45 @@ export default function DetailsScreen() {
     loadMeta();
   }, [id, type]);
 
+  useEffect(() => {
+    (async () => {
+      await syncFromTrakt();
+      setWatchedIds(await getWatchedSet());
+    })();
+  }, []);
+
+  const handleToggleMovieWatched = async () => {
+    const contentId = buildContentId(type, id);
+    const nowWatched = !watchedIds.has(contentId);
+    setWatchedIds((prev) => {
+      const next = new Set(prev);
+      if (nowWatched) next.add(contentId);
+      else next.delete(contentId);
+      return next;
+    });
+    await setWatched(contentId, nowWatched);
+  };
+
+  const handleToggleEpisodeWatched = async (season: number, episode: number) => {
+    const contentId = buildContentId(type, id, season, episode);
+    const nowWatched = !watchedIds.has(contentId);
+    setWatchedIds((prev) => {
+      const next = new Set(prev);
+      if (nowWatched) next.add(contentId);
+      else next.delete(contentId);
+      return next;
+    });
+    await setWatched(contentId, nowWatched);
+  };
+
+  const watchedEpisodeKeys = new Set(
+    Array.from(watchedIds)
+      .map((cid) => parseContentId(cid))
+      .filter((p): p is NonNullable<typeof p> => !!p && p.type === 'series' && p.id === id && p.season != null)
+      .map((p) => `${p.season}:${p.episode}`)
+  );
+  const movieWatched = watchedIds.has(buildContentId(type, id));
+
   // Resolves the debrid cache badges for a freshly-fetched stream list before
   // it's committed to state, so the fire icons land in the same render as the
   // list itself instead of popping in a beat later.
@@ -115,7 +165,8 @@ export default function DetailsScreen() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    abortControllerRef.current = new AbortController();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setStreams([]);
     setStreamError(null);
@@ -125,13 +176,20 @@ export default function DetailsScreen() {
     setActiveTitle(meta?.name || '');
     setActiveContentId(buildContentId(type, id));
     try {
-      const data = await fetchMovieStreams(id, undefined, { signal: abortControllerRef.current.signal });
+      const addons = await getEnabledAddons();
+      if (addons.length === 0) {
+        setStreamError('No addon added. Add one in Settings > Addons.');
+        setStreamsLoading(false);
+        return;
+      }
+      const data = await fetchMovieStreams(id, addons, { signal: controller.signal });
       const cached = await resolveCachedHashes(data);
+      if (abortControllerRef.current !== controller) return; // superseded by a newer request
       setCachedHashes(cached);
       setStreams(data);
       setStreamsLoading(false);
     } catch (err: any) {
-      if (err.message === 'AbortError') return;
+      if (err.message === 'AbortError' || abortControllerRef.current !== controller) return;
       setStreamError(err.message === 'TimeoutError' ? 'Request timed out.' : 'Network Error');
       setStreamsLoading(false);
     }
@@ -141,7 +199,8 @@ export default function DetailsScreen() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    abortControllerRef.current = new AbortController();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setStreams([]);
     setStreamError(null);
@@ -152,13 +211,20 @@ export default function DetailsScreen() {
     setActiveTitle(episodeMeta ? `${meta?.name} — S${season}:E${episode} ${episodeMeta.title}` : meta?.name || '');
     setActiveContentId(buildContentId(type, id, season, episode));
     try {
-      const data = await fetchEpisodeStreams(id, season, episode, undefined, { signal: abortControllerRef.current.signal });
+      const addons = await getEnabledAddons();
+      if (addons.length === 0) {
+        setStreamError('No addon added. Add one in Settings > Addons.');
+        setStreamsLoading(false);
+        return;
+      }
+      const data = await fetchEpisodeStreams(id, season, episode, addons, { signal: controller.signal });
       const cached = await resolveCachedHashes(data);
+      if (abortControllerRef.current !== controller) return; // superseded by a newer request
       setCachedHashes(cached);
       setStreams(data);
       setStreamsLoading(false);
     } catch (err: any) {
-      if (err.message === 'AbortError') return;
+      if (err.message === 'AbortError' || abortControllerRef.current !== controller) return;
       setStreamError(err.message === 'TimeoutError' ? 'Request timed out.' : 'Network Error');
       setStreamsLoading(false);
     }
@@ -298,6 +364,14 @@ export default function DetailsScreen() {
                 {inMyList ? 'In List' : 'My List'}
               </ThemedText>
             </FocusablePressable>
+            {type === 'movie' && (
+              <FocusablePressable style={styles.actionItem} onPress={handleToggleMovieWatched} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={movieWatched ? 'Mark as unwatched' : 'Mark as watched'}>
+                <IconSymbol name="checkmark" color={movieWatched ? colors.accent : colors.textSecondary} size={28} />
+                <ThemedText style={[styles.actionText, { color: movieWatched ? colors.accent : colors.textSecondary }]}>
+                  {movieWatched ? 'Watched' : 'Mark Watched'}
+                </ThemedText>
+              </FocusablePressable>
+            )}
           </View>
 
           {/* Synopsis */}
@@ -317,6 +391,8 @@ export default function DetailsScreen() {
                   allVideos={meta.videos}
                   posterFallback={meta.poster}
                   onPlayEpisode={handlePlayEpisode}
+                  watchedEpisodeKeys={watchedEpisodeKeys}
+                  onToggleWatched={handleToggleEpisodeWatched}
                 />
               </View>
             );

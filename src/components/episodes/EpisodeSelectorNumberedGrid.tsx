@@ -4,7 +4,7 @@ import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { EpisodeSelectorProps, seasonLabel } from './types';
 
-export function EpisodeSelectorNumberedGrid({ seasons, selectedSeason, onSelectSeason, allVideos, onPlayEpisode }: EpisodeSelectorProps) {
+export function EpisodeSelectorNumberedGrid({ seasons, selectedSeason, onSelectSeason, allVideos, onPlayEpisode, watchedEpisodeKeys }: EpisodeSelectorProps) {
   const { colors } = useAppTheme();
   const visibleEpisodes = allVideos.filter((v) => v.season === selectedSeason);
 
@@ -39,6 +39,9 @@ export function EpisodeSelectorNumberedGrid({ seasons, selectedSeason, onSelectS
             accessibilityLabel={ep.title ? `Episode ${ep.episode}, ${ep.title}` : `Episode ${ep.episode}`}
           >
             <ThemedText style={[styles.tileNumber, { color: colors.text }]}>{ep.episode}</ThemedText>
+            {watchedEpisodeKeys?.has(`${ep.season}:${ep.episode}`) && (
+              <View style={[styles.watchedDot, { backgroundColor: colors.accent }]} />
+            )}
           </FocusablePressable>
         ))}
       </View>
@@ -59,4 +62,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileNumber: { fontSize: 16, fontWeight: '800' },
+  watchedDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
 });

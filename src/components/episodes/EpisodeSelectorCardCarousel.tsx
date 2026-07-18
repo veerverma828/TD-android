@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -13,7 +13,7 @@ import { EpisodeSelectorProps, seasonLabel } from './types';
 const CARD_WIDTH = 168;
 const CARD_GAP = 10;
 
-export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectSeason, allVideos, posterFallback, onPlayEpisode }: EpisodeSelectorProps) {
+export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectSeason, allVideos, posterFallback, onPlayEpisode, watchedEpisodeKeys, onToggleWatched }: EpisodeSelectorProps) {
   const { colors } = useAppTheme();
   const isTV = useIsTV();
   const listRef = useRef<FlatList<Video>>(null);
@@ -72,6 +72,17 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
               <View style={styles.playIconOverlay}>
                 <IconSymbol name="play.circle.fill" color="#ffffff" size={26} />
               </View>
+              {onToggleWatched && (
+                <Pressable
+                  onPress={() => onToggleWatched(ep.season, ep.episode)}
+                  hitSlop={8}
+                  style={[styles.watchedBadge, { backgroundColor: watchedEpisodeKeys?.has(`${ep.season}:${ep.episode}`) ? colors.accent : 'rgba(0,0,0,0.55)' }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={watchedEpisodeKeys?.has(`${ep.season}:${ep.episode}`) ? 'Mark as unwatched' : 'Mark as watched'}
+                >
+                  <IconSymbol name="checkmark" color="#fff" size={11} />
+                </Pressable>
+              )}
             </View>
             <ThemedText style={styles.cardTitle} numberOfLines={1}>{ep.title || `Episode ${ep.episode}`}</ThemedText>
             <ThemedText style={[styles.cardDuration, { color: colors.textSecondary }]}>
@@ -97,6 +108,10 @@ const styles = StyleSheet.create({
     borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2,
   },
   numberBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  watchedBadge: {
+    position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: 9,
+    justifyContent: 'center', alignItems: 'center',
+  },
   playIconOverlay: { ...(StyleSheet.absoluteFill as object), justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)' },
   cardTitle: { fontSize: 13, fontWeight: '600', marginTop: 6 },
   cardDuration: { fontSize: 11, marginTop: 2 },

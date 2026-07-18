@@ -14,6 +14,7 @@ import { fetchDefaultMovies, fetchDefaultSeries, fetchCatalog, MetaItem } from '
 import { useSettings } from '@/contexts/SettingsContext';
 import { useMyList } from '@/contexts/MyListContext';
 import { useContinueWatching, ContinueWatchingItem } from '@/hooks/useContinueWatching';
+import { checkForNewEpisodes } from '@/services/notificationService';
 
 const CURRENT_YEAR = String(new Date().getFullYear());
 
@@ -56,7 +57,7 @@ export default function HomeScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const { showRating } = useSettings();
-  const { list: myList, toggle: toggleMyList, isInList } = useMyList();
+  const { list: myList, loaded: myListLoaded, toggle: toggleMyList, isInList } = useMyList();
   const { items: continueWatchingItems, removeItem: removeContinueWatchingItem, refresh: refreshContinueWatching } = useContinueWatching();
   const [selectedContinueWatchingItem, setSelectedContinueWatchingItem] = useState<ContinueWatchingItem | null>(null);
 
@@ -68,6 +69,16 @@ export default function HomeScreen() {
       refreshContinueWatching();
     }, [refreshContinueWatching])
   );
+
+  // Checked once per app foreground/mount — cheap since it no-ops when the
+  // user hasn't enabled notifications, and each show is only diffed against
+  // its own last-seen episode list rather than re-fetching on every render.
+  useEffect(() => {
+    if (myListLoaded && myList.length > 0) {
+      checkForNewEpisodes(myList.filter((item) => item.type === 'series'));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myListLoaded]);
 
   const [movies, setMovies] = useState<MetaItem[]>([]);
   const [series, setSeries] = useState<MetaItem[]>([]);

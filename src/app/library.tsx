@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput, FlatList } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
@@ -31,8 +31,11 @@ export default function LibraryScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.header}>
+        <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
           <ThemedText type="title" style={styles.headerTitle}>Library</ThemedText>
+          <Pressable onPress={() => router.push('/calendar')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Calendar">
+            <IconSymbol name="calendar" color={colors.text} size={24} />
+          </Pressable>
         </View>
 
         <View style={styles.searchContainer}>

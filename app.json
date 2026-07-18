@@ -37,14 +37,13 @@
       ],
       "expo-secure-store",
       "expo-dev-client",
-      [
-        "react-native-video",
-        {
-          "enableAndroidPictureInPicture": true,
-          "enableCacheExtension": true
-        }
-      ],
-      "./plugins/withAndroidTVBanner.js"
+      "expo-notifications",
+      "./plugins/withAndroidTVBanner.js",
+      "./plugins/withVideoPlayerActivity.js",
+      "./plugins/withNativePlayerPackage.js",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

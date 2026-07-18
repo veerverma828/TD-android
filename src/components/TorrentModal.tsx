@@ -1,5 +1,5 @@
 import { StyleSheet, View, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -31,10 +31,18 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
     contentId,
   });
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeSource, setActiveSource] = useState<string>('All');
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => (prev === id ? null : id));
   };
+
+  const sources = Array.from(new Set(options.map((o) => o.addonName || 'Unknown')));
+  const filteredOptions = activeSource === 'All' ? options : options.filter((o) => (o.addonName || 'Unknown') === activeSource);
+
+  useEffect(() => {
+    if (visible) setActiveSource('All');
+  }, [visible]);
 
   useTVBackHandler(() => {
     if (!visible) return false;
@@ -87,8 +95,65 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
               <ThemedText style={styles.loadingText}>No streams found.</ThemedText>
             </View>
           ) : (
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
-              {options.map((opt, idx) => {
+            <>
+              {sources.length > 0 && (
+                <View style={styles.sourceSection}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.sourceRow}
+                  >
+                    {['All', ...sources].map((source) => {
+                      const isActive = activeSource === source;
+                      const count = source === 'All' ? options.length : options.filter((o) => (o.addonName || 'Unknown') === source).length;
+                      return (
+                        <FocusablePressable
+                          key={source}
+                          style={[
+                            styles.sourcePill,
+                            {
+                              backgroundColor: isActive ? colors.accent : 'transparent',
+                              borderColor: isActive ? colors.accent : colors.backgroundSelected,
+                            },
+                          ]}
+                          onPress={() => setActiveSource(source)}
+                          focusRingBorderRadius={20}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Filter by ${source}`}
+                          accessibilityState={{ selected: isActive }}
+                        >
+                          <ThemedText
+                            style={[
+                              styles.sourcePillText,
+                              { color: isActive ? colors.textOnAccent : colors.text },
+                            ]}
+                          >
+                            {source}
+                          </ThemedText>
+                          <View
+                            style={[
+                              styles.sourceCountBadge,
+                              { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : colors.backgroundSelected },
+                            ]}
+                          >
+                            <ThemedText
+                              style={[
+                                styles.sourceCountText,
+                                { color: isActive ? colors.textOnAccent : colors.textSecondary },
+                              ]}
+                            >
+                              {count}
+                            </ThemedText>
+                          </View>
+                        </FocusablePressable>
+                      );
+                    })}
+                  </ScrollView>
+                  <View style={[styles.sourceDivider, { backgroundColor: colors.backgroundSelected }]} />
+                </View>
+              )}
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
+              {filteredOptions.map((opt, idx) => {
                 const uniqueId = `stream-${opt.infoHash || 'unknown'}-${idx}`;
                 const isExpanded = expandedId === uniqueId;
                 const isCached = !!opt.infoHash && !!cachedHashes?.has(opt.infoHash.toLowerCase());
@@ -196,7 +261,8 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
                   </View>
                 );
               })}
-            </ScrollView>
+              </ScrollView>
+            </>
           )}
         </View>
       </View>
@@ -269,6 +335,48 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
+  },
+  sourceSection: {
+    marginBottom: 10,
+  },
+  sourceRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 2,
+    gap: 8,
+  },
+  sourcePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 30,
+    paddingLeft: 12,
+    paddingRight: 8,
+    borderRadius: 15,
+    borderWidth: 1,
+    gap: 6,
+  },
+  sourcePillText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    lineHeight: 15,
+  },
+  sourceCountBadge: {
+    height: 18,
+    minWidth: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  sourceCountText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    lineHeight: 13,
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
+  sourceDivider: {
+    height: 1,
+    marginTop: 10,
   },
   optionContainer: {
     borderRadius: 12,

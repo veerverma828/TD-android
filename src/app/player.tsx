@@ -1,11 +1,18 @@
+import { useEffect, useRef } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
-import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { usePlayerSettings } from '@/contexts/PlayerSettingsContext';
+import { useTraktScrobble } from '@/hooks/player/useTraktScrobble';
+import { usePlaybackPosition } from '@/hooks/player/usePlaybackPosition';
+import { useNextEpisode } from '@/hooks/player/useNextEpisode';
+import { useNativePlayerBridge } from '@/hooks/player/useNativePlayerBridge';
 
 export default function PlayerScreen() {
   const { url, title, poster, contentId } = useLocalSearchParams<{
@@ -15,6 +22,13 @@ export default function PlayerScreen() {
     contentId?: string;
   }>();
   const router = useRouter();
+  const { colors } = useAppTheme();
+  const { settings } = usePlayerSettings();
+  const resolvedContentId = contentId ?? null;
+
+  const { resumeFrom, resolved: resumeResolved, savePosition } = usePlaybackPosition(resolvedContentId);
+  const nextEpisode = useNextEpisode(resolvedContentId);
+  const launchedRef = useRef(false);
 
   // The player screen can be reached via router.replace() (e.g. auto-advancing to
   // the next episode), which leaves nothing to go "back" to — guard against that
@@ -31,6 +45,44 @@ export default function PlayerScreen() {
     goBack();
   });
 
+  const { playback, launch } = useNativePlayerBridge({
+    onClosed: (e) => {
+      if (resolvedContentId) savePosition(e.finalPositionSeconds, e.finalDurationSeconds, true);
+      ScreenOrientation.unlockAsync();
+      goBack();
+    },
+    onRequestNext: () => {
+      if (settings.autoPlayNextEpisode && nextEpisode.hasNext) {
+        nextEpisode.playNext();
+      } else {
+        ScreenOrientation.unlockAsync();
+        goBack();
+      }
+    },
+  });
+
+  useTraktScrobble(resolvedContentId, playback);
+
+  useEffect(() => {
+    if (!url || launchedRef.current || !resumeResolved) return;
+    launchedRef.current = true;
+    launch({
+      streamUrl: url,
+      title,
+      contentId: resolvedContentId,
+      resumePositionSeconds: settings.resumeAutomatically ? resumeFrom ?? 0 : 0,
+      hasNextEpisode: nextEpisode.hasNext,
+      theme: colors,
+      settings: settings as unknown as Record<string, unknown>,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, resumeResolved]);
+
+  useEffect(() => {
+    if (!resolvedContentId || !settings.rememberPosition) return;
+    savePosition(playback.currentTime, playback.duration);
+  }, [playback.currentTime, playback.duration, resolvedContentId, settings.rememberPosition, savePosition]);
+
   if (!url) {
     return (
       <View style={[styles.container, styles.emptyState]}>
@@ -44,17 +96,11 @@ export default function PlayerScreen() {
     );
   }
 
+  // The native PlayerActivity renders on top of this screen once launched —
+  // this view is only ever briefly visible during the handoff.
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      <VideoPlayer
-        key={contentId || url}
-        streamUrl={url}
-        title={title}
-        poster={poster}
-        contentId={contentId ?? null}
-        onClose={goBack}
-      />
     </View>
   );
 }

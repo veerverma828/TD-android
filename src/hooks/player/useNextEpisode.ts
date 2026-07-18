@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 
 import { fetchMeta, fetchEpisodeStreams } from '@/services/cinemeta';
 import { getActiveDebridProvider, getDebridKey, getFiles, generateLink } from '@/services/debridService';
+import { getEnabledAddons } from '@/services/addonService';
 import { buildContentId, parseContentId } from '@/utils/contentId';
 
 interface NextEpisodeTarget {
@@ -50,7 +51,9 @@ export function useNextEpisode(contentId: string | null) {
       const apiKey = await getDebridKey(provider);
       if (!apiKey) return;
 
-      const streams = await fetchEpisodeStreams(parsed.id, next.season, next.episode);
+      const addons = await getEnabledAddons();
+      if (addons.length === 0) return;
+      const streams = await fetchEpisodeStreams(parsed.id, next.season, next.episode, addons);
       if (streams.length === 0) return;
 
       const result = await getFiles(streams[0].magnet, provider, apiKey);

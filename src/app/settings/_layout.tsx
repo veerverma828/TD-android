@@ -5,6 +5,8 @@ export default function SettingsLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="debrid" />
+      <Stack.Screen name="addons" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="playback" />
       <Stack.Screen name="continue-watching" />
       <Stack.Screen name="preplay" />

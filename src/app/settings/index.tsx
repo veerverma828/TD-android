@@ -10,6 +10,8 @@ import { IconSymbolName } from '@/components/IconSymbol';
 
 const CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route: string }[] = [
   { icon: 'lock.fill', label: 'Debrid', subtitle: 'Provider, API key', route: '/settings/debrid' },
+  { icon: 'puzzlepiece.extension.fill', label: 'Addons', subtitle: 'Stream sources', route: '/settings/addons' },
+  { icon: 'bell', label: 'Notifications', subtitle: 'New episode alerts', route: '/settings/notifications' },
   { icon: 'goforward', label: 'Continue watching', subtitle: 'Resume, autoplay, position', route: '/settings/continue-watching' },
   { icon: 'photo', label: 'Pre-play screen', subtitle: 'Landscape loading screen layout', route: '/settings/preplay' },
   { icon: 'hand.tap', label: 'Gestures', subtitle: 'Swipe and tap controls', route: '/settings/gestures' },
@@ -30,13 +32,14 @@ export default function SettingsScreen() {
         </ThemedView>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={settingsStyles.scrollContent}>
-          {CATEGORIES.map((category) => (
+          {CATEGORIES.map((category, index) => (
             <CategoryRow
               key={category.route}
               icon={category.icon}
               label={category.label}
               subtitle={category.subtitle}
               onPress={() => router.push(category.route as any)}
+              isLast={index === CATEGORIES.length - 1}
             />
           ))}
         </ScrollView>

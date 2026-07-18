@@ -57,6 +57,8 @@ const MAPPING = {
   'backward.end.fill': 'skip-previous',
   'hand.tap': 'touch-app',
   'flame.fill': 'local-fire-department',
+  'puzzlepiece.extension.fill': 'extension',
+  'calendar': 'event',
 };
 
 export type IconSymbolName = keyof typeof MAPPING;

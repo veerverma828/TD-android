@@ -114,6 +114,12 @@ export default function AppTabs() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
