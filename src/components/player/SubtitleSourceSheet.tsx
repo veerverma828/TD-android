@@ -51,6 +51,7 @@ export function SubtitleSourceSheet({ visible, onClose, onLoad }: SubtitleSource
               style={[styles.input, { color: colors.text, borderColor: colors.backgroundSelected }]}
               autoCapitalize="none"
               autoCorrect={false}
+              hasTVPreferredFocus
             />
             <FocusablePressable
               style={[styles.button, { backgroundColor: colors.accent, opacity: url.trim() ? 1 : 0.5 }]}

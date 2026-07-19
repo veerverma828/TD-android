@@ -44,18 +44,13 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
     if (visible) setActiveSource('All');
   }, [visible]);
 
-  useTVBackHandler(() => {
-    if (!visible) return false;
-    if (fileSelection) {
-      setFileSelection(null);
-      return;
-    }
-    if (expandedId) {
-      setExpandedId(null);
-      return;
-    }
-    onClose();
-  }, visible);
+  // Split into three mutually-exclusive handlers (only one is ever `enabled`
+  // at a time based on state) instead of one hand-rolled if-priority chain —
+  // each handler only registers a listener when its own concern is active,
+  // so there's no reliance on RN's BackHandler LIFO ordering to get this right.
+  useTVBackHandler(() => setFileSelection(null), visible && !!fileSelection);
+  useTVBackHandler(() => setExpandedId(null), visible && !fileSelection && !!expandedId);
+  useTVBackHandler(onClose, visible && !fileSelection && !expandedId);
 
   return (
     <Modal
@@ -183,7 +178,9 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
                         { backgroundColor: pressed && !isExpanded ? colors.backgroundElement : 'transparent' },
                       ]}
                       onPress={() => toggleExpand(uniqueId)}
+                      hasTVPreferredFocus={idx === 0}
                       focusRingBorderRadius={10}
+                      focusRingScale={false}
                       accessibilityRole="button"
                       accessibilityState={{ expanded: isExpanded }}
                       accessibilityLabel={opt.title}
@@ -230,6 +227,7 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
                           disabled={resolvingId === opt.magnet}
                           hasTVPreferredFocus
                           focusRingBorderRadius={8}
+                          focusRingScale={false}
                           accessibilityRole="button"
                           accessibilityLabel="Play"
                         >
@@ -242,17 +240,17 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
                             {resolvingId === opt.magnet ? 'Resolving...' : 'Play'}
                           </ThemedText>
                         </FocusablePressable>
-                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: '#8b5cf6' }]} onPress={() => playExternal(opt.magnet)} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Play externally">
+                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: '#8b5cf6' }]} onPress={() => playExternal(opt.magnet)} focusRingBorderRadius={8} focusRingScale={false} accessibilityRole="button" accessibilityLabel="Play externally">
                           <IconSymbol name="arrow.up.right.square" color="#fff" size={16} />
                           <ThemedText style={styles.actionBtnText}>External</ThemedText>
                         </FocusablePressable>
-                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]} onPress={() => copyUrl(opt.magnet)} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={opt.isDirect ? 'Copy link' : 'Copy magnet'}>
+                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]} onPress={() => copyUrl(opt.magnet)} focusRingBorderRadius={8} focusRingScale={false} accessibilityRole="button" accessibilityLabel={opt.isDirect ? 'Copy link' : 'Copy magnet'}>
                           <IconSymbol name="doc.on.doc" color={colors.text} size={16} />
                           <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>
                             {opt.isDirect ? 'Copy Link' : 'Copy Magnet'}
                           </ThemedText>
                         </FocusablePressable>
-                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]} onPress={() => download(opt.magnet)} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Download">
+                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]} onPress={() => download(opt.magnet)} focusRingBorderRadius={8} focusRingScale={false} accessibilityRole="button" accessibilityLabel="Download">
                           <IconSymbol name="arrow.down.circle" color={colors.text} size={16} />
                           <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Download</ThemedText>
                         </FocusablePressable>
@@ -341,7 +339,7 @@ const styles = StyleSheet.create({
   },
   sourceRow: {
     paddingHorizontal: 16,
-    paddingVertical: 2,
+    paddingVertical: 8,
     gap: 8,
   },
   sourcePill: {
@@ -431,6 +429,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 16,
+    paddingTop: 6,
     paddingBottom: 16,
     gap: 8,
   },

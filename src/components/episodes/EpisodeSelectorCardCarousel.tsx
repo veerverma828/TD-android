@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { FlatList, ScrollView, StyleSheet, View, Pressable } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -73,15 +73,16 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
                 <IconSymbol name="play.circle.fill" color="#ffffff" size={26} />
               </View>
               {onToggleWatched && (
-                <Pressable
+                <FocusablePressable
                   onPress={() => onToggleWatched(ep.season, ep.episode)}
                   hitSlop={8}
                   style={[styles.watchedBadge, { backgroundColor: watchedEpisodeKeys?.has(`${ep.season}:${ep.episode}`) ? colors.accent : 'rgba(0,0,0,0.55)' }]}
+                  focusRingBorderRadius={10}
                   accessibilityRole="button"
                   accessibilityLabel={watchedEpisodeKeys?.has(`${ep.season}:${ep.episode}`) ? 'Mark as unwatched' : 'Mark as watched'}
                 >
                   <IconSymbol name="checkmark" color="#fff" size={11} />
-                </Pressable>
+                </FocusablePressable>
               )}
             </View>
             <ThemedText style={styles.cardTitle} numberOfLines={1}>{ep.title || `Episode ${ep.episode}`}</ThemedText>
@@ -96,10 +97,10 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
 }
 
 const styles = StyleSheet.create({
-  seasonScroll: { gap: 8, paddingBottom: 4 },
+  seasonScroll: { gap: 8, paddingVertical: 6 },
   seasonPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   seasonText: { fontSize: 14, fontWeight: '600' },
-  cardRow: { gap: CARD_GAP, paddingTop: 16, paddingBottom: 4 },
+  cardRow: { gap: CARD_GAP, paddingTop: 16, paddingBottom: 8 },
   card: { width: CARD_WIDTH },
   thumbWrap: { width: CARD_WIDTH, height: 94, borderRadius: 8, overflow: 'hidden', position: 'relative' },
   thumb: { flex: 1 },

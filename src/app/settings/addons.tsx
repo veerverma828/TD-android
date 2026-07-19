@@ -1,4 +1,4 @@
-import { ScrollView, View, TextInput, Pressable, Alert, ActivityIndicator, Switch } from 'react-native';
+import { ScrollView, View, TextInput, Alert, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 
@@ -84,17 +84,20 @@ export default function AddonsSettingsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Pressable
+            <FocusablePressable
               style={[settingsStyles.primaryButton, { backgroundColor: colors.accent, opacity: adding ? 0.7 : 1 }]}
               onPress={handleAdd}
               disabled={adding}
+              focusRingBorderRadius={10}
+              accessibilityRole="button"
+              accessibilityLabel="Validate and add"
             >
               {adding ? (
                 <ActivityIndicator color={colors.textOnAccent} size="small" />
               ) : (
                 <ThemedText style={{ color: colors.textOnAccent, fontWeight: '700', fontSize: 14.5 }}>Validate & Add</ThemedText>
               )}
-            </Pressable>
+            </FocusablePressable>
           </View>
 
           <ThemedText style={[settingsStyles.sectionTitle, { color: colors.textSecondary, marginTop: 8 }]}>

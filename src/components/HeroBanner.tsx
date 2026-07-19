@@ -35,6 +35,8 @@ interface HeroBannerProps {
   items: HeroItem[];
   onPlayPress?: (item: HeroItem) => void;
   onListPress?: (item: HeroItem) => void;
+  hasTVPreferredFocus?: boolean;
+  onPlayFocus?: () => void;
 }
 
 const HeroSlide = memo(function HeroSlide({ item, colors }: { item: HeroItem; colors: Record<ThemeColor, string> }) {
@@ -97,7 +99,7 @@ const ProgressBubble = memo(function ProgressBubble({
   );
 });
 
-export function HeroBanner({ items, onPlayPress, onListPress }: HeroBannerProps) {
+export function HeroBanner({ items, onPlayPress, onListPress, hasTVPreferredFocus = true, onPlayFocus }: HeroBannerProps) {
   const { colors } = useAppTheme();
   const isTV = useIsTV();
   const listRef = useRef<FlatList<HeroItem>>(null);
@@ -173,7 +175,7 @@ export function HeroBanner({ items, onPlayPress, onListPress }: HeroBannerProps)
         windowSize={items.length}
       />
 
-      <View style={styles.content} pointerEvents="box-none">
+      <View style={[styles.content, isTV && { paddingLeft: 32 }]} pointerEvents="box-none">
         <View style={styles.titleRow}>
           <ThemedText style={styles.title} type="title" numberOfLines={2}>
             {current.title}
@@ -187,9 +189,9 @@ export function HeroBanner({ items, onPlayPress, onListPress }: HeroBannerProps)
         <View style={styles.actions}>
           <FocusablePressable
             onPress={() => onPlayPress?.(current)}
-            onFocus={isTV ? pauseAutoplay : undefined}
+            onFocus={isTV ? () => { pauseAutoplay(); onPlayFocus?.(); } : undefined}
             onBlur={isTV ? resumeAutoplay : undefined}
-            hasTVPreferredFocus
+            hasTVPreferredFocus={hasTVPreferredFocus}
             focusRingBorderRadius={3}
             accessibilityRole="button"
             accessibilityLabel="Play"

@@ -10,6 +10,7 @@ export function CategoryRow({
   label,
   subtitle,
   onPress,
+  onFocus,
   hasTVPreferredFocus,
   isLast,
 }: {
@@ -17,6 +18,7 @@ export function CategoryRow({
   label: string;
   subtitle: string;
   onPress: () => void;
+  onFocus?: () => void;
   hasTVPreferredFocus?: boolean;
   isLast?: boolean;
 }) {
@@ -25,7 +27,9 @@ export function CategoryRow({
   return (
     <FocusablePressable
       onPress={onPress}
+      onFocus={onFocus}
       hasTVPreferredFocus={hasTVPreferredFocus}
+      focusRingScale={false}
       accessibilityRole="button"
       accessibilityLabel={`${label}. ${subtitle}`}
     >

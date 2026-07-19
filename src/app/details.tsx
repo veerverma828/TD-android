@@ -1,4 +1,4 @@
-import { StyleSheet, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -22,6 +22,8 @@ import { buildContentId, parseContentId } from '@/utils/contentId';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { EPISODE_SELECTORS } from '@/components/episodes';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 export default function DetailsScreen() {
   const router = useRouter();
@@ -34,6 +36,8 @@ export default function DetailsScreen() {
   }>();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const isTV = useIsTV();
+  const { hasPreferredFocus: hasDetailsFocus, registerFocusable: registerDetailsFocusable } = useRestoreFocus(`details-${id}`);
   const { toggle: toggleMyList, isInList } = useMyList();
   const { episodeLayout } = useSettings();
 
@@ -253,9 +257,9 @@ export default function DetailsScreen() {
     return (
       <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ThemedText>Error loading details.</ThemedText>
-        <Pressable onPress={() => router.back()} style={{ marginTop: 20 }}>
+        <FocusablePressable onPress={() => router.back()} style={{ marginTop: 20 }} hasTVPreferredFocus focusRingBorderRadius={4} accessibilityRole="button" accessibilityLabel="Go back">
           <ThemedText style={{ color: colors.accent }}>Go Back</ThemedText>
-        </Pressable>
+        </FocusablePressable>
       </ThemedView>
     );
   }
@@ -290,7 +294,7 @@ export default function DetailsScreen() {
           />
 
           {/* Back Button */}
-          <View style={[styles.backButtonContainer, { top: Math.max(insets.top, 16) }]}>
+          <View style={[styles.backButtonContainer, { top: Math.max(insets.top, 16), left: isTV ? 32 : 16 }]}>
             <FocusablePressable
               onPress={() => router.back()}
               focusRingBorderRadius={20}
@@ -301,12 +305,12 @@ export default function DetailsScreen() {
                 { backgroundColor: 'rgba(0,0,0,0.5)', opacity: pressed ? 0.7 : 1 }
               ]}
             >
-              <IconSymbol name="house.fill" color="#fff" size={24} />
+              <IconSymbol name="chevron.left" color="#fff" size={24} />
             </FocusablePressable>
           </View>
 
           {/* Title + meta overlaid on the artwork itself */}
-          <View style={styles.headerContent} pointerEvents="none">
+          <View style={[styles.headerContent, isTV && { left: 32, right: 32, maxWidth: 800 }]} pointerEvents="none">
             <ThemedText style={styles.title} type="title">{meta.name}</ThemedText>
 
             <View style={styles.metaRow}>
@@ -322,50 +326,54 @@ export default function DetailsScreen() {
         </View>
 
         {/* Content Body */}
-        <View style={styles.contentContainer}>
+        <View style={[styles.contentContainer, isTV && styles.contentContainerTV]}>
 
           {/* Primary Action */}
-          <FocusablePressable
-            style={({ pressed }) => [
-              styles.playButton,
-              { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }
-            ]}
-            hasTVPreferredFocus
-            focusRingBorderRadius={6}
-            accessibilityRole="button"
-            accessibilityLabel="Play"
-            onPress={() => {
-              if (type === 'series' && meta.videos?.length) {
-                // Play first episode of selected season
-                const firstEp = visibleEpisodes[0] || meta.videos[0];
-                handlePlayEpisode(firstEp.season, firstEp.episode);
-              } else {
-                handlePlayMovie();
-              }
-            }}
-          >
-            <IconSymbol name="play.fill" color={colors.textOnAccent} size={20} />
-            <ThemedText style={[styles.playButtonText, { color: colors.textOnAccent }]}>
-              {type === 'series' && meta.videos?.length
-                ? (visibleEpisodes[0] ? `Play S${visibleEpisodes[0].season}:E${visibleEpisodes[0].episode}` : 'Play')
-                : 'Play'}
-            </ThemedText>
-          </FocusablePressable>
+          <View style={isTV && styles.playButtonRowTV}>
+            <FocusablePressable
+              style={({ pressed }) => [
+                styles.playButton,
+                isTV && styles.playButtonTV,
+                { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }
+              ]}
+              hasTVPreferredFocus={hasDetailsFocus('play-button', true)}
+              onFocus={() => registerDetailsFocusable('play-button')}
+              focusRingBorderRadius={6}
+              accessibilityRole="button"
+              accessibilityLabel="Play"
+              onPress={() => {
+                if (type === 'series' && meta.videos?.length) {
+                  // Play first episode of selected season
+                  const firstEp = visibleEpisodes[0] || meta.videos[0];
+                  handlePlayEpisode(firstEp.season, firstEp.episode);
+                } else {
+                  handlePlayMovie();
+                }
+              }}
+            >
+              <IconSymbol name="play.fill" color={colors.textOnAccent} size={20} />
+              <ThemedText style={[styles.playButtonText, { color: colors.textOnAccent }]}>
+                {type === 'series' && meta.videos?.length
+                  ? (visibleEpisodes[0] ? `Play S${visibleEpisodes[0].season}:E${visibleEpisodes[0].episode}` : 'Play')
+                  : 'Play'}
+              </ThemedText>
+            </FocusablePressable>
+          </View>
 
           {/* Secondary Actions */}
-          <View style={styles.actionsRow}>
-            <FocusablePressable style={styles.actionItem} onPress={() => setModalVisible(true)} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Streams">
+          <View style={[styles.actionsRow, isTV && styles.actionsRowTV]}>
+            <FocusablePressable style={[styles.actionItem, isTV && styles.actionItemTV]} onPress={() => setModalVisible(true)} hasTVPreferredFocus={hasDetailsFocus('streams', false)} onFocus={() => registerDetailsFocusable('streams')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Streams">
               <IconSymbol name="tv" color={colors.textSecondary} size={28} />
               <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>Streams</ThemedText>
             </FocusablePressable>
-            <FocusablePressable style={styles.actionItem} onPress={() => toggleMyList(meta)} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
+            <FocusablePressable style={[styles.actionItem, isTV && styles.actionItemTV]} onPress={() => toggleMyList(meta)} hasTVPreferredFocus={hasDetailsFocus('mylist', false)} onFocus={() => registerDetailsFocusable('mylist')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
               <IconSymbol name={inMyList ? 'checkmark' : 'plus'} color={colors.textSecondary} size={28} />
               <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>
                 {inMyList ? 'In List' : 'My List'}
               </ThemedText>
             </FocusablePressable>
             {type === 'movie' && (
-              <FocusablePressable style={styles.actionItem} onPress={handleToggleMovieWatched} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={movieWatched ? 'Mark as unwatched' : 'Mark as watched'}>
+              <FocusablePressable style={[styles.actionItem, isTV && styles.actionItemTV]} onPress={handleToggleMovieWatched} hasTVPreferredFocus={hasDetailsFocus('watched', false)} onFocus={() => registerDetailsFocusable('watched')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={movieWatched ? 'Mark as unwatched' : 'Mark as watched'}>
                 <IconSymbol name="checkmark" color={movieWatched ? colors.accent : colors.textSecondary} size={28} />
                 <ThemedText style={[styles.actionText, { color: movieWatched ? colors.accent : colors.textSecondary }]}>
                   {movieWatched ? 'Watched' : 'Mark Watched'}
@@ -375,7 +383,7 @@ export default function DetailsScreen() {
           </View>
 
           {/* Synopsis */}
-          <ThemedText style={[styles.synopsis, { color: colors.text }]}>
+          <ThemedText style={[styles.synopsis, { color: colors.text }, isTV && styles.synopsisTV]}>
             {meta.description || 'No description available.'}
           </ThemedText>
 
@@ -465,6 +473,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
   },
+  contentContainerTV: {
+    paddingHorizontal: 32,
+  },
   title: {
     fontSize: 32,
     fontWeight: '700',
@@ -508,6 +519,13 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 24,
   },
+  playButtonRowTV: {
+    flexDirection: 'row',
+  },
+  playButtonTV: {
+    paddingHorizontal: 28,
+    marginBottom: 20,
+  },
   playButtonText: {
     color: '#ffffff',
     fontSize: 16,
@@ -518,9 +536,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 24,
   },
+  actionsRowTV: {
+    justifyContent: 'flex-start',
+    gap: 40,
+    marginBottom: 28,
+  },
   actionItem: {
     alignItems: 'center',
     gap: 8,
+  },
+  actionItemTV: {
+    flexDirection: 'row',
+    gap: 10,
   },
   actionText: {
     fontSize: 12,
@@ -530,6 +557,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 32,
+  },
+  synopsisTV: {
+    fontSize: 16,
+    lineHeight: 24,
+    maxWidth: 900,
   },
   episodesSection: {
     marginTop: 8,

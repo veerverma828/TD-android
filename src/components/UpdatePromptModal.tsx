@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { checkForUpdate, downloadAndInstallUpdate, isDevBuild, UpdateInfo } from '@/services/updateService';
+import { useTVBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 const LAST_CHECK_KEY = 'update:last_auto_check';
 const DISMISSED_BUILD_KEY = 'update:dismissed_build';
@@ -50,12 +51,18 @@ export function UpdatePromptModal() {
     })();
   }, []);
 
-  if (!info) return null;
-
   const dismiss = () => {
+    if (!info) return;
     AsyncStorage.setItem(DISMISSED_BUILD_KEY, String(info.latestBuild));
     setInfo(null);
   };
+
+  useTVBackHandler(() => {
+    if (!info || install.status === 'downloading') return false;
+    dismiss();
+  }, !!info && install.status !== 'downloading');
+
+  if (!info) return null;
 
   const install_ = async () => {
     setInstall({ status: 'downloading', progress: 0 });

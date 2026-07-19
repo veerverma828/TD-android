@@ -1,4 +1,4 @@
-import { ScrollView, View, Switch, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { ScrollView, View, Switch, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 
@@ -11,6 +11,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePlayerSettings } from '@/contexts/PlayerSettingsContext';
 import { useSettings, ContinueWatchingSource } from '@/contexts/SettingsContext';
 import { useTrakt } from '@/contexts/TraktContext';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 const SOURCE_OPTIONS: { value: ContinueWatchingSource; label: string }[] = [
   { value: 'local', label: 'Local Storage' },
@@ -56,12 +57,16 @@ export default function ContinueWatchingSettingsScreen() {
                   Connected as {trakt.username || 'Trakt user'}
                 </ThemedText>
               </View>
-              <Pressable
+              <FocusablePressable
                 style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
                 onPress={() => trakt.disconnect()}
+                hasTVPreferredFocus
+                focusRingScale={false}
+                accessibilityRole="button"
+                accessibilityLabel="Disconnect"
               >
                 <ThemedText style={{ color: '#ff5c5c', fontWeight: '700', fontSize: 14 }}>Disconnect</ThemedText>
-              </Pressable>
+              </FocusablePressable>
             </>
           ) : trakt.deviceAuth ? (
             <View style={[settingsStyles.row, settingsStyles.rowStack, { borderColor: colors.backgroundSelected }]}>
@@ -70,45 +75,56 @@ export default function ContinueWatchingSettingsScreen() {
                 {trakt.deviceAuth.userCode}
               </ThemedText>
 
-              <Pressable
+              <FocusablePressable
                 style={[settingsStyles.providerBtn, { borderColor: colors.backgroundSelected, marginBottom: 8 }]}
                 onPress={() => Clipboard.setStringAsync(trakt.deviceAuth!.userCode)}
+                hasTVPreferredFocus
+                focusRingBorderRadius={6}
+                accessibilityRole="button"
+                accessibilityLabel="Copy code"
               >
                 <ThemedText style={{ color: colors.text, fontWeight: '600', fontSize: 13 }}>Copy Code</ThemedText>
-              </Pressable>
+              </FocusablePressable>
 
-              <Pressable
+              <FocusablePressable
                 style={[settingsStyles.providerBtn, { backgroundColor: colors.accent, borderColor: colors.accent, marginBottom: 14 }]}
                 onPress={() => Linking.openURL(trakt.deviceAuth!.verificationUrl)}
+                focusRingBorderRadius={6}
+                accessibilityRole="button"
+                accessibilityLabel="Open Trakt activation page"
               >
                 <ThemedText style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Open Trakt Activation Page</ThemedText>
-              </Pressable>
+              </FocusablePressable>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <ActivityIndicator color={colors.accent} size="small" />
                 <ThemedText style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting for approval…</ThemedText>
               </View>
 
-              <Pressable onPress={() => trakt.cancelAuth()}>
+              <FocusablePressable onPress={() => trakt.cancelAuth()} focusRingBorderRadius={4} accessibilityRole="button" accessibilityLabel="Cancel">
                 <ThemedText style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>Cancel</ThemedText>
-              </Pressable>
+              </FocusablePressable>
             </View>
           ) : (
             <>
               {(trakt.authStatus === 'expired' || trakt.authStatus === 'denied' || trakt.authStatus === 'error') && trakt.authError && (
                 <ThemedText style={[settingsStyles.sectionNote, { color: '#ff5c5c' }]}>{trakt.authError}</ThemedText>
               )}
-              <Pressable
+              <FocusablePressable
                 style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
                 onPress={() => trakt.startAuth()}
                 disabled={trakt.connecting}
+                hasTVPreferredFocus
+                focusRingScale={false}
+                accessibilityRole="button"
+                accessibilityLabel="Connect Trakt account"
               >
                 {trakt.connecting ? (
                   <ActivityIndicator color={colors.accent} size="small" />
                 ) : (
                   <ThemedText style={{ color: colors.accent, fontWeight: '700', fontSize: 14 }}>Connect Trakt Account</ThemedText>
                 )}
-              </Pressable>
+              </FocusablePressable>
             </>
           )}
 

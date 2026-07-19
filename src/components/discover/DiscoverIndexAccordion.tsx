@@ -92,7 +92,7 @@ export function DiscoverIndexAccordion() {
                   {loadingGenre === genre ? (
                     <ActivityIndicator color={colors.accent} style={{ marginVertical: 12 }} />
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 6 }}>
                       {(items || []).map((item) => (
                         <FocusablePressable
                           key={item.id}

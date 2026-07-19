@@ -2,7 +2,7 @@ import { StyleSheet, ScrollView, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ThemedView } from '@/components/themed-view';
 import { HeroBanner, HeroItem } from '@/components/HeroBanner';
@@ -12,6 +12,9 @@ import { PosterActionsSheet } from '@/components/PosterActionsSheet';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { fetchDefaultMovies, fetchDefaultSeries, fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { TVScrollContext, useTVAutoScroll } from '@/contexts/TVScrollContext';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 import { useMyList } from '@/contexts/MyListContext';
 import { useContinueWatching, ContinueWatchingItem } from '@/hooks/useContinueWatching';
 import { checkForNewEpisodes } from '@/services/notificationService';
@@ -57,6 +60,14 @@ export default function HomeScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const { showRating } = useSettings();
+  const isTV = useIsTV();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const { requestScrollIntoView, onScroll: handleTVScroll } = useTVAutoScroll(scrollViewRef, { topMargin: 32, bottomMargin: 32 });
+  const tvScrollValue = useMemo(
+    () => (isTV ? { requestScrollIntoView } : null),
+    [isTV, requestScrollIntoView]
+  );
+  const { hasPreferredFocus: hasHomeFocus, registerFocusable: registerHomeFocusable } = useRestoreFocus('home');
   const { list: myList, loaded: myListLoaded, toggle: toggleMyList, isInList } = useMyList();
   const { items: continueWatchingItems, removeItem: removeContinueWatchingItem, refresh: refreshContinueWatching } = useContinueWatching();
   const [selectedContinueWatchingItem, setSelectedContinueWatchingItem] = useState<ContinueWatchingItem | null>(null);
@@ -204,10 +215,14 @@ export default function HomeScreen() {
         </View>
       </SafeAreaView>
 
-      <ScrollView 
+      <TVScrollContext.Provider value={tvScrollValue}>
+      <ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         bounces={false}
+        onScroll={handleTVScroll}
+        scrollEventThrottle={16}
       >
         {loading ? (
           <View style={{ height: 400, justifyContent: 'center', alignItems: 'center' }}>
@@ -226,6 +241,8 @@ export default function HomeScreen() {
                   const meta = heroItemById(item.id);
                   if (meta) toggleMyList(meta);
                 }}
+                hasTVPreferredFocus={hasHomeFocus('hero-play', true)}
+                onPlayFocus={() => registerHomeFocusable('hero-play')}
               />
             )}
 
@@ -241,6 +258,7 @@ export default function HomeScreen() {
                   router.push({ pathname: '/details', params });
                 }}
                 onLongPressItem={(item) => setSelectedContinueWatchingItem(item)}
+                screenKey="home"
               />
             )}
 
@@ -250,6 +268,7 @@ export default function HomeScreen() {
               onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type)}
               onLongPressItem={(item) => handleLongPressItem(item.id)}
               onPressSeeAll={() => router.push({ pathname: '/see-all', params: { type: 'movie', category: 'top', title: 'Top Movies' } })}
+              screenKey="home"
             />
 
             <Carousel
@@ -258,6 +277,7 @@ export default function HomeScreen() {
               onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type)}
               onLongPressItem={(item) => handleLongPressItem(item.id)}
               onPressSeeAll={() => router.push({ pathname: '/see-all', params: { type: 'series', category: 'top', title: 'Top Series' } })}
+              screenKey="home"
             />
 
             {myList.length > 0 && (
@@ -266,6 +286,7 @@ export default function HomeScreen() {
                 data={mapToCarousel(myList)}
                 onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type)}
                 onLongPressItem={(item) => handleLongPressItem(item.id)}
+                screenKey="home"
               />
             )}
 
@@ -283,6 +304,7 @@ export default function HomeScreen() {
                     pathname: '/see-all',
                     params: { type: row.type, category: row.category, title: row.title, ...(row.genre ? { genre: row.genre } : {}) },
                   })}
+                  screenKey="home"
                 />
               );
             })}
@@ -292,6 +314,7 @@ export default function HomeScreen() {
         {/* Bottom padding for tab bar */}
         <View style={{ height: 40 }} />
       </ScrollView>
+      </TVScrollContext.Provider>
 
       <PosterActionsSheet
         visible={!!selectedItem}

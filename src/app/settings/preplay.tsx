@@ -1,4 +1,4 @@
-import { ScrollView, Pressable, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedView } from '@/components/themed-view';
@@ -7,6 +7,8 @@ import { SettingsSubHeader } from '@/components/settings/SettingsSubHeader';
 import { settingsStyles } from '@/components/settings/settingsStyles';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePlayerSettings, PreplayVariant } from '@/contexts/PlayerSettingsContext';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 const PREPLAY_VARIANT_OPTIONS: { name: PreplayVariant; label: string; description: string }[] = [
   { name: 'fullBleed', label: 'Full-bleed backdrop', description: 'Cinematic art, title and status pinned bottom' },
@@ -17,6 +19,7 @@ const PREPLAY_VARIANT_OPTIONS: { name: PreplayVariant; label: string; descriptio
 export default function PreplaySettingsScreen() {
   const { colors } = useAppTheme();
   const { settings: playerSettings, updateSettings: updatePlayerSettings } = usePlayerSettings();
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus('settings-preplay');
 
   return (
     <ThemedView style={settingsStyles.container}>
@@ -28,11 +31,18 @@ export default function PreplaySettingsScreen() {
             Shown in landscape right after picking a stream, before playback starts.
           </ThemedText>
 
-          {PREPLAY_VARIANT_OPTIONS.map((option) => (
-            <Pressable
+          {PREPLAY_VARIANT_OPTIONS.map((option, index) => (
+            <FocusablePressable
               key={option.name}
               style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
               onPress={() => updatePlayerSettings({ preplayVariant: option.name })}
+              onFocus={() => registerFocusable(option.name)}
+              hasTVPreferredFocus={hasPreferredFocus(option.name, index === 0)}
+              focusRingBorderRadius={8}
+              focusRingScale={false}
+              accessibilityRole="button"
+              accessibilityState={{ selected: playerSettings.preplayVariant === option.name }}
+              accessibilityLabel={`${option.label}. ${option.description}`}
             >
               <View>
                 <ThemedText style={settingsStyles.rowLabel}>{option.label}</ThemedText>
@@ -41,7 +51,7 @@ export default function PreplaySettingsScreen() {
               {playerSettings.preplayVariant === option.name && (
                 <ThemedText style={{ color: colors.accent, fontWeight: '700', fontSize: 16 }}>✓</ThemedText>
               )}
-            </Pressable>
+            </FocusablePressable>
           ))}
 
           <View style={{ height: 40 }} />

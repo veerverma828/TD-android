@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CategoryRow } from '@/components/settings/CategoryRow';
 import { settingsStyles } from '@/components/settings/settingsStyles';
 import { IconSymbolName } from '@/components/IconSymbol';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 const CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route: string }[] = [
   { icon: 'lock.fill', label: 'Debrid', subtitle: 'Provider, API key', route: '/settings/debrid' },
@@ -22,6 +23,7 @@ const CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus('settings');
 
   return (
     <ThemedView style={settingsStyles.container}>
@@ -39,7 +41,9 @@ export default function SettingsScreen() {
               label={category.label}
               subtitle={category.subtitle}
               onPress={() => router.push(category.route as any)}
+              onFocus={() => registerFocusable(category.route)}
               isLast={index === CATEGORIES.length - 1}
+              hasTVPreferredFocus={hasPreferredFocus(category.route, index === 0)}
             />
           ))}
         </ScrollView>

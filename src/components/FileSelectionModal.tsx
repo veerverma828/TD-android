@@ -44,9 +44,10 @@ export function FileSelectionModal({ visible, onClose, files, onSelectFile }: Fi
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-              {files.map((file) => (
+              {files.map((file, index) => (
                 <FocusablePressable
                   key={file.id.toString()}
+                  hasTVPreferredFocus={index === 0}
                   focusRingBorderRadius={12}
                   accessibilityRole="button"
                   accessibilityLabel={file.name}

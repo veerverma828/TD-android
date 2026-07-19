@@ -8,6 +8,7 @@ import { settingsStyles } from '@/components/settings/settingsStyles';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useDeviceMode, DeviceModePreference } from '@/contexts/DeviceModeContext';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 const MODE_OPTIONS: { name: DeviceModePreference; label: string; description: string }[] = [
   { name: 'auto', label: 'Automatic (Recommended)', description: 'Detects phone, tablet, or TV and applies the right layout' },
@@ -18,6 +19,7 @@ const MODE_OPTIONS: { name: DeviceModePreference; label: string; description: st
 export default function DisplayModeSettingsScreen() {
   const { colors } = useAppTheme();
   const { preference, setPreference, isPhysicalTV } = useDeviceMode();
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus('settings-display-mode');
 
   return (
     <ThemedView style={settingsStyles.container}>
@@ -31,12 +33,15 @@ export default function DisplayModeSettingsScreen() {
               : 'This device was detected as a phone or tablet.'}
           </ThemedText>
 
-          {MODE_OPTIONS.map((option) => (
+          {MODE_OPTIONS.map((option, index) => (
             <FocusablePressable
               key={option.name}
               style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
               onPress={() => setPreference(option.name)}
+              onFocus={() => registerFocusable(option.name)}
+              hasTVPreferredFocus={hasPreferredFocus(option.name, index === 0)}
               focusRingBorderRadius={8}
+              focusRingScale={false}
               accessibilityRole="button"
               accessibilityState={{ selected: preference === option.name }}
               accessibilityLabel={`${option.label}. ${option.description}`}

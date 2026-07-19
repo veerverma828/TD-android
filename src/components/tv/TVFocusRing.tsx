@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useAppTheme } from '@/contexts/ThemeContext';
 
-export function useFocusRingStyle(focused: boolean) {
+export function useFocusRingStyle(focused: boolean, scale: boolean = true) {
   const { colors } = useAppTheme();
   const progress = useSharedValue(0);
 
@@ -14,7 +14,7 @@ export function useFocusRingStyle(focused: boolean) {
     borderColor: colors.accent,
     borderWidth: 3,
     opacity: progress.value,
-    transform: [{ scale: 1 + progress.value * 0.04 }],
+    transform: scale ? [{ scale: 1 + progress.value * 0.04 }] : [],
   }));
 
   return style;

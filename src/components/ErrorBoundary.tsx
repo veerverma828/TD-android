@@ -1,7 +1,8 @@
 import { Component, ReactNode } from 'react';
-import { StyleSheet, View, Pressable } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
+import { FocusablePressable } from './tv/FocusablePressable';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -30,9 +31,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <View style={styles.container}>
           <ThemedText style={styles.title}>Something went wrong</ThemedText>
           <ThemedText style={styles.message}>{this.state.error.message}</ThemedText>
-          <Pressable style={styles.button} onPress={this.reset}>
+          <FocusablePressable style={styles.button} onPress={this.reset} hasTVPreferredFocus focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Try again">
             <ThemedText style={styles.buttonText}>Try Again</ThemedText>
-          </Pressable>
+          </FocusablePressable>
         </View>
       );
     }

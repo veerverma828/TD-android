@@ -6,9 +6,10 @@ interface ContinueWatchingRowProps {
   items: ContinueWatchingItem[];
   onPressItem: (item: ContinueWatchingItem) => void;
   onLongPressItem: (item: ContinueWatchingItem) => void;
+  screenKey?: string;
 }
 
-export function ContinueWatchingRow({ items, onPressItem, onLongPressItem }: ContinueWatchingRowProps) {
+export function ContinueWatchingRow({ items, onPressItem, onLongPressItem, screenKey }: ContinueWatchingRowProps) {
   const itemById = new Map(items.map((item) => [item.contentId, item]));
 
   const data = items.map((item) => {
@@ -28,6 +29,7 @@ export function ContinueWatchingRow({ items, onPressItem, onLongPressItem }: Con
     <Carousel
       title="Continue Watching"
       data={data}
+      screenKey={screenKey}
       getProgressColor={(carouselItem) => {
         const item = itemById.get(carouselItem.id);
         return item ? CONTINUE_WATCHING_SOURCE_COLORS[item.source] : undefined;

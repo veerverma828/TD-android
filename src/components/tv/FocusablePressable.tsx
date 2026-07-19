@@ -1,8 +1,9 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import { Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useFocusRingStyle } from './TVFocusRing';
+import { useTVScroll } from '@/contexts/TVScrollContext';
 
 const OUTER_LAYOUT_KEYS = new Set([
   'width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight',
@@ -33,6 +34,7 @@ interface FocusablePressableProps extends Omit<PressableProps, 'style' | 'childr
   children?: ReactNode | ((state: { pressed: boolean; focused: boolean }) => ReactNode);
   hasTVPreferredFocus?: boolean;
   focusRingBorderRadius?: number;
+  focusRingScale?: boolean;
 }
 
 export function FocusablePressable({
@@ -40,13 +42,16 @@ export function FocusablePressable({
   children,
   hasTVPreferredFocus,
   focusRingBorderRadius = 8,
+  focusRingScale = true,
   onFocus,
   onBlur,
   ...rest
 }: FocusablePressableProps) {
   const isTV = useIsTV();
   const [focused, setFocused] = useState(false);
-  const ringStyle = useFocusRingStyle(focused);
+  const ringStyle = useFocusRingStyle(focused, focusRingScale);
+  const nodeRef = useRef<View>(null);
+  const tvScroll = useTVScroll();
 
   if (!isTV) {
     return (
@@ -64,11 +69,13 @@ export function FocusablePressable({
   return (
     <View style={[styles.wrapper, outer]}>
       <Pressable
+        ref={nodeRef}
         style={[styles.fill, inner]}
         focusable
         hasTVPreferredFocus={hasTVPreferredFocus}
         onFocus={(e) => {
           setFocused(true);
+          tvScroll?.requestScrollIntoView(nodeRef.current);
           onFocus?.(e);
         }}
         onBlur={(e) => {
@@ -81,7 +88,7 @@ export function FocusablePressable({
       </Pressable>
       <Animated.View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFill, ringStyle, { borderRadius: focusRingBorderRadius, margin: -3 }]}
+        style={[StyleSheet.absoluteFill, ringStyle, { borderRadius: focusRingBorderRadius, margin: focusRingScale ? -3 : 0 }]}
       />
     </View>
   );

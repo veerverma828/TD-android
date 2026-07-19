@@ -50,7 +50,7 @@ export function EpisodeSelectorVerticalRail({ seasons, selectedSeason, onSelectS
 }
 
 const styles = StyleSheet.create({
-  seasonScroll: { gap: 8, paddingBottom: 4 },
+  seasonScroll: { gap: 8, paddingVertical: 6 },
   seasonPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   seasonText: { fontSize: 14, fontWeight: '600' },
 });

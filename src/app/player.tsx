@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -13,6 +13,7 @@ import { useTraktScrobble } from '@/hooks/player/useTraktScrobble';
 import { usePlaybackPosition } from '@/hooks/player/usePlaybackPosition';
 import { useNextEpisode } from '@/hooks/player/useNextEpisode';
 import { useNativePlayerBridge } from '@/hooks/player/useNativePlayerBridge';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 export default function PlayerScreen() {
   const { url, title, poster, contentId } = useLocalSearchParams<{
@@ -88,10 +89,10 @@ export default function PlayerScreen() {
       <View style={[styles.container, styles.emptyState]}>
         <StatusBar hidden={false} />
         <ThemedText style={styles.emptyText}>No stream URL was provided.</ThemedText>
-        <Pressable style={styles.backButton} onPress={goBack}>
+        <FocusablePressable style={styles.backButton} onPress={goBack} hasTVPreferredFocus focusRingBorderRadius={6} accessibilityRole="button" accessibilityLabel="Go back">
           <IconSymbol name="chevron.left" color="#fff" size={20} />
           <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
-        </Pressable>
+        </FocusablePressable>
       </View>
     );
   }

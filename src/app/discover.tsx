@@ -1,4 +1,4 @@
-import { StyleSheet, View, Pressable } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -10,6 +10,7 @@ import { DiscoverRailSwitch } from '@/components/discover/DiscoverRailSwitch';
 import { DiscoverGenreWall } from '@/components/discover/DiscoverGenreWall';
 import { DiscoverIndexAccordion } from '@/components/discover/DiscoverIndexAccordion';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -24,13 +25,16 @@ export default function DiscoverScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.backRow}>
-          <Pressable
+          <FocusablePressable
             onPress={() => router.back()}
             hitSlop={16}
             style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
+            focusRingBorderRadius={16}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
             <IconSymbol name="chevron.left" color={colors.text} size={24} />
-          </Pressable>
+          </FocusablePressable>
         </View>
 
         {discoverLayout === 'genreWall' && <DiscoverGenreWall />}

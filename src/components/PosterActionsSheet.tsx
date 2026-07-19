@@ -45,14 +45,16 @@ export function PosterActionsSheet({ visible, title, actions, onClose }: PosterA
                 {title}
               </ThemedText>
             )}
-            {actions.map((action) => (
+            {actions.map((action, index) => (
               <FocusablePressable
                 key={action.label}
                 onPress={() => {
                   onClose();
                   action.onPress();
                 }}
+                hasTVPreferredFocus={index === 0}
                 focusRingBorderRadius={10}
+                focusRingScale={false}
                 accessibilityRole="button"
                 accessibilityLabel={action.label}
                 style={({ pressed }) => [

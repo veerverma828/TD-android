@@ -10,6 +10,7 @@ import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { padToColumns } from '@/utils/gridHelpers';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 type MediaType = 'movie' | 'series';
 
@@ -22,6 +23,7 @@ export function DiscoverRailSwitch() {
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [items, setItems] = useState<MetaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus(`discover-${type}-${activeGenre ?? ''}`);
 
   useEffect(() => {
     let ignore = false;
@@ -112,8 +114,10 @@ export function DiscoverRailSwitch() {
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.gridRow}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) =>
-            item ? (
+          renderItem={({ item, index }) => {
+            if (!item) return <View style={styles.poster} />;
+            const restoreKey = `${item.type}:${item.id}`;
+            return (
               <PosterCard
                 title={item.name}
                 subtitle={item.releaseInfo}
@@ -121,11 +125,11 @@ export function DiscoverRailSwitch() {
                 rating={showRating ? item.imdbRating : undefined}
                 onPress={() => router.push({ pathname: '/details', params: { id: item.id, type: item.type } })}
                 style={styles.poster}
+                hasTVPreferredFocus={hasPreferredFocus(restoreKey, index === 0)}
+                onFocus={() => registerFocusable(restoreKey)}
               />
-            ) : (
-              <View style={styles.poster} />
-            )
-          }
+            );
+          }}
         />
       )}
     </View>
@@ -152,7 +156,7 @@ const styles = StyleSheet.create({
   switchOption: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   switchText: { fontSize: 12.5, lineHeight: 16, fontWeight: '700' },
   genreList: { flexGrow: 0, marginBottom: 16 },
-  genreRow: { gap: 8 },
+  genreRow: { gap: 8, paddingVertical: 6 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,

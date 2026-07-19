@@ -1,10 +1,13 @@
 package com.tdandroid.app.player.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -43,6 +47,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,8 +56,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,6 +77,24 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import kotlin.math.roundToInt
+
+// ---------------------------------------------------------------------------
+// TV focus-ring visual — mirrors the RN side's TVFocusRing.tsx contract
+// (scale-up + accent border, animated) using Compose's own focus/key APIs.
+// Purely visual; navigation itself is Compose's default focus traversal.
+// ---------------------------------------------------------------------------
+
+@Composable
+fun Modifier.tvFocusRing(accent: Color, shape: Shape = CircleShape): Modifier {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isFocused) 1.08f else 1f, label = "tvFocusScale")
+    val borderAlpha by animateFloatAsState(if (isFocused) 1f else 0f, label = "tvFocusBorderAlpha")
+    return this
+        .onFocusChanged { isFocused = it.isFocused }
+        .scale(scale)
+        .border(width = 2.dp, color = accent.copy(alpha = borderAlpha), shape = shape)
+        .focusable()
+}
 
 // ---------------------------------------------------------------------------
 // Theme
@@ -257,15 +290,37 @@ fun PlayerControlsOverlay(
     val palette = LocalPlayerPalette.current
 
     if (state.locked) {
+        val unlockFocus = remember { FocusRequester() }
+        LaunchedEffect(visible) { if (visible) unlockFocus.requestFocus() }
         AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
-                IconButton(onClick = { callbacks.onLockToggle(); onActivity() }, modifier = Modifier.padding(24.dp)) {
+                IconButton(
+                    onClick = { callbacks.onLockToggle(); onActivity() },
+                    modifier = Modifier.padding(24.dp).focusRequester(unlockFocus).tvFocusRing(palette.accent),
+                ) {
                     Icon(Icons.Filled.Lock, contentDescription = "Unlock", tint = Color.White)
                 }
             }
         }
         return
     }
+
+    // One FocusRequester per control, plus a remembered "last focused" one so
+    // re-showing the overlay (after tap-to-hide) restores focus to whichever
+    // control the user was on, instead of always resetting — the native-side
+    // mirror of the RN app's useRestoreFocus.
+    val backFocus = remember { FocusRequester() }
+    val audioFocus = remember { FocusRequester() }
+    val subsFocus = remember { FocusRequester() }
+    val lockFocus = remember { FocusRequester() }
+    val seekBackFocus = remember { FocusRequester() }
+    val playPauseFocus = remember { FocusRequester() }
+    val seekForwardFocus = remember { FocusRequester() }
+    val nextFocus = remember { FocusRequester() }
+    val sliderFocus = remember { FocusRequester() }
+    var lastFocused by remember { mutableStateOf(playPauseFocus) }
+
+    LaunchedEffect(visible) { if (visible) lastFocused.requestFocus() }
 
     AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
         Box(Modifier.fillMaxSize()) {
@@ -277,7 +332,12 @@ fun PlayerControlsOverlay(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { callbacks.onBack(); onActivity() }) {
+                IconButton(
+                    onClick = { callbacks.onBack(); onActivity() },
+                    modifier = Modifier.focusRequester(backFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = backFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
                     Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
                 Text(
@@ -287,13 +347,28 @@ fun PlayerControlsOverlay(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
                 )
-                IconButton(onClick = { callbacks.onAudioTracksClick(); onActivity() }) {
+                IconButton(
+                    onClick = { callbacks.onAudioTracksClick(); onActivity() },
+                    modifier = Modifier.focusRequester(audioFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = audioFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
                     Icon(Icons.Filled.Audiotrack, contentDescription = "Audio track", tint = Color.White)
                 }
-                IconButton(onClick = { callbacks.onSubtitleTracksClick(); onActivity() }) {
+                IconButton(
+                    onClick = { callbacks.onSubtitleTracksClick(); onActivity() },
+                    modifier = Modifier.focusRequester(subsFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = subsFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
                     Icon(Icons.Filled.Subtitles, contentDescription = "Subtitles", tint = Color.White)
                 }
-                IconButton(onClick = { callbacks.onLockToggle(); onActivity() }) {
+                IconButton(
+                    onClick = { callbacks.onLockToggle(); onActivity() },
+                    modifier = Modifier.focusRequester(lockFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = lockFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
                     Icon(Icons.Filled.LockOpen, contentDescription = "Lock", tint = Color.White)
                 }
             }
@@ -303,13 +378,23 @@ fun PlayerControlsOverlay(
                 Modifier.align(Alignment.Center),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { callbacks.onSeekBack(); onActivity() }, modifier = Modifier.size(56.dp)) {
+                IconButton(
+                    onClick = { callbacks.onSeekBack(); onActivity() },
+                    modifier = Modifier.size(56.dp).focusRequester(seekBackFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = seekBackFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
                     Icon(Icons.Filled.Replay10, contentDescription = "Seek back", tint = Color.White, modifier = Modifier.size(32.dp))
                 }
                 Spacer(Modifier.width(28.dp))
                 IconButton(
                     onClick = { callbacks.onPlayPause(); onActivity() },
-                    modifier = Modifier.size(72.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier.size(72.dp)
+                        .focusRequester(playPauseFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = playPauseFocus }
+                        .tvFocusRing(palette.accent)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.15f)),
                 ) {
                     Icon(
                         if (state.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
@@ -319,12 +404,22 @@ fun PlayerControlsOverlay(
                     )
                 }
                 Spacer(Modifier.width(28.dp))
-                IconButton(onClick = { callbacks.onSeekForward(); onActivity() }, modifier = Modifier.size(56.dp)) {
+                IconButton(
+                    onClick = { callbacks.onSeekForward(); onActivity() },
+                    modifier = Modifier.size(56.dp).focusRequester(seekForwardFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = seekForwardFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
                     Icon(Icons.Filled.Forward10, contentDescription = "Seek forward", tint = Color.White, modifier = Modifier.size(32.dp))
                 }
                 if (state.hasNextEpisode) {
                     Spacer(Modifier.width(28.dp))
-                    IconButton(onClick = { callbacks.onNext(); onActivity() }, modifier = Modifier.size(48.dp)) {
+                    IconButton(
+                        onClick = { callbacks.onNext(); onActivity() },
+                        modifier = Modifier.size(48.dp).focusRequester(nextFocus)
+                            .onFocusChanged { if (it.isFocused) lastFocused = nextFocus }
+                            .tvFocusRing(palette.accent),
+                    ) {
                         Icon(Icons.Filled.SkipNext, contentDescription = "Next episode", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
                 }
@@ -339,16 +434,35 @@ fun PlayerControlsOverlay(
                     .padding(horizontal = 16.dp, vertical = 6.dp),
             ) {
                 val fraction = if (state.duration > 0) (state.currentTime / state.duration).toFloat().coerceIn(0f, 1f) else 0f
+                var sliderFocused by remember { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(formatTime(state.currentTime), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(48.dp))
                     Slider(
                         value = fraction,
                         onValueChange = { callbacks.onSeekTo(it); onActivity() },
-                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                            .focusRequester(sliderFocus)
+                            .onFocusChanged {
+                                sliderFocused = it.isFocused
+                                if (it.isFocused) lastFocused = sliderFocus
+                            }
+                            // D-pad Left/Right while the seek bar has focus seeks by a fixed
+                            // step (same as the seek-back/forward buttons) rather than trying
+                            // to drag the slider's fractional value via key events — the one
+                            // narrow, justified spot in this app that needs custom key handling.
+                            .onKeyEvent { keyEvent ->
+                                if (keyEvent.type != KeyEventType.KeyDown) return@onKeyEvent false
+                                when (keyEvent.key) {
+                                    Key.DirectionLeft -> { callbacks.onSeekBack(); onActivity(); true }
+                                    Key.DirectionRight -> { callbacks.onSeekForward(); onActivity(); true }
+                                    else -> false
+                                }
+                            }
+                            .focusable(),
                         colors = SliderDefaults.colors(
                             thumbColor = palette.accent,
                             activeTrackColor = palette.accent,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.25f),
+                            inactiveTrackColor = if (sliderFocused) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.25f),
                         ),
                     )
                     Text(formatTime(state.duration), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(48.dp))
@@ -476,15 +590,15 @@ fun TrackSelectionSheet(
                     if (audioTracks.isEmpty()) {
                         Text("No audio tracks found", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
                     }
-                    audioTracks.forEach { track ->
-                        TrackRow(track.label, track.selected, palette.accent) { onSelectAudio(track) }
+                    audioTracks.forEachIndexed { index, track ->
+                        TrackRow(track.label, track.selected, palette.accent, isFirst = index == 0) { onSelectAudio(track) }
                     }
                 }
 
                 TrackSheetKind.TEXT -> {
                     Text("Subtitles", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(Modifier.height(8.dp))
-                    TrackRow("Off", textTracks.none { it.selected }, palette.accent) { onSelectText(null) }
+                    TrackRow("Off", textTracks.none { it.selected }, palette.accent, isFirst = true) { onSelectText(null) }
                     textTracks.forEach { track ->
                         TrackRow(track.label, track.selected, palette.accent) { onSelectText(track) }
                     }
@@ -495,10 +609,16 @@ fun TrackSelectionSheet(
 }
 
 @Composable
-private fun TrackRow(label: String, selected: Boolean, accent: Color, onClick: () -> Unit) {
+private fun TrackRow(label: String, selected: Boolean, accent: Color, isFirst: Boolean = false, onClick: () -> Unit) {
+    val focusRequester = remember { FocusRequester() }
+    if (isFirst) {
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    }
     Row(
         Modifier
             .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .tvFocusRing(accent, shape = RoundedCornerShape(8.dp))
             .clip(RoundedCornerShape(8.dp))
             .background(if (selected) accent.copy(alpha = 0.25f) else Color.Transparent)
             .clickable(

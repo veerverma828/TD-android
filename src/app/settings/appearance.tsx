@@ -9,6 +9,7 @@ import { PaletteName } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettings, DiscoverLayout, EpisodeLayout } from '@/contexts/SettingsContext';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 const THEME_OPTIONS: { name: PaletteName; label: string; description: string }[] = [
   { name: 'marquee', label: 'Midnight Marquee', description: 'Ink blue, amber accent' },
@@ -37,6 +38,7 @@ const EPISODE_LAYOUT_OPTIONS: { name: EpisodeLayout; label: string; description:
 export default function AppearanceSettingsScreen() {
   const { colors, themeName, setThemeName } = useAppTheme();
   const { showRating, setShowRating, discoverLayout, setDiscoverLayout, episodeLayout, setEpisodeLayout } = useSettings();
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus('settings-appearance');
 
   return (
     <ThemedView style={settingsStyles.container}>
@@ -56,12 +58,15 @@ export default function AppearanceSettingsScreen() {
           </View>
 
           <ThemedText style={[settingsStyles.sectionTitle, settingsStyles.sectionSpacing, { color: colors.accent }]}>Theme</ThemedText>
-          {THEME_OPTIONS.map((option) => (
+          {THEME_OPTIONS.map((option, index) => (
             <FocusablePressable
               key={option.name}
               style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
               onPress={() => setThemeName(option.name)}
+              onFocus={() => registerFocusable(`theme:${option.name}`)}
+              hasTVPreferredFocus={hasPreferredFocus(`theme:${option.name}`, index === 0)}
               focusRingBorderRadius={8}
+              focusRingScale={false}
               accessibilityRole="button"
               accessibilityState={{ selected: themeName === option.name }}
               accessibilityLabel={`${option.label}. ${option.description}`}
@@ -82,7 +87,10 @@ export default function AppearanceSettingsScreen() {
               key={option.name}
               style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
               onPress={() => setDiscoverLayout(option.name)}
+              onFocus={() => registerFocusable(`discover:${option.name}`)}
+              hasTVPreferredFocus={hasPreferredFocus(`discover:${option.name}`, false)}
               focusRingBorderRadius={8}
+              focusRingScale={false}
               accessibilityRole="button"
               accessibilityState={{ selected: discoverLayout === option.name }}
               accessibilityLabel={`${option.label}. ${option.description}`}
@@ -103,7 +111,10 @@ export default function AppearanceSettingsScreen() {
               key={option.name}
               style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
               onPress={() => setEpisodeLayout(option.name)}
+              onFocus={() => registerFocusable(`episode:${option.name}`)}
+              hasTVPreferredFocus={hasPreferredFocus(`episode:${option.name}`, false)}
               focusRingBorderRadius={8}
+              focusRingScale={false}
               accessibilityRole="button"
               accessibilityState={{ selected: episodeLayout === option.name }}
               accessibilityLabel={`${option.label}. ${option.description}`}

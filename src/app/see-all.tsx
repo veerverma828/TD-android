@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/IconSymbol';
@@ -13,17 +13,22 @@ import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { useSettings } from '@/contexts/SettingsContext';
 import { padToColumns } from '@/utils/gridHelpers';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 export default function SeeAllScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const { showRating } = useSettings();
+  const isTV = useIsTV();
 
   useScreenBackHandler(() => {
     router.back();
   });
 
   const { type, category, title, genre } = useLocalSearchParams<{ type: string; category: string; title: string; genre?: string }>();
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus(`see-all-${type}-${category}-${genre ?? ''}`);
 
   const [items, setItems] = useState<MetaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,16 +58,19 @@ export default function SeeAllScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.header}>
-          <Pressable
+          <FocusablePressable
             onPress={() => router.back()}
             style={({ pressed }) => [
               styles.backButton,
               { opacity: pressed ? 0.7 : 1 }
             ]}
             hitSlop={16}
+            focusRingBorderRadius={16}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
             <IconSymbol name="chevron.left" color={colors.text} size={24} />
-          </Pressable>
+          </FocusablePressable>
           <ThemedText type="title" style={styles.headerTitle}>{title || 'All Items'}</ThemedText>
           <View style={{ width: 24 }} />
         </View>
@@ -80,16 +88,18 @@ export default function SeeAllScreen() {
             data={padToColumns(items, 3)}
             keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
             numColumns={3}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, isTV && { paddingLeft: 32 }]}
             columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
             initialNumToRender={12}
             maxToRenderPerBatch={9}
             updateCellsBatchingPeriod={50}
             windowSize={7}
-            removeClippedSubviews
-            renderItem={({ item }) =>
-              item ? (
+            removeClippedSubviews={!isTV}
+            renderItem={({ item, index }) => {
+              if (!item) return <View style={styles.posterCard} />;
+              const restoreKey = `${item.type}:${item.id}`;
+              return (
                 <PosterCard
                   title={item.name}
                   subtitle={item.releaseInfo}
@@ -97,11 +107,11 @@ export default function SeeAllScreen() {
                   rating={showRating ? item.imdbRating : undefined}
                   onPress={() => handleNavigateToDetails(item.id, item.type)}
                   style={styles.posterCard}
+                  hasTVPreferredFocus={hasPreferredFocus(restoreKey, index === 0)}
+                  onFocus={() => registerFocusable(restoreKey)}
                 />
-              ) : (
-                <View style={styles.posterCard} />
-              )
-            }
+              );
+            }}
           />
         )}
       </SafeAreaView>

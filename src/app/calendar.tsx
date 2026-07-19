@@ -1,4 +1,4 @@
-import { StyleSheet, View, FlatList, ActivityIndicator, Pressable } from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useMemo, useState } from 'react';
@@ -13,6 +13,7 @@ import { useMyList } from '@/contexts/MyListContext';
 import { fetchMeta, Video } from '@/services/cinemeta';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 interface CalendarEntry {
   showId: string;
@@ -40,6 +41,7 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { list, loaded } = useMyList();
   const [entries, setEntries] = useState<CalendarEntry[] | null>(null);
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus('calendar');
 
   useScreenBackHandler(() => {
     router.back();
@@ -116,16 +118,21 @@ export default function CalendarScreen() {
             keyExtractor={(section) => section.dateKey}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item: section }) => (
+            renderItem={({ item: section, index: sectionIndex }) => (
               <View style={styles.section}>
                 <ThemedText style={[styles.sectionHeading, { color: colors.accent }]}>
                   {formatDateHeading(section.date)}
                 </ThemedText>
-                {section.items.map((entry) => (
-                  <Pressable
-                    key={`${entry.showId}-${entry.season}-${entry.episode}`}
+                {section.items.map((entry, entryIndex) => {
+                  const restoreKey = `${entry.showId}-${entry.season}-${entry.episode}`;
+                  return (
+                  <FocusablePressable
+                    key={restoreKey}
                     style={[styles.row, { borderColor: colors.backgroundSelected }]}
                     onPress={() => router.push({ pathname: '/details', params: { id: entry.showId, type: 'series' } })}
+                    hasTVPreferredFocus={hasPreferredFocus(restoreKey, sectionIndex === 0 && entryIndex === 0)}
+                    onFocus={() => registerFocusable(restoreKey)}
+                    focusRingScale={false}
                   >
                     <Image
                       source={{ uri: entry.poster }}
@@ -140,8 +147,9 @@ export default function CalendarScreen() {
                         S{entry.season}:E{entry.episode} {entry.title ? `— ${entry.title}` : ''}
                       </ThemedText>
                     </View>
-                  </Pressable>
-                ))}
+                  </FocusablePressable>
+                  );
+                })}
               </View>
             )}
           />

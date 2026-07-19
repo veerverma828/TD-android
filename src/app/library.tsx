@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput, FlatList, Pressable } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
@@ -13,11 +13,14 @@ import { useMyList } from '@/contexts/MyListContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { padToColumns } from '@/utils/gridHelpers';
 import { MetaItem } from '@/services/cinemeta';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 export default function LibraryScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const { list, loaded, toggle } = useMyList();
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus('library');
   const { showRating } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<MetaItem | null>(null);
@@ -33,9 +36,9 @@ export default function LibraryScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
           <ThemedText type="title" style={styles.headerTitle}>Library</ThemedText>
-          <Pressable onPress={() => router.push('/calendar')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Calendar">
+          <FocusablePressable onPress={() => router.push('/calendar')} hitSlop={12} focusRingBorderRadius={16} accessibilityRole="button" accessibilityLabel="Calendar">
             <IconSymbol name="calendar" color={colors.text} size={24} />
-          </Pressable>
+          </FocusablePressable>
         </View>
 
         <View style={styles.searchContainer}>
@@ -68,8 +71,10 @@ export default function LibraryScreen() {
             contentContainerStyle={styles.listContent}
             columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) =>
-              item ? (
+            renderItem={({ item, index }) => {
+              if (!item) return <View style={styles.posterCard} />;
+              const restoreKey = `${item.type}:${item.id}`;
+              return (
                 <PosterCard
                   title={item.name}
                   subtitle={item.releaseInfo}
@@ -78,11 +83,11 @@ export default function LibraryScreen() {
                   onPress={() => router.push({ pathname: '/details', params: { id: item.id, type: item.type } })}
                   onLongPress={() => setSelectedItem(item)}
                   style={styles.posterCard}
+                  hasTVPreferredFocus={hasPreferredFocus(restoreKey, index === 0)}
+                  onFocus={() => registerFocusable(restoreKey)}
                 />
-              ) : (
-                <View style={styles.posterCard} />
-              )
-            }
+              );
+            }}
           />
         )}
       </SafeAreaView>

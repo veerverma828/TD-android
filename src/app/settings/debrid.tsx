@@ -1,4 +1,4 @@
-import { ScrollView, View, TextInput, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { ScrollView, View, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 
@@ -9,9 +9,12 @@ import { settingsStyles } from '@/components/settings/settingsStyles';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getSecureItem, saveSecureItem } from '@/services/storageService';
 import { verifyDebridKey, DebridProvider } from '@/services/debridService';
+import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 export default function DebridSettingsScreen() {
   const { colors } = useAppTheme();
+  const { hasPreferredFocus, registerFocusable } = useRestoreFocus('settings-debrid');
 
   const [debridProvider, setDebridProvider] = useState<DebridProvider>('real-debrid');
   const [debridKey, setDebridKey] = useState('');
@@ -65,18 +68,28 @@ export default function DebridSettingsScreen() {
           <View style={[settingsStyles.row, settingsStyles.rowStack, { borderColor: colors.backgroundSelected }]}>
             <ThemedText style={[settingsStyles.rowLabel, { marginBottom: 12 }]}>Provider</ThemedText>
             <View style={settingsStyles.providerRow}>
-              <Pressable
+              <FocusablePressable
                 style={[settingsStyles.providerBtn, { borderColor: colors.backgroundSelected }, debridProvider === 'real-debrid' && { backgroundColor: colors.accent, borderColor: colors.accent }]}
                 onPress={() => handleProviderChange('real-debrid')}
+                onFocus={() => registerFocusable('provider-real-debrid')}
+                hasTVPreferredFocus={hasPreferredFocus('provider-real-debrid', true)}
+                focusRingBorderRadius={6}
+                accessibilityRole="button"
+                accessibilityLabel="Real-Debrid"
               >
                 <ThemedText style={{ color: debridProvider === 'real-debrid' ? '#fff' : colors.text, fontWeight: '600', fontSize: 13 }}>Real-Debrid</ThemedText>
-              </Pressable>
-              <Pressable
+              </FocusablePressable>
+              <FocusablePressable
                 style={[settingsStyles.providerBtn, { borderColor: colors.backgroundSelected }, debridProvider === 'torbox' && { backgroundColor: colors.accent, borderColor: colors.accent }]}
                 onPress={() => handleProviderChange('torbox')}
+                onFocus={() => registerFocusable('provider-torbox')}
+                hasTVPreferredFocus={hasPreferredFocus('provider-torbox', false)}
+                focusRingBorderRadius={6}
+                accessibilityRole="button"
+                accessibilityLabel="TorBox"
               >
                 <ThemedText style={{ color: debridProvider === 'torbox' ? '#fff' : colors.text, fontWeight: '600', fontSize: 13 }}>TorBox</ThemedText>
-              </Pressable>
+              </FocusablePressable>
             </View>
           </View>
 
@@ -94,17 +107,22 @@ export default function DebridSettingsScreen() {
             />
           </View>
 
-          <Pressable
+          <FocusablePressable
             style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
             onPress={handleSaveDebrid}
             disabled={verifying}
+            onFocus={() => registerFocusable('verify-save')}
+            hasTVPreferredFocus={hasPreferredFocus('verify-save', false)}
+            focusRingScale={false}
+            accessibilityRole="button"
+            accessibilityLabel="Verify and save"
           >
             {verifying ? (
               <ActivityIndicator color={colors.accent} size="small" />
             ) : (
               <ThemedText style={{ color: colors.accent, fontWeight: '700', fontSize: 14 }}>Verify & Save</ThemedText>
             )}
-          </Pressable>
+          </FocusablePressable>
 
           <View style={{ height: 40 }} />
         </ScrollView>

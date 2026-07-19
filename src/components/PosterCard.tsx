@@ -94,6 +94,7 @@ const styles = StyleSheet.create({
   container: {
     width: 120,
     marginRight: 12,
+    marginVertical: 4,
   },
   imageContainer: {
     width: '100%',

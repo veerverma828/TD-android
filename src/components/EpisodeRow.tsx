@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { StyleSheet, View, Pressable } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
@@ -26,6 +26,7 @@ export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, durat
     <FocusablePressable
       onPress={onPress}
       focusRingBorderRadius={8}
+      focusRingScale={false}
       accessibilityRole="button"
       accessibilityLabel={`Episode ${episodeNumber}. ${title}`}
       style={({ pressed }) => [
@@ -46,15 +47,16 @@ export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, durat
           <IconSymbol name="play.circle.fill" color="#ffffff" size={28} />
         </View>
         {onToggleWatched && (
-          <Pressable
+          <FocusablePressable
             onPress={onToggleWatched}
             hitSlop={8}
             style={[styles.watchedBadge, { backgroundColor: watched ? colors.accent : 'rgba(0,0,0,0.55)' }]}
+            focusRingBorderRadius={10}
             accessibilityRole="button"
             accessibilityLabel={watched ? 'Mark as unwatched' : 'Mark as watched'}
           >
             <IconSymbol name="checkmark" color="#fff" size={12} />
-          </Pressable>
+          </FocusablePressable>
         )}
       </View>
       
