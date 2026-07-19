@@ -19,7 +19,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["REQUEST_INSTALL_PACKAGES"]
     },
     "web": {
       "output": "static",
@@ -50,6 +51,10 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "buildNumber": 0,
+      "githubRepo": "veerverma828/TD-android"
     }
   }
 }

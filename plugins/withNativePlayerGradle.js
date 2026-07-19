@@ -1,7 +1,14 @@
 const { withAppBuildGradle, withProjectBuildGradle } = require('expo/config-plugins');
 const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
 
-const MEDIA3_VERSION = '1.4.1';
+const MEDIA3_VERSION = '1.9.0';
+// Jellyfin's FFmpeg audio-decoder extension — needed so codecs without a
+// hardware/platform decoder (E-AC3, DTS, etc. common in WEB-DL MKVs) still
+// produce audio instead of playing video with silent/missing sound. Verified
+// current release via Maven Central (org.jellyfin.media3:media3-ffmpeg-decoder).
+// NOTE: this artifact is GPLv3-licensed — fine for personal/sideloaded use,
+// reconsider before any store distribution.
+const FFMPEG_DECODER_VERSION = '1.9.0+1';
 // buildscript{} evaluates before expo-root-project sets rootProject.ext.kotlinVersion,
 // so that variable isn't reachable here — pin explicitly and keep in sync with the
 // Kotlin version Expo's prebuild output reports ("kotlin: X.Y.Z" during Configure).
@@ -62,7 +69,8 @@ function withNativePlayerGradle(config) {
         `    implementation("androidx.media3:media3-exoplayer:${MEDIA3_VERSION}")\n` +
         `    implementation("androidx.media3:media3-ui:${MEDIA3_VERSION}")\n` +
         `    implementation("androidx.media3:media3-common:${MEDIA3_VERSION}")\n` +
-        `    implementation("androidx.media3:media3-session:${MEDIA3_VERSION}")`,
+        `    implementation("androidx.media3:media3-session:${MEDIA3_VERSION}")\n` +
+        `    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:${FFMPEG_DECODER_VERSION}")`,
       anchor: /^dependencies\s*\{/m,
       offset: 1,
       comment: '//',

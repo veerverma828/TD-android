@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Lock
@@ -110,8 +111,11 @@ interface PlayerControlsCallbacks {
     fun onBack()
     fun onNext()
     fun onSeekTo(fraction: Float)
-    fun onTracksClick()
+    fun onAudioTracksClick()
+    fun onSubtitleTracksClick()
 }
+
+enum class TrackSheetKind { AUDIO, TEXT }
 
 // ---------------------------------------------------------------------------
 // Root
@@ -136,7 +140,7 @@ fun PlayerRoot(
     brightnessLevel: Float?,
     seekPreviewSeconds: Double?,
 ) {
-    var tracksSheetOpen by remember { mutableStateOf(false) }
+    var tracksSheetKind by remember { mutableStateOf<TrackSheetKind?>(null) }
 
     CompositionLocalProvider(LocalPlayerPalette provides palette) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -155,75 +159,13 @@ fun PlayerRoot(
                 },
             )
 
-            PlayerControlsOverlay(
-                visible = controlsVisible,
-                state = state,
-                callbacks = object : PlayerControlsCallbacks {
-                    override fun onPlayPause() = callbacks.onPlayPause()
-                    override fun onSeekBack() = callbacks.onSeekBack()
-                    override fun onSeekForward() = callbacks.onSeekForward()
-                    override fun onLockToggle() = callbacks.onLockToggle()
-                    override fun onBack() = callbacks.onBack()
-                    override fun onNext() = callbacks.onNext()
-                    override fun onSeekTo(fraction: Float) = callbacks.onSeekTo(fraction)
-                    override fun onTracksClick() {
-                        tracksSheetOpen = true
-                    }
-                },
-                onActivity = onActivity,
-                onScrimTouch = onScrimTouch,
-            )
-
-            VolumeIndicator(level = volumeLevel)
-            BrightnessIndicator(level = brightnessLevel)
-            SeekIndicator(deltaSeconds = seekPreviewSeconds)
-
-            if (tracksSheetOpen) {
-                TrackSelectionSheet(
-                    audioTracks = audioTracks,
-                    textTracks = textTracks,
-                    onSelectAudio = { onSelectAudioTrack(it) },
-                    onSelectText = { onSelectTextTrack(it) },
-                    onDismiss = { tracksSheetOpen = false },
-                )
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Controls overlay — tap-outside-to-hide / tap-to-show, with swipe gestures
-// still flowing through to the gesture controller even while controls are
-// visible. The scrim below the button rows uses pointerInput+awaitEachGesture
-// (NOT pointerInteropFilter — unreliable here, see PlayerGestureController)
-// keyed on Unit so the gesture-tracking coroutine survives recomposition.
-// ---------------------------------------------------------------------------
-
-@Composable
-fun PlayerControlsOverlay(
-    visible: Boolean,
-    state: PlayerControlsState,
-    callbacks: PlayerControlsCallbacks,
-    onActivity: () -> Unit,
-    onScrimTouch: (android.view.MotionEvent) -> Boolean,
-) {
-    val palette = LocalPlayerPalette.current
-
-    if (state.locked) {
-        AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
-                IconButton(onClick = { callbacks.onLockToggle(); onActivity() }, modifier = Modifier.padding(24.dp)) {
-                    Icon(Icons.Filled.Lock, contentDescription = "Unlock", tint = Color.White)
-                }
-            }
-        }
-        return
-    }
-
-    AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
-        Box(Modifier.fillMaxSize()) {
-            // Gesture-catching scrim, UNDER the button rows (added first = lowest z) so
-            // buttons claim their own bounds first; empty scrim area falls through here.
+            // Gesture-catching scrim — ALWAYS present regardless of controls visibility,
+            // so volume/brightness/seek swipes keep working while controls are hidden.
+            // Drawn BELOW the controls chrome (added first = lowest z) so button taps
+            // are claimed by the buttons themselves; empty areas fall through to here.
+            // Uses pointerInput+awaitEachGesture (NOT pointerInteropFilter — unreliable
+            // when combined with sibling pointer-input nodes) keyed on Unit so the
+            // gesture-tracking coroutine survives recomposition.
             Box(
                 Modifier
                     .fillMaxSize()
@@ -256,6 +198,74 @@ fun PlayerControlsOverlay(
                     },
             )
 
+            PlayerControlsOverlay(
+                visible = controlsVisible,
+                state = state,
+                callbacks = object : PlayerControlsCallbacks {
+                    override fun onPlayPause() = callbacks.onPlayPause()
+                    override fun onSeekBack() = callbacks.onSeekBack()
+                    override fun onSeekForward() = callbacks.onSeekForward()
+                    override fun onLockToggle() = callbacks.onLockToggle()
+                    override fun onBack() = callbacks.onBack()
+                    override fun onNext() = callbacks.onNext()
+                    override fun onSeekTo(fraction: Float) = callbacks.onSeekTo(fraction)
+                    override fun onAudioTracksClick() {
+                        tracksSheetKind = TrackSheetKind.AUDIO
+                    }
+                    override fun onSubtitleTracksClick() {
+                        tracksSheetKind = TrackSheetKind.TEXT
+                    }
+                },
+                onActivity = onActivity,
+            )
+
+            VolumeIndicator(level = volumeLevel)
+            BrightnessIndicator(level = brightnessLevel)
+            SeekIndicator(deltaSeconds = seekPreviewSeconds)
+
+            tracksSheetKind?.let { kind ->
+                TrackSelectionSheet(
+                    kind = kind,
+                    audioTracks = audioTracks,
+                    textTracks = textTracks,
+                    onSelectAudio = { onSelectAudioTrack(it) },
+                    onSelectText = { onSelectTextTrack(it) },
+                    onDismiss = { tracksSheetKind = null },
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Controls overlay chrome — pure buttons/bars, no gesture handling of its own.
+// Tap-outside-to-hide / tap-to-show and swipe gestures are handled by the
+// always-on scrim in PlayerRoot underneath this; buttons here simply sit on
+// top of it in z-order, so Compose hit-testing gives them priority.
+// ---------------------------------------------------------------------------
+
+@Composable
+fun PlayerControlsOverlay(
+    visible: Boolean,
+    state: PlayerControlsState,
+    callbacks: PlayerControlsCallbacks,
+    onActivity: () -> Unit,
+) {
+    val palette = LocalPlayerPalette.current
+
+    if (state.locked) {
+        AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
+                IconButton(onClick = { callbacks.onLockToggle(); onActivity() }, modifier = Modifier.padding(24.dp)) {
+                    Icon(Icons.Filled.Lock, contentDescription = "Unlock", tint = Color.White)
+                }
+            }
+        }
+        return
+    }
+
+    AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
+        Box(Modifier.fillMaxSize()) {
             // Top gradient bar
             Row(
                 Modifier
@@ -274,8 +284,11 @@ fun PlayerControlsOverlay(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
                 )
-                IconButton(onClick = { callbacks.onTracksClick(); onActivity() }) {
-                    Icon(Icons.Filled.Subtitles, contentDescription = "Tracks", tint = Color.White)
+                IconButton(onClick = { callbacks.onAudioTracksClick(); onActivity() }) {
+                    Icon(Icons.Filled.Audiotrack, contentDescription = "Audio track", tint = Color.White)
+                }
+                IconButton(onClick = { callbacks.onSubtitleTracksClick(); onActivity() }) {
+                    Icon(Icons.Filled.Subtitles, contentDescription = "Subtitles", tint = Color.White)
                 }
                 IconButton(onClick = { callbacks.onLockToggle(); onActivity() }) {
                     Icon(Icons.Filled.LockOpen, contentDescription = "Lock", tint = Color.White)
@@ -422,6 +435,7 @@ fun SeekIndicator(deltaSeconds: Double?) {
 
 @Composable
 fun TrackSelectionSheet(
+    kind: TrackSheetKind,
     audioTracks: List<TrackOption>,
     textTracks: List<TrackOption>,
     onSelectAudio: (TrackOption) -> Unit,
@@ -452,18 +466,26 @@ fun TrackSelectionSheet(
                 )
                 .padding(16.dp),
         ) {
-            Text("Audio", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(Modifier.height(8.dp))
-            audioTracks.forEach { track ->
-                TrackRow(track.label, track.selected, palette.accent) { onSelectAudio(track) }
-            }
+            when (kind) {
+                TrackSheetKind.AUDIO -> {
+                    Text("Audio", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
+                    if (audioTracks.isEmpty()) {
+                        Text("No audio tracks found", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                    }
+                    audioTracks.forEach { track ->
+                        TrackRow(track.label, track.selected, palette.accent) { onSelectAudio(track) }
+                    }
+                }
 
-            Spacer(Modifier.height(20.dp))
-            Text("Subtitles", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(Modifier.height(8.dp))
-            TrackRow("Off", textTracks.none { it.selected }, palette.accent) { onSelectText(null) }
-            textTracks.forEach { track ->
-                TrackRow(track.label, track.selected, palette.accent) { onSelectText(track) }
+                TrackSheetKind.TEXT -> {
+                    Text("Subtitles", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
+                    TrackRow("Off", textTracks.none { it.selected }, palette.accent) { onSelectText(null) }
+                    textTracks.forEach { track ->
+                        TrackRow(track.label, track.selected, palette.accent) { onSelectText(track) }
+                    }
+                }
             }
         }
     }

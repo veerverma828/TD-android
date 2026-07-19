@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -29,6 +31,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Stamp build number
+        # In-app updater (Settings > Storage & about) compares this against the
+        # tag_name of the latest GitHub Release ("build-<run_number>") to detect
+        # updates — must be set before prebuild so it lands in the JS bundle via
+        # expo-constants' extra field.
+        run: |
+          node -e "
+            const fs = require('fs');
+            const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            app.expo.extra = { ...app.expo.extra, buildNumber: ${{ github.run_number }} };
+            fs.writeFileSync('app.json', JSON.stringify(app, null, 2) + '\n');
+          "
+
       - name: Prebuild Android project
         run: npx expo prebuild -p android
 
@@ -36,8 +51,13 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: app-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          files: android/app/build/outputs/apk/release/app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

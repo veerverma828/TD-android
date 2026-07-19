@@ -167,11 +167,21 @@ class PlayerActivity : ComponentActivity() {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(minBufferMs, maxBufferMs, 1_000, 2_000)
             .build()
+        // PREFER (not ON): several WEB-DL MKVs ship E-AC3/DTS audio with no platform
+        // decoder on most phones — video plays but audio silently drops unless the
+        // FFmpeg extension renderer (media3-ffmpeg-decoder) is preferred over the
+        // platform one whenever both claim support for a track.
         val renderersFactory = DefaultRenderersFactory(this)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+
+        val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
 
         return ExoPlayer.Builder(this, renderersFactory)
             .setLoadControl(loadControl)
+            .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
             .build()
             .apply {
                 playWhenReady = false
@@ -335,7 +345,8 @@ class PlayerActivity : ComponentActivity() {
             player?.seekTo((dur * fraction).toLong())
         }
 
-        override fun onTracksClick() = Unit
+        override fun onAudioTracksClick() = Unit
+        override fun onSubtitleTracksClick() = Unit
     }
 
     private fun seekBy(deltaSeconds: Int) {
