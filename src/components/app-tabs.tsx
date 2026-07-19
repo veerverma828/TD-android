@@ -78,12 +78,7 @@ export default function AppTabs() {
       />
       
       {/* Hide non-tab screens */}
-      <Tabs.Screen
-        name="explore"
-        options={{
-          href: null,
-        }}
-      />
+
       <Tabs.Screen
         name="details"
         options={{

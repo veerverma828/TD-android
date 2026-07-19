@@ -40,10 +40,6 @@
       "expo-dev-client",
       "expo-notifications",
       "./plugins/withAndroidTVBanner.js",
-      "./plugins/withVideoPlayerActivity.js",
-      "./plugins/withNativePlayerPackage.js",
-      "./plugins/withNativePlayerFiles.js",
-      "./plugins/withNativePlayerGradle.js",
       "expo-image",
       "expo-status-bar",
       "expo-web-browser"

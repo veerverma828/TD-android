@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["NativeVideoPlayerModule"]
+  },
+  "android": {
+    "modules": ["com.tdandroid.app.player.NativePlayerModule"]
+  }
+}

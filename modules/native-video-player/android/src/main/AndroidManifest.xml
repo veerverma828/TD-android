@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.tdandroid.app.player">
+
+    <application>
+        <activity
+            android:name=".PlayerActivity"
+            android:theme="@style/PlayerTheme"
+            android:launchMode="singleTop"
+            android:supportsPictureInPicture="true"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="screenSize|orientation|keyboardHidden|uiMode|density|screenLayout"
+            android:exported="false" />
+    </application>
+
+</manifest>

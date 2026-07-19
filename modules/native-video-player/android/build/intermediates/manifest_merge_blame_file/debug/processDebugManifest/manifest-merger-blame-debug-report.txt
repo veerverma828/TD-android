@@ -1,0 +1,27 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.tdandroid.app.player" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6
+7    <application>
+7-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:5:5-14:19
+8        <activity
+8-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:6:9-13:40
+9            android:name="com.tdandroid.app.player.PlayerActivity"
+9-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:7:13-43
+10            android:configChanges="screenSize|orientation|keyboardHidden|uiMode|density|screenLayout"
+10-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:12:13-102
+11            android:exported="false"
+11-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:13:13-37
+12            android:launchMode="singleTop"
+12-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:9:13-43
+13            android:screenOrientation="sensorLandscape"
+13-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:11:13-56
+14            android:supportsPictureInPicture="true"
+14-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:10:13-52
+15            android:theme="@style/PlayerTheme" />
+15-->C:\Users\veerk\OneDrive\Desktop\Project\TD-android\modules\native-video-player\android\src\main\AndroidManifest.xml:8:13-47
+16    </application>
+17
+18</manifest>

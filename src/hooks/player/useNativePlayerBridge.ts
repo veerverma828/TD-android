@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DeviceEventEmitter, NativeModules } from 'react-native';
+import { requireNativeModule, EventEmitter } from 'expo-modules-core';
 
-const { NativePlayer } = NativeModules;
+const NativePlayer = requireNativeModule('NativePlayer');
+const playerEmitter = new EventEmitter(NativePlayer);
 
 export interface NativePlayerLaunchConfig {
   streamUrl: string;
@@ -40,12 +41,6 @@ interface NativePlayerBridgeCallbacks {
   onRequestNext?: () => void;
 }
 
-/**
- * Wraps the native `NativePlayer` module + its DeviceEventEmitter events.
- * Exposes {paused, currentTime, duration} in the exact shape useTraktScrobble
- * and usePlaybackPosition already expect — only the event source changes from
- * <Video onProgress> to native progress ticks, the hooks themselves are untouched.
- */
 export function useNativePlayerBridge(callbacks: NativePlayerBridgeCallbacks) {
   const [playback, setPlayback] = useState({ paused: true, currentTime: 0, duration: 0 });
   const callbacksRef = useRef(callbacks);
@@ -53,24 +48,28 @@ export function useNativePlayerBridge(callbacks: NativePlayerBridgeCallbacks) {
 
   useEffect(() => {
     const subs = [
-      DeviceEventEmitter.addListener('nativePlayerProgress', (e: ProgressEvent) => {
+      playerEmitter.addListener('nativePlayerProgress', (e: ProgressEvent) => {
         setPlayback({ paused: e.paused, currentTime: e.currentTime, duration: e.duration });
       }),
-      DeviceEventEmitter.addListener('nativePlayerClosed', (e: ClosedEvent) => {
+      playerEmitter.addListener('nativePlayerClosed', (e: ClosedEvent) => {
         callbacksRef.current.onClosed(e);
       }),
-      DeviceEventEmitter.addListener('nativePlayerError', (e: ErrorEvent) => {
+      playerEmitter.addListener('nativePlayerError', (e: ErrorEvent) => {
         callbacksRef.current.onError?.(e);
       }),
-      DeviceEventEmitter.addListener('nativePlayerRequestNext', () => {
+      playerEmitter.addListener('nativePlayerRequestNext', () => {
         callbacksRef.current.onRequestNext?.();
       }),
     ];
     return () => subs.forEach((s) => s.remove());
   }, []);
 
-  const launch = useCallback((config: NativePlayerLaunchConfig) => {
-    NativePlayer.launch(config);
+  const launch = useCallback(async (config: NativePlayerLaunchConfig) => {
+    try {
+      await NativePlayer.launch(JSON.stringify(config));
+    } catch (e) {
+      console.error("Failed to launch native player:", e);
+    }
   }, []);
 
   return { playback, launch };
