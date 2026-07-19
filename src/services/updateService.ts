@@ -17,6 +17,13 @@ export interface UpdateInfo {
   apkSizeBytes: number;
 }
 
+// CI only stamps extra.buildNumber right before `expo prebuild` (see build-apk.yml);
+// a dev/local build never goes through that step, so CURRENT_BUILD stays 0 there.
+// Also covers Metro's own dev flag as a belt-and-suspenders check.
+export function isDevBuild(): boolean {
+  return typeof __DEV__ !== 'undefined' && __DEV__ ? true : CURRENT_BUILD === 0;
+}
+
 // CI (.github/workflows/build-apk.yml) tags each release "build-<run_number>"
 // and stamps app.json's extra.buildNumber to the same number before building —
 // comparing the two tells us if a newer release exists.

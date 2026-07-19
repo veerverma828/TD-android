@@ -9,10 +9,11 @@ import { SettingsSubHeader } from '@/components/settings/SettingsSubHeader';
 import { settingsStyles } from '@/components/settings/settingsStyles';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
-import { checkForUpdate, downloadAndInstallUpdate, UpdateInfo } from '@/services/updateService';
+import { checkForUpdate, downloadAndInstallUpdate, isDevBuild, UpdateInfo } from '@/services/updateService';
 
 type UpdateState =
   | { status: 'idle' }
+  | { status: 'dev' }
   | { status: 'checking' }
   | { status: 'upToDate' }
   | { status: 'available'; info: UpdateInfo }
@@ -21,11 +22,15 @@ type UpdateState =
 
 export default function StorageSettingsScreen() {
   const { colors } = useAppTheme();
-  const [update, setUpdate] = useState<UpdateState>({ status: 'idle' });
+  const [update, setUpdate] = useState<UpdateState>(isDevBuild() ? { status: 'dev' } : { status: 'idle' });
 
   const versionLabel = `${Application.nativeApplicationVersion ?? '1.0.0'} (Build ${Application.nativeBuildVersion ?? '0'})`;
 
   const handleCheck = async () => {
+    if (isDevBuild()) {
+      setUpdate({ status: 'dev' });
+      return;
+    }
     setUpdate({ status: 'checking' });
     try {
       const info = await checkForUpdate();
@@ -90,6 +95,17 @@ export default function StorageSettingsScreen() {
                   </View>
                 )}
               </FocusablePressable>
+            )}
+
+            {update.status === 'dev' && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View>
+                  <ThemedText style={settingsStyles.rowLabel}>Check for updates</ThemedText>
+                  <ThemedText style={[settingsStyles.rowSubtext, { color: colors.textSecondary }]}>
+                    Unavailable — running a dev/local build
+                  </ThemedText>
+                </View>
+              </View>
             )}
 
             {update.status === 'checking' && (

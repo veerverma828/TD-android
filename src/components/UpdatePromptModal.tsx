@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { checkForUpdate, downloadAndInstallUpdate, UpdateInfo } from '@/services/updateService';
+import { checkForUpdate, downloadAndInstallUpdate, isDevBuild, UpdateInfo } from '@/services/updateService';
 
 const LAST_CHECK_KEY = 'update:last_auto_check';
 const DISMISSED_BUILD_KEY = 'update:dismissed_build';
@@ -26,7 +26,7 @@ export function UpdatePromptModal() {
   const checkedRef = useRef(false);
 
   useEffect(() => {
-    if (checkedRef.current) return;
+    if (checkedRef.current || isDevBuild()) return;
     checkedRef.current = true;
 
     (async () => {

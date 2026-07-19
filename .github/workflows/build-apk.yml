@@ -47,11 +47,34 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild -p android
 
+      - name: Configure release signing
+        # expo prebuild regenerates android/ from scratch every run, always wired to
+        # the debug keystore — patch in a real release signingConfig afterward so
+        # every CI-built APK is signed with our own key instead of the public,
+        # well-known Android debug key (see #update-service-404 investigation).
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          node -e "
+            const fs = require('fs');
+            const path = 'android/app/build.gradle';
+            let g = fs.readFileSync(path, 'utf8');
+            g = g.replace(
+              'signingConfigs {\n        debug {',
+              \"signingConfigs {\n        release {\n            storeFile file('release.keystore')\n            storePassword System.getenv('RELEASE_KEYSTORE_PASSWORD')\n            keyAlias System.getenv('RELEASE_KEY_ALIAS')\n            keyPassword System.getenv('RELEASE_KEY_PASSWORD')\n        }\n        debug {\"
+            );
+            g = g.replace('signingConfig signingConfigs.debug\n            def enableShrinkResources', 'signingConfig signingConfigs.release\n            def enableShrinkResources');
+            fs.writeFileSync(path, g);
+          "
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android APK
         working-directory: android
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
 
       - name: Create GitHub Release
