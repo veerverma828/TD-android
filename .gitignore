@@ -42,3 +42,8 @@ example
 /ios
 /android
 android-keystore/
+
+# module builds
+modules/**/android/build/
+modules/**/android/.gradle/
+modules/**/ios/build/
