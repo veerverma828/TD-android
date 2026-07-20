@@ -37,7 +37,7 @@ export default function NotificationsSettingsScreen() {
         <SettingsSubHeader title="Notifications" />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={settingsStyles.scrollContent}>
-          <ThemedText style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 14 }}>
+          <ThemedText style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 14, paddingHorizontal: 16 }}>
             Get a notification when a new episode airs for a show in your library. Checked each time you open the app.
           </ThemedText>
 
