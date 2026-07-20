@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,6 +24,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
+import androidx.media3.exoplayer.mediacodec.MediaCodecRenderer
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.facebook.react.bridge.Arguments
 import com.tdandroid.app.player.ui.PlayerControlsCallbacks
@@ -171,8 +174,17 @@ class PlayerActivity : ComponentActivity() {
         // decoder on most phones — video plays but audio silently drops unless the
         // FFmpeg extension renderer (media3-ffmpeg-decoder) is preferred over the
         // platform one whenever both claim support for a track.
+        //
+        // setEnableDecoderFallback(true): without this, a device that advertises but
+        // fails to actually configure a Dolby Vision / HDR10 decoder (common on
+        // profile 5/7 DV or flaky vendor HDR codecs) throws instead of retrying with
+        // the next-best decoder (e.g. the HEVC base-layer decoder for DV, or an SDR
+        // path) — the failure previously surfaced as a silent black screen.
         val renderersFactory = DefaultRenderersFactory(this)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setEnableDecoderFallback(true)
+
+        logHdrDecoderCapabilities()
 
         val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
@@ -231,9 +243,11 @@ class PlayerActivity : ComponentActivity() {
         override fun onTracksChanged(tracks: Tracks) {
             audioTracks.value = tracksOfType(tracks, C.TRACK_TYPE_AUDIO)
             textTracks.value = tracksOfType(tracks, C.TRACK_TYPE_TEXT)
+            logVideoTrackSelection(tracks)
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            logDecoderError(error)
             emitEvent(
                 "nativePlayerError",
                 Arguments.createMap().apply {
@@ -242,6 +256,68 @@ class PlayerActivity : ComponentActivity() {
                     putString("code", error.errorCodeName)
                 },
             )
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // HDR / Dolby Vision diagnostics
+    // -----------------------------------------------------------------
+
+    /** Logs whether this device advertises DV/HDR10/HDR10+/HLG decoding, before any track is loaded. */
+    private fun logHdrDecoderCapabilities() {
+        for (mimeType in listOf(MimeTypes.VIDEO_DOLBY_VISION, MimeTypes.VIDEO_H265, MimeTypes.VIDEO_AV1)) {
+            try {
+                val infos = MediaCodecUtil.getDecoderInfos(mimeType, false, false)
+                if (infos.isEmpty()) {
+                    Log.w(TAG, "HDR capability check: no decoders found for $mimeType")
+                    continue
+                }
+                infos.forEach { info ->
+                    val profiles = info.capabilities?.profileLevels?.joinToString { pl -> "profile=${pl.profile}" } ?: "unknown"
+                    Log.i(TAG, "HDR capability check: $mimeType decoder=${info.name} hardware=${info.hardwareAccelerated} secure=${info.secure} $profiles")
+                }
+            } catch (e: MediaCodecUtil.DecoderQueryException) {
+                Log.w(TAG, "HDR capability check failed for $mimeType: ${e.message}")
+            }
+        }
+    }
+
+    /** Logs the codec/HDR profile actually selected for the current video track once tracks resolve. */
+    private fun logVideoTrackSelection(tracks: Tracks) {
+        tracks.groups.forEach { group ->
+            if (group.type != C.TRACK_TYPE_VIDEO) return@forEach
+            for (i in 0 until group.length) {
+                if (!group.isTrackSelected(i)) continue
+                val format = group.getTrackFormat(i)
+                val colorInfo = format.colorInfo
+                val hdrKind = when {
+                    format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION -> "DolbyVision"
+                    colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084 -> "HDR10"
+                    colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG -> "HLG"
+                    else -> "SDR"
+                }
+                Log.i(
+                    TAG,
+                    "Video track selected: mimeType=${format.sampleMimeType} codecs=${format.codecs} " +
+                        "hdrKind=$hdrKind colorSpace=${colorInfo?.colorSpace} colorTransfer=${colorInfo?.colorTransfer} " +
+                        "bitDepth=${colorInfo?.lumaBitdepth} resolution=${format.width}x${format.height}",
+                )
+            }
+        }
+    }
+
+    /** Logs decoder name + init cause on playback failure, so DV/HDR fallback behavior is traceable. */
+    private fun logDecoderError(error: PlaybackException) {
+        val cause = error.cause
+        if (cause is MediaCodecRenderer.DecoderInitializationException) {
+            Log.e(
+                TAG,
+                "Decoder init failed: mimeType=${cause.mimeType} decoderName=${cause.codecInfo?.name} " +
+                    "secureDecoderRequired=${cause.secureDecoderRequired}",
+                cause,
+            )
+        } else {
+            Log.e(TAG, "Player error [${error.errorCodeName}]: ${error.message}", error)
         }
     }
 
@@ -430,5 +506,6 @@ class PlayerActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_CONFIG_JSON = "config_json"
+        private const val TAG = "NativePlayer"
     }
 }

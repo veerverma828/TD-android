@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -24,7 +25,8 @@ export default function StorageSettingsScreen() {
   const { colors } = useAppTheme();
   const [update, setUpdate] = useState<UpdateState>(isDevBuild() ? { status: 'dev' } : { status: 'idle' });
 
-  const versionLabel = `${Application.nativeApplicationVersion ?? '1.0.0'} (Build ${Application.nativeBuildVersion ?? '0'})`;
+  const buildNumber = Constants.expoConfig?.extra?.buildNumber ?? Application.nativeBuildVersion ?? '0';
+  const versionLabel = `${Application.nativeApplicationVersion ?? '1.0.0'} (Build ${buildNumber})`;
 
   const handleCheck = async () => {
     if (isDevBuild()) {
@@ -59,13 +61,6 @@ export default function StorageSettingsScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={settingsStyles.scrollContent}>
 
-          <View style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}>
-            <View>
-              <ThemedText style={settingsStyles.rowLabel}>Clear Cache</ThemedText>
-              <ThemedText style={[settingsStyles.rowSubtext, { color: colors.textSecondary }]}>Free up 1.2 GB</ThemedText>
-            </View>
-            <ThemedText style={[settingsStyles.chevron, { color: colors.textSecondary }]}>›</ThemedText>
-          </View>
           <View style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}>
             <ThemedText style={settingsStyles.rowLabel}>Version</ThemedText>
             <ThemedText style={[settingsStyles.rowSubtext, { color: colors.textSecondary }]}>{versionLabel}</ThemedText>
