@@ -1,0 +1,12 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="m">
+      <rect width="512" height="512" fill="black"/>
+      <circle cx="256" cy="256" r="220" fill="white"/>
+      <text x="256" y="325" font-family="Georgia, serif" font-size="190" font-weight="700" text-anchor="middle" fill="black">TD</text>
+    </mask>
+  </defs>
+  <g transform="translate(71.68,71.68) scale(0.72)">
+    <rect width="512" height="512" fill="#ffffff" mask="url(#m)"/>
+  </g>
+</svg>
