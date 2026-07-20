@@ -15,7 +15,6 @@ const CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route
   { icon: 'bell', label: 'Notifications', subtitle: 'New episode alerts', route: '/settings/notifications' },
   { icon: 'goforward', label: 'Continue watching', subtitle: 'Resume, autoplay, position', route: '/settings/continue-watching' },
   { icon: 'photo', label: 'Pre-play screen', subtitle: 'Landscape loading screen layout', route: '/settings/preplay' },
-  { icon: 'hand.tap', label: 'Gestures', subtitle: 'Swipe and tap controls', route: '/settings/gestures' },
   { icon: 'sun.max.fill', label: 'Appearance', subtitle: 'Theme, discover layout, ratings', route: '/settings/appearance' },
   { icon: 'tv', label: 'Display Mode', subtitle: 'Mobile, TV, or automatic', route: '/settings/display-mode' },
   { icon: 'info.circle', label: 'Storage & about', subtitle: 'Cache, version', route: '/settings/storage' },

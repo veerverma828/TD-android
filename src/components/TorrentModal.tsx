@@ -8,6 +8,7 @@ import { useStreamActions } from '@/hooks/useStreamActions';
 import { FileSelectionModal } from '@/components/FileSelectionModal';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useTVBackHandler } from '@/hooks/tv/useTVBackHandler';
+import { PosterActionsSheet } from '@/components/PosterActionsSheet';
 
 interface TorrentModalProps {
   visible: boolean;
@@ -32,6 +33,7 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
   });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<string>('All');
+  const [moreOptionsFor, setMoreOptionsFor] = useState<TorrentioStream | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => (prev === id ? null : id));
@@ -222,7 +224,7 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
                     {isExpanded && (
                       <View style={styles.actionsContainer}>
                         <FocusablePressable
-                          style={[styles.actionBtn, { backgroundColor: colors.accent, opacity: resolvingId === opt.magnet ? 0.7 : 1 }]}
+                          style={[styles.actionBtn, styles.playBtnFull, { backgroundColor: colors.accent, opacity: resolvingId === opt.magnet ? 0.7 : 1 }]}
                           onPress={() => play(opt.magnet)}
                           disabled={resolvingId === opt.magnet}
                           hasTVPreferredFocus
@@ -240,19 +242,15 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
                             {resolvingId === opt.magnet ? 'Resolving...' : 'Play'}
                           </ThemedText>
                         </FocusablePressable>
-                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: '#8b5cf6' }]} onPress={() => playExternal(opt.magnet)} focusRingBorderRadius={8} focusRingScale={false} accessibilityRole="button" accessibilityLabel="Play externally">
-                          <IconSymbol name="arrow.up.right.square" color="#fff" size={16} />
-                          <ThemedText style={styles.actionBtnText}>External</ThemedText>
-                        </FocusablePressable>
-                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]} onPress={() => copyUrl(opt.magnet)} focusRingBorderRadius={8} focusRingScale={false} accessibilityRole="button" accessibilityLabel={opt.isDirect ? 'Copy link' : 'Copy magnet'}>
-                          <IconSymbol name="doc.on.doc" color={colors.text} size={16} />
-                          <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>
-                            {opt.isDirect ? 'Copy Link' : 'Copy Magnet'}
-                          </ThemedText>
-                        </FocusablePressable>
-                        <FocusablePressable style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]} onPress={() => download(opt.magnet)} focusRingBorderRadius={8} focusRingScale={false} accessibilityRole="button" accessibilityLabel="Download">
-                          <IconSymbol name="arrow.down.circle" color={colors.text} size={16} />
-                          <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Download</ThemedText>
+                        <FocusablePressable
+                          style={[styles.actionBtn, styles.moreBtn, { backgroundColor: colors.backgroundSelected }]}
+                          onPress={() => setMoreOptionsFor(opt)}
+                          focusRingBorderRadius={8}
+                          focusRingScale={false}
+                          accessibilityRole="button"
+                          accessibilityLabel="More options"
+                        >
+                          <IconSymbol name="chevron.right" color={colors.text} size={18} />
                         </FocusablePressable>
                       </View>
                     )}
@@ -264,6 +262,34 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
           )}
         </View>
       </View>
+
+      {/* More Options Sheet */}
+      <PosterActionsSheet
+        visible={!!moreOptionsFor}
+        title="More Options"
+        onClose={() => setMoreOptionsFor(null)}
+        actions={
+          moreOptionsFor
+            ? [
+                {
+                  label: 'Play Externally',
+                  icon: 'arrow.up.right.square',
+                  onPress: () => playExternal(moreOptionsFor.magnet),
+                },
+                {
+                  label: moreOptionsFor.isDirect ? 'Copy Link' : 'Copy Magnet',
+                  icon: 'doc.on.doc',
+                  onPress: () => copyUrl(moreOptionsFor.magnet),
+                },
+                {
+                  label: 'Download',
+                  icon: 'arrow.down.circle',
+                  onPress: () => download(moreOptionsFor.magnet),
+                },
+              ]
+            : []
+        }
+      />
 
       {/* File Selection Overlay */}
       {fileSelection && (
@@ -440,6 +466,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     gap: 6,
+  },
+  playBtnFull: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  moreBtn: {
+    paddingHorizontal: 14,
   },
   actionBtnText: {
     color: '#fff',

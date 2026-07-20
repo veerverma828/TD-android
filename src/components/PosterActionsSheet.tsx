@@ -50,7 +50,10 @@ export function PosterActionsSheet({ visible, title, actions, onClose }: PosterA
                 key={action.label}
                 onPress={() => {
                   onClose();
-                  action.onPress();
+                  // Defer to next tick: firing action.onPress() synchronously can open
+                  // another RN <Modal> (e.g. file selection) while this sheet's Modal is
+                  // still mid-dismiss, which on Android silently fails to surface it.
+                  setTimeout(() => action.onPress(), 0);
                 }}
                 hasTVPreferredFocus={index === 0}
                 focusRingBorderRadius={10}

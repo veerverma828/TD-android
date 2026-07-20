@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { Palettes, PaletteName, ThemeColor } from '@/constants/theme';
 
 const THEME_KEY = 'settings:app_theme';
-const DEFAULT_THEME: PaletteName = 'marquee';
+const DEFAULT_THEME: PaletteName = 'classic';
 
 interface AppThemeContextValue {
   themeName: PaletteName;

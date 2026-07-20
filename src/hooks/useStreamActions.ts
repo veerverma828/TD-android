@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { Linking, Alert } from 'react-native';
+import { Linking, Alert, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { useRouter } from 'expo-router';
 import { getActiveDebridProvider, getDebridKey, getFiles, generateLink, DebridProvider, DebridFile } from '@/services/debridService';
 
@@ -27,6 +28,10 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [fileSelection, setFileSelection] = useState<{ files: DebridFile[], torrentId: string | number, provider: DebridProvider, apiKey: string, sourceKey: string } | null>(null);
   const requestTokenRef = useRef(0);
+  // Set right before resolution starts; consulted once the final playable URL is
+  // known (which may be several awaits and a file-selection round-trip later) so
+  // "play externally"/"download" isn't lost while the debrid link is still being generated.
+  const pendingModeRef = useRef<'internal' | 'external' | 'download'>('internal');
 
   const navigateToPlayer = (url: string) => {
     router.push({
@@ -41,11 +46,51 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
     });
   };
 
+  const openInExternalPlayer = async (url: string) => {
+    try {
+      if (Platform.OS === 'android') {
+        // ACTION_VIEW with an explicit video mime type so Android's chooser
+        // surfaces installed video players (VLC, MX Player, ...) instead of
+        // falling back to the browser, which Linking.openURL alone would do.
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: url,
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+          type: 'video/*',
+        });
+      } else {
+        await Linking.openURL(url);
+      }
+    } catch {
+      Alert.alert('Error', 'No external player found that can open this stream.');
+    }
+  };
+
+  const openDownloadInBrowser = async (url: string) => {
+    try {
+      // Hand the resolved debrid link straight to the OS/browser (Chrome) so it
+      // drives the download itself via its own download manager/notification —
+      // no in-app file handling needed.
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Error', 'No app found that can open this download link.');
+    }
+  };
+
+  const handleResolvedUrl = async (url: string) => {
+    if (pendingModeRef.current === 'external') {
+      await openInExternalPlayer(url);
+    } else if (pendingModeRef.current === 'download') {
+      await openDownloadInBrowser(url);
+    } else {
+      navigateToPlayer(url);
+    }
+  };
+
   const resolveAndPlay = async (torrentId: string | number, fileId: string | number, provider: DebridProvider, apiKey: string, sourceKey?: string) => {
     setResolvingId(sourceKey ?? torrentId.toString());
     try {
       const downloadUrl = await generateLink(torrentId, fileId, provider, apiKey);
-      navigateToPlayer(downloadUrl);
+      await handleResolvedUrl(downloadUrl);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to generate download link');
     } finally {
@@ -54,14 +99,16 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
     }
   };
 
-  const play = async (magnetOrUrl: string) => {
+  const startPlayback = async (magnetOrUrl: string, mode: 'internal' | 'external' | 'download') => {
+    pendingModeRef.current = mode;
+
     if (magnetOrUrl.startsWith('http')) {
       // Direct HTTP play (e.g., from some community addons)
       if (!hasAllowedScheme(magnetOrUrl)) {
         Alert.alert('Error', 'Unsupported stream link.');
         return;
       }
-      navigateToPlayer(magnetOrUrl);
+      handleResolvedUrl(magnetOrUrl);
       return;
     }
 
@@ -112,33 +159,17 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
     }
   };
 
-  const playExternal = async (url: string) => {
-    if (!hasAllowedScheme(url)) {
-      Alert.alert("Error", "Unsupported stream link.");
-      return;
-    }
-    try {
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert("Error", "No external player found that can open this stream.");
-    }
-  };
+  const play = (magnetOrUrl: string) => startPlayback(magnetOrUrl, 'internal');
+  const playExternal = (magnetOrUrl: string) => startPlayback(magnetOrUrl, 'external');
+  // Torrent/magnet sources have no direct bytes to fetch — this resolves them
+  // through the attached debrid provider first, same as play(), then opens the
+  // resulting HTTP link so the browser downloads it. A raw magnet handed to
+  // Linking.openURL previously did nothing useful (no debrid resolution).
+  const download = (magnetOrUrl: string) => startPlayback(magnetOrUrl, 'download');
 
   const copyUrl = async (url: string) => {
     await Clipboard.setStringAsync(url);
     Alert.alert("Success", "Link copied to clipboard!");
-  };
-
-  const download = async (url: string) => {
-    if (!hasAllowedScheme(url)) {
-      Alert.alert("Error", "Unsupported stream link.");
-      return;
-    }
-    try {
-      await Linking.openURL(url);
-    } catch (e) {
-      Alert.alert("Error", "Could not initiate download.");
-    }
   };
 
   return {

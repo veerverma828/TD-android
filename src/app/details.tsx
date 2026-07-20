@@ -362,10 +362,6 @@ export default function DetailsScreen() {
 
           {/* Secondary Actions */}
           <View style={[styles.actionsRow, isTV && styles.actionsRowTV]}>
-            <FocusablePressable style={[styles.actionItem, isTV && styles.actionItemTV]} onPress={() => setModalVisible(true)} hasTVPreferredFocus={hasDetailsFocus('streams', false)} onFocus={() => registerDetailsFocusable('streams')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel="Streams">
-              <IconSymbol name="tv" color={colors.textSecondary} size={28} />
-              <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>Streams</ThemedText>
-            </FocusablePressable>
             <FocusablePressable style={[styles.actionItem, isTV && styles.actionItemTV]} onPress={() => toggleMyList(meta)} hasTVPreferredFocus={hasDetailsFocus('mylist', false)} onFocus={() => registerDetailsFocusable('mylist')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
               <IconSymbol name={inMyList ? 'checkmark' : 'plus'} color={colors.textSecondary} size={28} />
               <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>
