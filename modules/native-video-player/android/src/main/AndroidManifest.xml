@@ -8,7 +8,7 @@
             android:theme="@style/PlayerTheme"
             android:launchMode="singleTop"
             android:supportsPictureInPicture="true"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="sensor"
             android:configChanges="screenSize|orientation|keyboardHidden|uiMode|density|screenLayout"
             android:exported="false" />
     </application>

@@ -70,7 +70,7 @@ export default function PreplayScreen() {
   }, [navigation]);
 
   useEffect(() => {
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    // allow auto-rotation
   }, []);
 
   useEffect(() => {
