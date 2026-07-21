@@ -1,8 +1,8 @@
-import { StyleSheet, View, ScrollView, ActivityIndicator, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { StyleSheet, View, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedView } from '@/components/themed-view';
@@ -27,7 +27,6 @@ import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HEADER_AUTOPLAY_INTERVAL = 6000;
 
 type TabKey = 'episodes' | 'overview' | 'cast' | 'details';
 
@@ -37,24 +36,6 @@ const TAB_LABELS: Record<TabKey, string> = {
   cast: 'Cast',
   details: 'Details',
 };
-
-const HeaderSlide = memo(function HeaderSlide({ uri, fallbackUri }: { uri: string; fallbackUri: string }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <Image
-      source={{ uri: failed ? fallbackUri : uri }}
-      style={styles.coverImage}
-      contentFit="cover"
-      cachePolicy="memory-disk"
-      priority="high"
-      recyclingKey={uri}
-      placeholder={DARK_IMAGE_PLACEHOLDER}
-      placeholderContentFit="cover"
-      transition={200}
-      onError={() => setFailed(true)}
-    />
-  );
-});
 
 export default function DetailsScreen() {
   const router = useRouter();
@@ -311,74 +292,20 @@ export default function DetailsScreen() {
 
   const inMyList = displayMeta ? isInList(displayMeta.id, displayMeta.type) : false;
 
-  const availableImages = useMemo(() => {
-    if (!displayMeta) return [fallbackImageUrl];
-    const list: string[] = [];
-    if (displayMeta.background) list.push(normalizeImageUrl(displayMeta.background, 'backdrop'));
-    if (displayMeta.poster && displayMeta.poster !== displayMeta.background) {
-      list.push(normalizeImageUrl(displayMeta.poster, 'backdrop'));
-    }
-    if (displayMeta.videos) {
-      for (const v of displayMeta.videos) {
-        if (v.thumbnail && !list.includes(v.thumbnail)) {
-          list.push(normalizeImageUrl(v.thumbnail, 'backdrop'));
-          if (list.length >= 5) break;
-        }
-      }
-    }
-    return list.length > 0 ? Array.from(new Set(list)) : [fallbackImageUrl];
+  const coverImageUrl = useMemo(() => {
+    if (!displayMeta) return fallbackImageUrl;
+    if (displayMeta.background) return normalizeImageUrl(displayMeta.background, 'backdrop');
+    if (displayMeta.poster) return normalizeImageUrl(displayMeta.poster, 'backdrop');
+    return fallbackImageUrl;
   }, [displayMeta]);
 
-  const [activeHeaderIndex, setActiveHeaderIndex] = useState(0);
-  const headerListRef = useRef<FlatList<string>>(null);
-  const headerIndexRef = useRef(0);
-  const headerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const pauseHeaderAutoplay = useCallback(() => {
-    if (headerTimerRef.current) {
-      clearInterval(headerTimerRef.current);
-      headerTimerRef.current = null;
-    }
-  }, []);
-
-  const resumeHeaderAutoplay = useCallback(() => {
-    pauseHeaderAutoplay();
-    if (availableImages.length <= 1) return;
-    headerTimerRef.current = setInterval(() => {
-      const next = (headerIndexRef.current + 1) % availableImages.length;
-      headerIndexRef.current = next;
-      setActiveHeaderIndex(next);
-      try {
-        headerListRef.current?.scrollToIndex({ index: next, animated: true });
-      } catch {
-        // Prevent crash if layout is not ready
-      }
-    }, HEADER_AUTOPLAY_INTERVAL);
-  }, [availableImages.length, pauseHeaderAutoplay]);
-
+  // Cover swaps from the nav-param poster to the fetched meta's artwork once
+  // loadMeta() resolves; if that fetched URL fails to load there was no
+  // fallback UI, so the header just went blank a few seconds after opening.
+  const [coverFailed, setCoverFailed] = useState(false);
   useEffect(() => {
-    headerIndexRef.current = 0;
-    setActiveHeaderIndex(0);
-    headerListRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [displayMeta?.id]);
-
-  useEffect(() => {
-    resumeHeaderAutoplay();
-    return pauseHeaderAutoplay;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableImages.length]);
-
-  const handleHeaderScrollBeginDrag = useCallback(() => {
-    pauseHeaderAutoplay();
-  }, [pauseHeaderAutoplay]);
-
-  const handleHeaderMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (availableImages.length === 0) return;
-    const index = Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH), availableImages.length - 1));
-    headerIndexRef.current = index;
-    setActiveHeaderIndex(index);
-    resumeHeaderAutoplay();
-  }, [availableImages.length, resumeHeaderAutoplay]);
+    setCoverFailed(false);
+  }, [coverImageUrl]);
 
   if (loading && !displayMeta) {
     return (
@@ -405,55 +332,32 @@ export default function DetailsScreen() {
 
         {/* Cinematic Header */}
         <View style={styles.headerContainer}>
-          <FlatList
-            ref={headerListRef}
-            data={availableImages}
-            keyExtractor={(uri, idx) => `${id}:${idx}:${uri}`}
-            horizontal
-            pagingEnabled
-            decelerationRate="fast"
-            bounces={false}
-            overScrollMode="never"
-            showsHorizontalScrollIndicator={false}
-            scrollEnabled={availableImages.length > 1}
-            onScrollBeginDrag={handleHeaderScrollBeginDrag}
-            onMomentumScrollEnd={handleHeaderMomentumScrollEnd}
-            onScrollToIndexFailed={(info) => {
-              try {
-                headerListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
-              } catch {
-                // Safe fallback
-              }
-            }}
-            getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
-            renderItem={({ item }) => <HeaderSlide uri={item} fallbackUri={fallbackImageUrl} />}
-            initialNumToRender={availableImages.length}
-            windowSize={availableImages.length}
-          />
+          {coverFailed ? (
+            <View style={[styles.coverImage, styles.coverImageFallback, { backgroundColor: colors.backgroundElement }]}>
+              <IconSymbol name="photo" color={colors.textSecondary} size={48} />
+            </View>
+          ) : (
+            <Image
+              source={{ uri: coverImageUrl }}
+              style={styles.coverImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              priority="high"
+              recyclingKey={coverImageUrl}
+              placeholder={DARK_IMAGE_PLACEHOLDER}
+              placeholderContentFit="cover"
+              transition={200}
+              onError={() => setCoverFailed(true)}
+            />
+          )}
           <LinearGradient
             colors={['rgba(0,0,0,0.6)', 'transparent', 'rgba(0,0,0,0.3)', colors.background]}
             locations={[0, 0.35, 0.7, 1]}
             style={styles.gradient}
           />
 
-          {availableImages.length > 1 && (
-            <View style={styles.headerProgressContainer} pointerEvents="none">
-              {availableImages.map((_: string, idx: number) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.headerBubble,
-                    idx === activeHeaderIndex
-                      ? { backgroundColor: colors.accent, width: 18, opacity: 1 }
-                      : { backgroundColor: 'rgba(255,255,255,0.4)', width: 6, opacity: 0.7 },
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-
           {/* Back Button */}
-          <View style={[styles.backButtonContainer, { top: Math.max(insets.top, 16), left: isTV ? 32 : 16 }]}>
+          <View style={[styles.backButtonContainer, { top: Math.max(insets.top, 16) }, isTV && tvStyles.backButtonContainer]}>
             <FocusablePressable
               onPress={() => router.back()}
               focusRingBorderRadius={20}
@@ -469,7 +373,7 @@ export default function DetailsScreen() {
           </View>
 
           {/* Title + meta overlaid on the artwork itself */}
-          <View style={[styles.headerContent, isTV && { left: 32, right: 32, maxWidth: 800 }]} pointerEvents="none">
+          <View style={[styles.headerContent, isTV && tvStyles.headerContent]} pointerEvents="none">
             <ThemedText style={styles.title} type="title">{displayMeta.name}</ThemedText>
 
             <View style={styles.metaRow}>
@@ -487,14 +391,14 @@ export default function DetailsScreen() {
         </View>
 
         {/* Content Body */}
-        <View style={[styles.contentContainer, isTV && styles.contentContainerTV]}>
+        <View style={[styles.contentContainer, isTV && tvStyles.contentContainer]}>
 
           {/* Primary Action */}
-          <View style={isTV && styles.playButtonRowTV}>
+          <View style={isTV && tvStyles.playButtonRow}>
             <FocusablePressable
               style={({ pressed }) => [
                 styles.playButton,
-                isTV && styles.playButtonTV,
+                isTV && tvStyles.playButton,
                 { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }
               ]}
               hasTVPreferredFocus={hasDetailsFocus('play-button', true)}
@@ -522,15 +426,15 @@ export default function DetailsScreen() {
           </View>
 
           {/* Secondary Actions */}
-          <View style={[styles.actionsRow, isTV && styles.actionsRowTV]}>
-            <FocusablePressable style={[styles.actionItem, isTV && styles.actionItemTV]} onPress={() => toggleMyList(displayMeta)} hasTVPreferredFocus={hasDetailsFocus('mylist', false)} onFocus={() => registerDetailsFocusable('mylist')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
+          <View style={[styles.actionsRow, isTV && tvStyles.actionsRow]}>
+            <FocusablePressable style={[styles.actionItem, isTV && tvStyles.actionItem]} onPress={() => toggleMyList(displayMeta)} hasTVPreferredFocus={hasDetailsFocus('mylist', false)} onFocus={() => registerDetailsFocusable('mylist')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
               <IconSymbol name={inMyList ? 'checkmark' : 'plus'} color={colors.textSecondary} size={28} />
               <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>
                 {inMyList ? 'In List' : 'My List'}
               </ThemedText>
             </FocusablePressable>
             {type === 'movie' && (
-              <FocusablePressable style={[styles.actionItem, isTV && styles.actionItemTV]} onPress={handleToggleMovieWatched} hasTVPreferredFocus={hasDetailsFocus('watched', false)} onFocus={() => registerDetailsFocusable('watched')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={movieWatched ? 'Mark as unwatched' : 'Mark as watched'}>
+              <FocusablePressable style={[styles.actionItem, isTV && tvStyles.actionItem]} onPress={handleToggleMovieWatched} hasTVPreferredFocus={hasDetailsFocus('watched', false)} onFocus={() => registerDetailsFocusable('watched')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={movieWatched ? 'Mark as unwatched' : 'Mark as watched'}>
                 <IconSymbol name="checkmark" color={movieWatched ? colors.accent : colors.textSecondary} size={28} />
                 <ThemedText style={[styles.actionText, { color: movieWatched ? colors.accent : colors.textSecondary }]}>
                   {movieWatched ? 'Watched' : 'Mark Watched'}
@@ -592,7 +496,7 @@ export default function DetailsScreen() {
 
               {activeTab === 'overview' && (
                 <View style={styles.tabContent}>
-                  <ThemedText style={[styles.synopsis, { color: colors.text }, isTV && styles.synopsisTV]}>
+                  <ThemedText style={[styles.synopsis, { color: colors.text }, isTV && tvStyles.synopsis]}>
                     {displayMeta?.description || 'No description available.'}
                   </ThemedText>
                   {!!displayMeta?.genres?.length && (
@@ -695,26 +599,13 @@ const styles = StyleSheet.create({
     height: 500,
     position: 'relative',
   },
-  headerProgressContainer: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    zIndex: 10,
-  },
-  headerBubble: {
-    height: 6,
-    borderRadius: 3,
-  },
   coverImage: {
     width: SCREEN_WIDTH,
     height: '100%',
+  },
+  coverImageFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gradient: {
     ...StyleSheet.absoluteFill as any,
@@ -741,9 +632,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 40,
-  },
-  contentContainerTV: {
-    paddingHorizontal: 32,
   },
   title: {
     fontSize: 32,
@@ -788,13 +676,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 24,
   },
-  playButtonRowTV: {
-    flexDirection: 'row',
-  },
-  playButtonTV: {
-    paddingHorizontal: 28,
-    marginBottom: 20,
-  },
   playButtonText: {
     color: '#ffffff',
     fontSize: 16,
@@ -805,18 +686,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 24,
   },
-  actionsRowTV: {
-    justifyContent: 'flex-start',
-    gap: 40,
-    marginBottom: 28,
-  },
   actionItem: {
     alignItems: 'center',
     gap: 8,
-  },
-  actionItemTV: {
-    flexDirection: 'row',
-    gap: 10,
   },
   actionText: {
     fontSize: 12,
@@ -826,11 +698,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 32,
-  },
-  synopsisTV: {
-    fontSize: 16,
-    lineHeight: 24,
-    maxWidth: 900,
   },
   tabStrip: {
     flexDirection: 'row',
@@ -910,5 +777,42 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 15,
     lineHeight: 21,
+  },
+});
+
+// TV-only style overrides, applied on top of `styles` with `isTV && tvStyles.x`.
+// Kept in their own StyleSheet so TV layout tweaks never touch mobile values above.
+const tvStyles = StyleSheet.create({
+  backButtonContainer: {
+    left: 32,
+  },
+  headerContent: {
+    left: 32,
+    right: 32,
+    maxWidth: 800,
+  },
+  contentContainer: {
+    paddingHorizontal: 32,
+  },
+  playButtonRow: {
+    flexDirection: 'row',
+  },
+  playButton: {
+    paddingHorizontal: 28,
+    marginBottom: 20,
+  },
+  actionsRow: {
+    justifyContent: 'flex-start',
+    gap: 40,
+    marginBottom: 28,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  synopsis: {
+    fontSize: 16,
+    lineHeight: 24,
+    maxWidth: 900,
   },
 });

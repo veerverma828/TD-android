@@ -30,8 +30,6 @@ interface RowConfig {
   genre?: string;
 }
 
-const HERO_SLIDE_COUNT = 5;
-
 // Deterministic per-seed shuffle — same seed always yields the same order,
 // so picks stay stable within a day instead of reshuffling on every re-render.
 function seededShuffle<T>(items: T[], seed: number): T[] {
@@ -146,29 +144,23 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Hero picks: continue-watching leads (resuming is the highest-intent action
-  // a returning user can take), then a fixed-size, artwork-only pool from the
-  // reliably-loaded top movies/series, shuffled with a per-day seed so the
-  // lineup feels editorial — stable through the day, not reshuffled on every
-  // focus, but still rotates daily instead of being frozen forever.
-  const heroSourceItems = useMemo(() => {
+  // Default main hero pick: continue-watching lead (if available), or top movie/series.
+  const heroSourceItem = useMemo(() => {
     const pool = [...movies, ...series].filter((m) => m.background || m.poster);
-    if (pool.length === 0) return [];
-
-    const daySeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-    const shuffled = seededShuffle(pool, daySeed);
+    if (pool.length === 0) return null;
 
     const inProgressIds = new Set(
       continueWatchingItems.filter((i) => !i.isNext && i.progress > 0).map((i) => i.id)
     );
     const leadItem = pool.find((m) => inProgressIds.has(m.id));
+    if (leadItem) return leadItem;
 
-    const rest = leadItem ? shuffled.filter((m) => m.id !== leadItem.id) : shuffled;
-    const picks = leadItem ? [leadItem, ...rest] : rest;
-    return picks.slice(0, HERO_SLIDE_COUNT);
+    const daySeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    const shuffled = seededShuffle(pool, daySeed);
+    return shuffled[0] || pool[0];
   }, [movies, series, continueWatchingItems]);
 
-  const handleNavigateToDetails = (id: string, type: string, title?: string, poster?: string, background?: string) => {
+  const handleNavigateToDetails = useCallback((id: string, type: string, title?: string, poster?: string, background?: string) => {
     router.push({
       pathname: '/details',
       params: {
@@ -179,9 +171,9 @@ export default function HomeScreen() {
         ...(background ? { background } : {}),
       },
     });
-  };
+  }, [router]);
 
-  const mapToCarousel = (items: MetaItem[]) => {
+  const mapToCarousel = useCallback((items: MetaItem[]) => {
     return items.map(item => ({
       id: item.id,
       title: item.name,
@@ -190,25 +182,73 @@ export default function HomeScreen() {
       rating: showRating ? item.imdbRating : undefined,
       type: item.type,
     }));
-  };
+  }, [showRating]);
 
-  const allMeta: MetaItem[] = [movies, series, ...EXTRA_ROWS.map((row) => extraRows[row.key] || [])].flat();
+  // FlatList treats a new `data` array reference as "everything changed" -
+  // without memoizing these, every Carousel remapped movies/series/extraRows
+  // to brand-new arrays on every HomeScreen render (e.g. continue-watching
+  // polling), which is what triggers RN's "VirtualizedList slow to update"
+  // warning and re-renders every visible poster card.
+  const moviesData = useMemo(() => mapToCarousel(movies), [movies, mapToCarousel]);
+  const seriesData = useMemo(() => mapToCarousel(series), [series, mapToCarousel]);
+  const myListData = useMemo(() => mapToCarousel(myList), [myList, mapToCarousel]);
+  const extraRowsData = useMemo(() => {
+    const result: Record<string, ReturnType<typeof mapToCarousel>> = {};
+    for (const row of EXTRA_ROWS) {
+      const data = extraRows[row.key];
+      if (data && data.length > 0) result[row.key] = mapToCarousel(data);
+    }
+    return result;
+  }, [extraRows, mapToCarousel]);
 
-  const heroItems: HeroItem[] = heroSourceItems.map((item) => ({
-    id: item.id,
-    title: item.name,
-    subtitle: item.description?.substring(0, 80) + '...' || 'A journey beyond the edge of the known universe.',
-    imageUrl: normalizeImageUrl(item.background || item.poster) || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
-    tags: item.genres?.slice(0, 3) || ['Movie'],
-    isInMyList: isInList(item.id, item.type),
-  }));
+  const allMeta: MetaItem[] = useMemo(
+    () => [movies, series, ...EXTRA_ROWS.map((row) => extraRows[row.key] || [])].flat(),
+    [movies, series, extraRows]
+  );
+
+  const heroItem: HeroItem | null = heroSourceItem
+    ? {
+        id: heroSourceItem.id,
+        title: heroSourceItem.name,
+        subtitle: heroSourceItem.description?.substring(0, 80) + '...' || 'A journey beyond the edge of the known universe.',
+        imageUrl: normalizeImageUrl(heroSourceItem.background || heroSourceItem.poster) || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
+        tags: heroSourceItem.genres?.slice(0, 3) || ['Movie'],
+        isInMyList: isInList(heroSourceItem.id, heroSourceItem.type),
+      }
+    : null;
 
   const heroItemById = (id: string) => allMeta.find((m) => m.id === id);
 
-  const handleLongPressItem = (id: string) => {
+  const handleLongPressItem = useCallback((id: string) => {
     const meta = allMeta.find((m) => m.id === id);
     if (meta) setSelectedItem(meta);
-  };
+  }, [allMeta]);
+
+  // Stable identities so Carousel's memo() actually holds - otherwise every
+  // row got a brand-new onPressItem/onLongPressItem closure per HomeScreen
+  // render, defeating the memo just like the unstable `data` array did.
+  const handleCarouselPress = useCallback((item: { id: string; title: string; imageUrl: string }) => {
+    handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl);
+  }, [handleNavigateToDetails]);
+  const handleCarouselLongPress = useCallback((item: { id: string }) => {
+    handleLongPressItem(item.id);
+  }, [handleLongPressItem]);
+  const handleSeeAllMovies = useCallback(() => {
+    router.push({ pathname: '/see-all', params: { type: 'movie', category: 'top', title: 'Top Movies' } });
+  }, [router]);
+  const handleSeeAllSeries = useCallback(() => {
+    router.push({ pathname: '/see-all', params: { type: 'series', category: 'top', title: 'Top Series' } });
+  }, [router]);
+  const extraRowSeeAllHandlers = useMemo(() => {
+    const result: Record<string, () => void> = {};
+    for (const row of EXTRA_ROWS) {
+      result[row.key] = () => router.push({
+        pathname: '/see-all',
+        params: { type: row.type, category: row.category, title: row.title, ...(row.genre ? { genre: row.genre } : {}) },
+      });
+    }
+    return result;
+  }, [router]);
 
   return (
     <ThemedView style={styles.container}>
@@ -240,9 +280,9 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {heroItems.length > 0 && (
+            {heroItem && (
               <HeroBanner
-                items={heroItems}
+                item={heroItem}
                 onPlayPress={(item) => {
                   const meta = heroItemById(item.id);
                   if (meta) handleNavigateToDetails(meta.id, meta.type);
@@ -274,46 +314,43 @@ export default function HomeScreen() {
 
             <Carousel
               title="Top Movies"
-              data={mapToCarousel(movies)}
-              onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
-              onLongPressItem={(item) => handleLongPressItem(item.id)}
-              onPressSeeAll={() => router.push({ pathname: '/see-all', params: { type: 'movie', category: 'top', title: 'Top Movies' } })}
+              data={moviesData}
+              onPressItem={handleCarouselPress}
+              onLongPressItem={handleCarouselLongPress}
+              onPressSeeAll={handleSeeAllMovies}
               screenKey="home"
             />
 
             <Carousel
               title="Top Series"
-              data={mapToCarousel(series)}
-              onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
-              onLongPressItem={(item) => handleLongPressItem(item.id)}
-              onPressSeeAll={() => router.push({ pathname: '/see-all', params: { type: 'series', category: 'top', title: 'Top Series' } })}
+              data={seriesData}
+              onPressItem={handleCarouselPress}
+              onLongPressItem={handleCarouselLongPress}
+              onPressSeeAll={handleSeeAllSeries}
               screenKey="home"
             />
 
             {myList.length > 0 && (
               <Carousel
                 title="My List"
-                data={mapToCarousel(myList)}
-                onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
-                onLongPressItem={(item) => handleLongPressItem(item.id)}
+                data={myListData}
+                onPressItem={handleCarouselPress}
+                onLongPressItem={handleCarouselLongPress}
                 screenKey="home"
               />
             )}
 
             {EXTRA_ROWS.map((row) => {
-              const data = extraRows[row.key];
+              const data = extraRowsData[row.key];
               if (!data || data.length === 0) return null;
               return (
                 <Carousel
                   key={row.key}
                   title={row.title}
-                  data={mapToCarousel(data)}
-                  onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
-                  onLongPressItem={(item) => handleLongPressItem(item.id)}
-                  onPressSeeAll={() => router.push({
-                    pathname: '/see-all',
-                    params: { type: row.type, category: row.category, title: row.title, ...(row.genre ? { genre: row.genre } : {}) },
-                  })}
+                  data={data}
+                  onPressItem={handleCarouselPress}
+                  onLongPressItem={handleCarouselLongPress}
+                  onPressSeeAll={extraRowSeeAllHandlers[row.key]}
                   screenKey="home"
                 />
               );

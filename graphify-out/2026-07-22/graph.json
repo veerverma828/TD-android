@@ -1991,8 +1991,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "package_dependencies_expo",
-      "community": 21,
-      "community_name": "Expo Core Dependencies",
+      "community": 97,
+      "community_name": "expo",
       "norm_label": "expo"
     },
     {
@@ -2002,8 +2002,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "expo",
-      "community": 21,
-      "community_name": "Expo Core Dependencies",
+      "community": 97,
+      "community_name": "expo",
       "norm_label": "expo"
     },
     {
@@ -2079,8 +2079,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "package_dependencies_expo_constants",
-      "community": 98,
-      "community_name": "expo-constants",
+      "community": 21,
+      "community_name": "Expo Core Dependencies",
       "norm_label": "expo-constants"
     },
     {
@@ -2090,8 +2090,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "expo_constants",
-      "community": 98,
-      "community_name": "expo-constants",
+      "community": 21,
+      "community_name": "Expo Core Dependencies",
       "norm_label": "expo-constants"
     },
     {
@@ -3168,8 +3168,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "src_app_calendar_formatdateheading",
-      "community": 14,
-      "community_name": "Calendar Screen",
+      "community": 12,
+      "community_name": "Library & See-All Screens",
       "norm_label": "formatdateheading()"
     },
     {
@@ -3179,8 +3179,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "src_app_calendar_calendarscreen",
-      "community": 14,
-      "community_name": "Calendar Screen",
+      "community": 12,
+      "community_name": "Library & See-All Screens",
       "norm_label": "calendarscreen()"
     },
     {
@@ -3253,7 +3253,7 @@
       "label": "styles",
       "file_type": "code",
       "source_file": "src/app/details.tsx",
-      "source_location": "L593",
+      "source_location": "L578",
       "_origin": "ast",
       "id": "src_app_details_styles",
       "community": 3,
@@ -3264,7 +3264,7 @@
       "label": "tvStyles",
       "file_type": "code",
       "source_file": "src/app/details.tsx",
-      "source_location": "L785",
+      "source_location": "L766",
       "_origin": "ast",
       "id": "src_app_details_tvstyles",
       "community": 3,
@@ -3407,7 +3407,7 @@
       "label": "styles",
       "file_type": "code",
       "source_file": "src/app/index.tsx",
-      "source_location": "L416",
+      "source_location": "L373",
       "_origin": "ast",
       "id": "src_app_index_styles",
       "community": 16,
@@ -3487,8 +3487,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_preplay",
-      "community": 97,
-      "community_name": "expo",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "app/preplay.tsx"
     },
     {
@@ -3498,8 +3498,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "src_app_preplay_spinner",
-      "community": 97,
-      "community_name": "expo",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "spinner()"
     },
     {
@@ -3509,8 +3509,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "src_app_preplay_preplayscreen",
-      "community": 97,
-      "community_name": "expo",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "preplayscreen()"
     },
     {
@@ -3520,8 +3520,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "src_app_preplay_styles",
-      "community": 97,
-      "community_name": "expo",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "styles"
     },
     {
@@ -3729,8 +3729,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_app_settings_continue_watching_continuewatchingsettingsscreen",
-      "community": 97,
-      "community_name": "expo",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "continuewatchingsettingsscreen()"
     },
     {
@@ -3872,8 +3872,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_app_settings_preplay_preplaysettingsscreen",
-      "community": 97,
-      "community_name": "expo",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "preplaysettingsscreen()"
     },
     {
@@ -3954,21 +3954,21 @@
       "norm_label": "carouselprops"
     },
     {
-      "label": "Carousel",
+      "label": "Carousel()",
       "file_type": "code",
       "source_file": "src/components/Carousel.tsx",
       "source_location": "L34",
       "_origin": "ast",
       "id": "src_components_carousel_carousel",
-      "community": 20,
-      "community_name": "Carousel Component",
-      "norm_label": "carousel"
+      "community": 16,
+      "community_name": "Home Screen & Row Config",
+      "norm_label": "carousel()"
     },
     {
       "label": "styles",
       "file_type": "code",
       "source_file": "src/components/Carousel.tsx",
-      "source_location": "L101",
+      "source_location": "L92",
       "_origin": "ast",
       "id": "src_components_carousel_styles",
       "community": 20,
@@ -4026,8 +4026,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_components_continuewatchingrow",
-      "community": 20,
-      "community_name": "Carousel Component",
+      "community": 16,
+      "community_name": "Home Screen & Row Config",
       "norm_label": "continuewatchingrow.tsx"
     },
     {
@@ -4037,8 +4037,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_components_continuewatchingrow_continuewatchingrowprops",
-      "community": 20,
-      "community_name": "Carousel Component",
+      "community": 16,
+      "community_name": "Home Screen & Row Config",
       "norm_label": "continuewatchingrowprops"
     },
     {
@@ -4048,8 +4048,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "src_components_continuewatchingrow_continuewatchingrow",
-      "community": 20,
-      "community_name": "Carousel Component",
+      "community": 16,
+      "community_name": "Home Screen & Row Config",
       "norm_label": "continuewatchingrow()"
     },
     {
@@ -5555,8 +5555,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_constants_continuewatching",
-      "community": 20,
-      "community_name": "Carousel Component",
+      "community": 16,
+      "community_name": "Home Screen & Row Config",
       "norm_label": "continuewatching.ts"
     },
     {
@@ -5566,8 +5566,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "src_constants_continuewatching_continue_watching_source_colors",
-      "community": 20,
-      "community_name": "Carousel Component",
+      "community": 16,
+      "community_name": "Home Screen & Row Config",
       "norm_label": "continue_watching_source_colors"
     },
     {
@@ -5786,8 +5786,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "src_contexts_devicemodecontext_devicemodeprovider",
-      "community": 7,
-      "community_name": "Tab Layout & Splash Animation",
+      "community": 11,
+      "community_name": "App Tabs & Hero Banner",
       "norm_label": "devicemodeprovider()"
     },
     {
@@ -5874,8 +5874,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "src_contexts_mylistcontext_usemylist",
-      "community": 16,
-      "community_name": "Home Screen & Row Config",
+      "community": 12,
+      "community_name": "Library & See-All Screens",
       "norm_label": "usemylist()"
     },
     {
@@ -6006,8 +6006,8 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "src_contexts_playersettingscontext_useplayersettings",
-      "community": 97,
-      "community_name": "expo",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "useplayersettings()"
     },
     {
@@ -6688,8 +6688,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "src_hooks_usecontinuewatching_continuewatchingitem",
-      "community": 20,
-      "community_name": "Carousel Component",
+      "community": 16,
+      "community_name": "Home Screen & Row Config",
       "norm_label": "continuewatchingitem"
     },
     {
@@ -8140,8 +8140,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_utils_imageurl",
-      "community": 16,
-      "community_name": "Home Screen & Row Config",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "imageurl.ts"
     },
     {
@@ -8151,8 +8151,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_utils_imageurl_imagetype",
-      "community": 16,
-      "community_name": "Home Screen & Row Config",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "imagetype"
     },
     {
@@ -8162,8 +8162,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_utils_imageurl_normalizeimageurl",
-      "community": 16,
-      "community_name": "Home Screen & Row Config",
+      "community": 14,
+      "community_name": "Calendar Screen",
       "norm_label": "normalizeimageurl()"
     },
     {
@@ -8562,8 +8562,8 @@
       "contributor": null,
       "community": 31,
       "norm_label": ".claude/claude.md",
-      "community_name": "Graphify Search Tool Convention",
-      "id": "claude_claude_md"
+      "id": "claude_claude_md",
+      "community_name": "Graphify Search Tool Convention"
     },
     {
       "label": ".clinerules/caveman.md",
@@ -8576,8 +8576,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": ".clinerules/caveman.md",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "clinerules_caveman"
+      "id": "clinerules_caveman",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": ".github/copilot-instructions.md",
@@ -8590,8 +8590,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": ".github/copilot-instructions.md",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "github_copilot_instructions"
+      "id": "github_copilot_instructions",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": "Build Android APK workflow",
@@ -8604,8 +8604,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "build android apk workflow",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "github_workflows_build_apk_yml"
+      "id": "github_workflows_build_apk_yml",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": ".opencode/AGENTS.md",
@@ -8618,8 +8618,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": ".opencode/agents.md",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "opencode_agents"
+      "id": "opencode_agents",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": "rules/caveman.md",
@@ -8632,8 +8632,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": "rules/caveman.md",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "windsurf_rules_caveman"
+      "id": "windsurf_rules_caveman",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": "AGENTS.md",
@@ -8646,8 +8646,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": "agents.md",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "agents"
+      "id": "agents",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": "CLAUDE.md",
@@ -8660,8 +8660,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": "claude.md",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "claude_md"
+      "id": "claude_md",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": "README.md",
@@ -8674,8 +8674,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "readme.md",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "readme"
+      "id": "readme",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "Caveman terse response style",
@@ -8688,8 +8688,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": "caveman terse response style",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "caveman_response_style"
+      "id": "caveman_response_style",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": "Graphify search tool",
@@ -8702,8 +8702,8 @@
       "contributor": null,
       "community": 31,
       "norm_label": "graphify search tool",
-      "community_name": "Graphify Search Tool Convention",
-      "id": "graphify_search_tool"
+      "id": "graphify_search_tool",
+      "community_name": "Graphify Search Tool Convention"
     },
     {
       "label": "Expo v57 versioned docs requirement",
@@ -8716,8 +8716,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": "expo v57 versioned docs requirement",
-      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)",
-      "id": "expo_v57_docs_requirement"
+      "id": "expo_v57_docs_requirement",
+      "community_name": "Caveman Persona Config (AGENTS/CLAUDE.md)"
     },
     {
       "label": "CI release signing config patch",
@@ -8730,8 +8730,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "ci release signing config patch",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "release_signing_config"
+      "id": "release_signing_config",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "Build number stamping for in-app updater",
@@ -8744,8 +8744,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "build number stamping for in-app updater",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "build_number_stamping"
+      "id": "build_number_stamping",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "TD-Android (Torrent Debrid Android)",
@@ -8758,8 +8758,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "td-android (torrent debrid android)",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "td_android_app"
+      "id": "td_android_app",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "Cinemeta (Stremio catalogs)",
@@ -8772,8 +8772,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "cinemeta (stremio catalogs)",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "cinemeta"
+      "id": "cinemeta",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "Torrentio",
@@ -8786,8 +8786,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "torrentio",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "torrentio"
+      "id": "torrentio",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "Real-Debrid API",
@@ -8800,8 +8800,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "real-debrid api",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "real_debrid"
+      "id": "real_debrid",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "Torbox API",
@@ -8814,8 +8814,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "torbox api",
-      "community_name": "Build Tooling & Debrid Catalog Config",
-      "id": "torbox"
+      "id": "torbox",
+      "community_name": "Build Tooling & Debrid Catalog Config"
     },
     {
       "label": "Expo symbol icon (white flame/teardrop mark)",
@@ -8828,8 +8828,8 @@
       "contributor": null,
       "community": 66,
       "norm_label": "expo symbol icon (white flame/teardrop mark)",
-      "community_name": "Expo Symbol Icon Asset",
-      "id": "assets_expo_icon_assets_expo_symbol_2_svg"
+      "id": "assets_expo_icon_assets_expo_symbol_2_svg",
+      "community_name": "Expo Symbol Icon Asset"
     },
     {
       "label": "grid.png",
@@ -8842,8 +8842,8 @@
       "contributor": null,
       "community": 67,
       "norm_label": "grid.png",
-      "community_name": "Icon Grid Template Asset",
-      "id": "assets_expo_icon_assets_grid"
+      "id": "assets_expo_icon_assets_grid",
+      "community_name": "Icon Grid Template Asset"
     },
     {
       "label": "icon-background.svg (white background rect)",
@@ -8856,8 +8856,8 @@
       "contributor": null,
       "community": 68,
       "norm_label": "icon-background.svg (white background rect)",
-      "community_name": "Icon Background Asset",
-      "id": "assets_icon_src_icon_background"
+      "id": "assets_icon_src_icon_background",
+      "community_name": "Icon Background Asset"
     },
     {
       "label": "icon-foreground.svg (TD dark circular app icon foreground)",
@@ -8870,8 +8870,8 @@
       "contributor": null,
       "community": 69,
       "norm_label": "icon-foreground.svg (td dark circular app icon foreground)",
-      "community_name": "Icon Foreground Asset (TD)",
-      "id": "assets_icon_src_icon_foreground_svg"
+      "id": "assets_icon_src_icon_foreground_svg",
+      "community_name": "Icon Foreground Asset (TD)"
     },
     {
       "label": "icon-full.svg app icon",
@@ -8884,8 +8884,8 @@
       "contributor": null,
       "community": 70,
       "norm_label": "icon-full.svg app icon",
-      "community_name": "App Icon Full Asset",
-      "id": "assets_icon_src_icon_full_svg"
+      "id": "assets_icon_src_icon_full_svg",
+      "community_name": "App Icon Full Asset"
     },
     {
       "label": "icon-monochrome.svg",
@@ -8898,8 +8898,8 @@
       "contributor": null,
       "community": 71,
       "norm_label": "icon-monochrome.svg",
-      "community_name": "Icon Monochrome Asset",
-      "id": "assets_icon_src_icon_monochrome"
+      "id": "assets_icon_src_icon_monochrome",
+      "community_name": "Icon Monochrome Asset"
     },
     {
       "label": "android-icon-background.png",
@@ -8912,8 +8912,8 @@
       "contributor": null,
       "community": 72,
       "norm_label": "android-icon-background.png",
-      "community_name": "Android Icon Background PNG",
-      "id": "assets_images_android_icon_background"
+      "id": "assets_images_android_icon_background",
+      "community_name": "Android Icon Background PNG"
     },
     {
       "label": "Android adaptive icon foreground: navy circle with gold outline and white 'TD' serif monogram",
@@ -8926,8 +8926,8 @@
       "contributor": null,
       "community": 73,
       "norm_label": "android adaptive icon foreground: navy circle with gold outline and white 'td' serif monogram",
-      "community_name": "Android Icon Foreground PNG",
-      "id": "assets_images_android_icon_foreground_td_logo_icon"
+      "id": "assets_images_android_icon_foreground_td_logo_icon",
+      "community_name": "Android Icon Foreground PNG"
     },
     {
       "label": "android-icon-monochrome.png",
@@ -8940,8 +8940,8 @@
       "contributor": null,
       "community": 74,
       "norm_label": "android-icon-monochrome.png",
-      "community_name": "Android Icon Monochrome PNG",
-      "id": "assets_images_android_icon_monochrome"
+      "id": "assets_images_android_icon_monochrome",
+      "community_name": "Android Icon Monochrome PNG"
     },
     {
       "label": "Expo Badge White (Powered by Expo)",
@@ -8954,8 +8954,8 @@
       "contributor": null,
       "community": 76,
       "norm_label": "expo badge white (powered by expo)",
-      "community_name": "Expo Badge White Asset",
-      "id": "assets_images_expo_badge_white"
+      "id": "assets_images_expo_badge_white",
+      "community_name": "Expo Badge White Asset"
     },
     {
       "label": "Expo Badge Image (\"Powered by Expo\" black rounded badge with arrow logo)",
@@ -8968,8 +8968,8 @@
       "contributor": null,
       "community": 75,
       "norm_label": "expo badge image (\"powered by expo\" black rounded badge with arrow logo)",
-      "community_name": "Expo Badge Asset",
-      "id": "assets_images_expo_badge"
+      "id": "assets_images_expo_badge",
+      "community_name": "Expo Badge Asset"
     },
     {
       "label": "Expo logo image asset",
@@ -8982,8 +8982,8 @@
       "contributor": null,
       "community": 77,
       "norm_label": "expo logo image asset",
-      "community_name": "Expo Logo Asset",
-      "id": "assets_images_expo_logo"
+      "id": "assets_images_expo_logo",
+      "community_name": "Expo Logo Asset"
     },
     {
       "label": "favicon.png (TD circular logo icon, dark navy circle with gold outline, serif 'TD' monogram in white)",
@@ -8996,8 +8996,8 @@
       "contributor": null,
       "community": 78,
       "norm_label": "favicon.png (td circular logo icon, dark navy circle with gold outline, serif 'td' monogram in white)",
-      "community_name": "Favicon Asset",
-      "id": "assets_images_favicon"
+      "id": "assets_images_favicon",
+      "community_name": "Favicon Asset"
     },
     {
       "label": "App Icon (TD monogram, navy circle, gold ring)",
@@ -9010,8 +9010,8 @@
       "contributor": null,
       "community": 79,
       "norm_label": "app icon (td monogram, navy circle, gold ring)",
-      "community_name": "App Icon PNG",
-      "id": "assets_images_icon"
+      "id": "assets_images_icon",
+      "community_name": "App Icon PNG"
     },
     {
       "label": "logo-glow.png (soft blue radial glow asset)",
@@ -9024,8 +9024,8 @@
       "contributor": null,
       "community": 80,
       "norm_label": "logo-glow.png (soft blue radial glow asset)",
-      "community_name": "Logo Glow Asset",
-      "id": "assets_images_logo_glow"
+      "id": "assets_images_logo_glow",
+      "community_name": "Logo Glow Asset"
     },
     {
       "label": "React Logo Icon",
@@ -9038,8 +9038,8 @@
       "contributor": null,
       "community": 81,
       "norm_label": "react logo icon",
-      "community_name": "React Logo Icon Asset",
-      "id": "assets_images_react_logo"
+      "id": "assets_images_react_logo",
+      "community_name": "React Logo Icon Asset"
     },
     {
       "label": "react-logo@2x.png (React atom logo icon, light blue, 2x resolution)",
@@ -9052,8 +9052,8 @@
       "contributor": null,
       "community": 82,
       "norm_label": "react-logo@2x.png (react atom logo icon, light blue, 2x resolution)",
-      "community_name": "React Logo @2x Asset",
-      "id": "assets_images_react_logo_2x"
+      "id": "assets_images_react_logo_2x",
+      "community_name": "React Logo @2x Asset"
     },
     {
       "label": "react-logo@3x.png (React brand logo icon asset)",
@@ -9066,8 +9066,8 @@
       "contributor": null,
       "community": 83,
       "norm_label": "react-logo@3x.png (react brand logo icon asset)",
-      "community_name": "React Logo @3x Asset",
-      "id": "assets_images_react_logo_3x"
+      "id": "assets_images_react_logo_3x",
+      "community_name": "React Logo @3x Asset"
     },
     {
       "label": "splash-icon.png (blank white splash screen icon asset)",
@@ -9080,8 +9080,8 @@
       "contributor": null,
       "community": 84,
       "norm_label": "splash-icon.png (blank white splash screen icon asset)",
-      "community_name": "Splash Icon Asset",
-      "id": "assets_images_splash_icon"
+      "id": "assets_images_splash_icon",
+      "community_name": "Splash Icon Asset"
     },
     {
       "label": "Explore tab icon (magnifying glass)",
@@ -9094,8 +9094,8 @@
       "contributor": null,
       "community": 87,
       "norm_label": "explore tab icon (magnifying glass)",
-      "community_name": "Explore Tab Icon",
-      "id": "assets_images_tabicons_explore_icon"
+      "id": "assets_images_tabicons_explore_icon",
+      "community_name": "Explore Tab Icon"
     },
     {
       "label": "explore@2x.png (tab icon)",
@@ -9108,8 +9108,8 @@
       "contributor": null,
       "community": 85,
       "norm_label": "explore@2x.png (tab icon)",
-      "community_name": "Explore Tab Icon @2x",
-      "id": "assets_images_tabicons_explore_2x"
+      "id": "assets_images_tabicons_explore_2x",
+      "community_name": "Explore Tab Icon @2x"
     },
     {
       "label": "explore@3x.png tab icon (compass-like rounded rectangle glyph)",
@@ -9122,8 +9122,8 @@
       "contributor": null,
       "community": 86,
       "norm_label": "explore@3x.png tab icon (compass-like rounded rectangle glyph)",
-      "community_name": "Explore Tab Icon @3x",
-      "id": "assets_images_tabicons_explore_3x"
+      "id": "assets_images_tabicons_explore_3x",
+      "community_name": "Explore Tab Icon @3x"
     },
     {
       "label": "home.png (home tab icon)",
@@ -9136,8 +9136,8 @@
       "contributor": null,
       "community": 88,
       "norm_label": "home.png (home tab icon)",
-      "community_name": "Home Tab Icon",
-      "id": "assets_images_tabicons_home"
+      "id": "assets_images_tabicons_home",
+      "community_name": "Home Tab Icon"
     },
     {
       "label": "home@2x.png tab icon (black house/home glyph, filled, rounded)",
@@ -9150,8 +9150,8 @@
       "contributor": null,
       "community": 89,
       "norm_label": "home@2x.png tab icon (black house/home glyph, filled, rounded)",
-      "community_name": "Home Tab Icon @2x",
-      "id": "assets_images_tabicons_home_2x"
+      "id": "assets_images_tabicons_home_2x",
+      "community_name": "Home Tab Icon @2x"
     },
     {
       "label": "home@3x.png tab icon",
@@ -9164,8 +9164,8 @@
       "contributor": null,
       "community": 90,
       "norm_label": "home@3x.png tab icon",
-      "community_name": "Home Tab Icon @3x",
-      "id": "assets_images_tabicons_home_3x"
+      "id": "assets_images_tabicons_home_3x",
+      "community_name": "Home Tab Icon @3x"
     },
     {
       "label": "Torrent Debrid title logo (600px, chrome/metal effect wordmark with down arrow)",
@@ -9178,8 +9178,8 @@
       "contributor": null,
       "community": 91,
       "norm_label": "torrent debrid title logo (600px, chrome/metal effect wordmark with down arrow)",
-      "community_name": "Torrent Debrid Title Logo Asset",
-      "id": "assets_images_title_logo_600_image"
+      "id": "assets_images_title_logo_600_image",
+      "community_name": "Torrent Debrid Title Logo Asset"
     },
     {
       "label": "tutorial-web.png: screenshot of Expo starter web app running at localhost:8081, showing browser address bar overlay plus app header (Expo starter title, Home/Explore/Doc nav) and centered welcome hero with Expo logo and 'Welcome to Expo' heading",
@@ -9192,8 +9192,8 @@
       "contributor": null,
       "community": 92,
       "norm_label": "tutorial-web.png: screenshot of expo starter web app running at localhost:8081, showing browser address bar overlay plus app header (expo starter title, home/explore/doc nav) and centered welcome hero with expo logo and 'welcome to expo' heading",
-      "community_name": "Tutorial Web Screenshot Asset",
-      "id": "assets_images_tutorial_web"
+      "id": "assets_images_tutorial_web",
+      "community_name": "Tutorial Web Screenshot Asset"
     }
   ],
   "links": [
@@ -14220,7 +14220,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/app/details.tsx",
-      "source_location": "L593",
+      "source_location": "L578",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_details",
@@ -14253,7 +14253,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/app/details.tsx",
-      "source_location": "L785",
+      "source_location": "L766",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_details",
@@ -15466,7 +15466,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/app/index.tsx",
-      "source_location": "L416",
+      "source_location": "L373",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_index",
@@ -20171,7 +20171,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/Carousel.tsx",
-      "source_location": "L101",
+      "source_location": "L92",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_carousel",
@@ -20333,6 +20333,42 @@
       "source": "src_components_continuewatchingrow",
       "target": "src_components_carousel",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/components/Carousel.tsx",
+      "source_location": "L36",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_carousel_carousel",
+      "target": "src_contexts_devicemodecontext_useistv"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/components/Carousel.tsx",
+      "source_location": "L35",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_carousel_carousel",
+      "target": "src_contexts_themecontext_useapptheme"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/components/Carousel.tsx",
+      "source_location": "L39",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_carousel_carousel",
+      "target": "src_hooks_tv_userestorefocus_userestorefocus"
     },
     {
       "relation": "imports",

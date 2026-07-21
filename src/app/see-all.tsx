@@ -99,7 +99,7 @@ export default function SeeAllScreen() {
             data={padToColumns(items, 3)}
             keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
             numColumns={3}
-            contentContainerStyle={[styles.listContent, isTV && { paddingLeft: 32 }]}
+            contentContainerStyle={[styles.listContent, isTV && tvStyles.listContent]}
             columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
             initialNumToRender={12}
@@ -170,5 +170,13 @@ const styles = StyleSheet.create({
   posterCard: {
     width: '31%', // roughly 1/3 with space between
     marginRight: 0, // Override Carousel margin
+  },
+});
+
+// TV-only style overrides, applied on top of `styles` with `isTV && tvStyles.x`.
+// Kept in their own StyleSheet so TV layout tweaks never touch mobile values above.
+const tvStyles = StyleSheet.create({
+  listContent: {
+    paddingLeft: 32,
   },
 });

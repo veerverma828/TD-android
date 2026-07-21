@@ -120,8 +120,8 @@
     "semantic_hash": "65b88b4daa296a3ae80285d48851d090"
   },
   "src/app/details.tsx": {
-    "mtime": 1784665914.3938298,
-    "ast_hash": "b7241accc56ab3877ce7ca47c639ac2c",
+    "mtime": 1784664659.7768743,
+    "ast_hash": "513aba55b8b8399b83f4901a7457402d",
     "semantic_hash": ""
   },
   "src/app/discover.tsx": {
@@ -135,8 +135,8 @@
     "semantic_hash": "93055faab7d602d3783ae9419a2b6ee2"
   },
   "src/app/index.tsx": {
-    "mtime": 1784665717.745129,
-    "ast_hash": "2351c29244677746254ffc15e33d9a2c",
+    "mtime": 1784664438.7929316,
+    "ast_hash": "2f0f3b3b68a07d0eb763810470432187",
     "semantic_hash": ""
   },
   "src/app/library.tsx": {
@@ -215,9 +215,9 @@
     "semantic_hash": "00fd733bd6f74c5853bd26dfccc771c5"
   },
   "src/components/Carousel.tsx": {
-    "mtime": 1784665623.498357,
-    "ast_hash": "ea68de78cedf9099e0186f1097f6354f",
-    "semantic_hash": ""
+    "mtime": 1784495880.5235925,
+    "ast_hash": "1a2542a850eaff34b65904c746e532af",
+    "semantic_hash": "1a2542a850eaff34b65904c746e532af"
   },
   "src/components/Chip.tsx": {
     "mtime": 1784264251.632334,

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { FocusablePressable } from './tv/FocusablePressable';
 import { ThemedText } from './themed-text';
@@ -31,12 +31,40 @@ interface CarouselProps {
   screenKey?: string;
 }
 
-export function Carousel({ title, data, onPressItem, onLongPressItem, onPressSeeAll, getProgressColor, screenKey }: CarouselProps) {
+export const Carousel = memo(function Carousel({ title, data, onPressItem, onLongPressItem, onPressSeeAll, getProgressColor, screenKey }: CarouselProps) {
   const { colors } = useAppTheme();
   const isTV = useIsTV();
   const listRef = useRef<FlatList<CarouselItem>>(null);
   const leftInset = isTV ? 32 : 16;
   const { hasPreferredFocus, registerFocusable } = useRestoreFocus(screenKey ?? '__carousel_unscoped__');
+
+  // Stable renderItem reference - without useCallback, every Carousel
+  // re-render (e.g. theme change) hands FlatList a new function identity,
+  // which forces it to re-render every visible cell even when `data` itself
+  // is unchanged.
+  const renderItem = useCallback(
+    ({ item, index }: { item: CarouselItem; index: number }) => {
+      const restoreKey = `${title}:${item.id}`;
+      return (
+        <PosterCard
+          title={item.title}
+          subtitle={item.subtitle}
+          imageUrl={item.imageUrl}
+          progress={item.progress}
+          progressColor={getProgressColor?.(item)}
+          rating={item.rating}
+          onPress={() => onPressItem?.(item)}
+          onLongPress={() => onLongPressItem?.(item)}
+          hasTVPreferredFocus={screenKey ? hasPreferredFocus(restoreKey, false) : undefined}
+          onFocus={isTV ? () => {
+            listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+            if (screenKey) registerFocusable(restoreKey);
+          } : undefined}
+        />
+      );
+    },
+    [title, getProgressColor, onPressItem, onLongPressItem, screenKey, hasPreferredFocus, isTV, registerFocusable]
+  );
 
   return (
     <View style={styles.container}>
@@ -64,30 +92,11 @@ export function Carousel({ title, data, onPressItem, onLongPressItem, onPressSee
         windowSize={5}
         removeClippedSubviews={!isTV}
         getItemLayout={(_, index) => ({ length: CARD_WIDTH, offset: leftInset + CARD_WIDTH * index, index })}
-        renderItem={({ item, index }) => {
-          const restoreKey = `${title}:${item.id}`;
-          return (
-            <PosterCard
-              title={item.title}
-              subtitle={item.subtitle}
-              imageUrl={item.imageUrl}
-              progress={item.progress}
-              progressColor={getProgressColor?.(item)}
-              rating={item.rating}
-              onPress={() => onPressItem?.(item)}
-              onLongPress={() => onLongPressItem?.(item)}
-              hasTVPreferredFocus={screenKey ? hasPreferredFocus(restoreKey, false) : undefined}
-              onFocus={isTV ? () => {
-                listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
-                if (screenKey) registerFocusable(restoreKey);
-              } : undefined}
-            />
-          );
-        }}
+        renderItem={renderItem}
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

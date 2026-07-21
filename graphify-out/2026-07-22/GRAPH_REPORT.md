@@ -1,11 +1,11 @@
 # Graph Report - TD-android  (2026-07-22)
 
 ## Corpus Check
-- 134 files · ~70,189 words
+- 134 files · ~69,853 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 818 nodes · 1936 edges · 99 communities (35 shown, 64 thin omitted)
+- 818 nodes · 1939 edges · 98 communities (34 shown, 64 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 17 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -105,15 +105,14 @@
 - Tutorial Web Screenshot Asset
 - workflows/graphify.md
 - expo
-- expo-constants
 
 ## God Nodes (most connected - your core abstractions)
-1. `useAppTheme()` - 87 edges
+1. `useAppTheme()` - 88 edges
 2. `FocusablePressable()` - 45 edges
 3. `ThemedText()` - 44 edges
 4. `PlayerActivity` - 31 edges
-5. `IconSymbol()` - 24 edges
-6. `useRestoreFocus()` - 24 edges
+5. `useRestoreFocus()` - 25 edges
+6. `IconSymbol()` - 24 edges
 7. `expo-router` - 22 edges
 8. `useSettings()` - 21 edges
 9. `DetailsScreen()` - 19 edges
@@ -122,14 +121,14 @@
 ## Surprising Connections (you probably didn't know these)
 - `Build Android APK workflow` --references--> `TD-Android (Torrent Debrid Android)`  [EXTRACTED]
   .github/workflows/build-apk.yml → README.md
-- `CalendarScreen()` --calls--> `useMyList()`  [EXTRACTED]
-  src/app/calendar.tsx → src/contexts/MyListContext.tsx
 - `CalendarScreen()` --calls--> `useAppTheme()`  [EXTRACTED]
   src/app/calendar.tsx → src/contexts/ThemeContext.tsx
-- `CalendarScreen()` --calls--> `useRestoreFocus()`  [EXTRACTED]
-  src/app/calendar.tsx → src/hooks/tv/useRestoreFocus.ts
-- `CalendarScreen()` --calls--> `useScreenBackHandler()`  [EXTRACTED]
-  src/app/calendar.tsx → src/hooks/tv/useTVBackHandler.ts
+- `DetailsScreen()` --calls--> `useIsTV()`  [EXTRACTED]
+  src/app/details.tsx → src/contexts/DeviceModeContext.tsx
+- `DetailsScreen()` --calls--> `useMyList()`  [EXTRACTED]
+  src/app/details.tsx → src/contexts/MyListContext.tsx
+- `DetailsScreen()` --calls--> `useSettings()`  [EXTRACTED]
+  src/app/details.tsx → src/contexts/SettingsContext.tsx
 
 ## Import Cycles
 - None detected.
@@ -139,7 +138,7 @@
 - **CI Android release build pipeline (stamp, sign, build, release)** — github_workflows_build_apk_yml, build_number_stamping, release_signing_config, td_android_app [EXTRACTED 1.00]
 - **Stremio metadata + debrid streaming pipeline** — cinemeta, torrentio, real_debrid, torbox [EXTRACTED 1.00]
 
-## Communities (99 total, 64 thin omitted)
+## Communities (98 total, 64 thin omitted)
 
 ### Community 0 - "Downloads/Preplay/Player Screens"
 Cohesion: 0.07
@@ -171,7 +170,7 @@ Nodes (38): backgroundColor, backgroundImage, foregroundImage, monochromeImage, 
 
 ### Community 7 - "Tab Layout & Splash Animation"
 Cohesion: 0.07
-Nodes (30): formatBytes(), StorageSettingsScreen(), UpdateState, AnimatedSplashOverlay(), styles, ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState (+22 more)
+Nodes (29): formatBytes(), StorageSettingsScreen(), UpdateState, AnimatedSplashOverlay(), styles, ErrorBoundary, ErrorBoundaryProps, ErrorBoundaryState (+21 more)
 
 ### Community 8 - "Episode Row & Selector UI"
 Cohesion: 0.18
@@ -186,28 +185,28 @@ Cohesion: 0.10
 Nodes (27): Color, Context, Modifier, BrightnessIndicator(), formatSpeedLabel(), formatTime(), isTvDevice(), ExoPlayer (+19 more)
 
 ### Community 11 - "App Tabs & Hero Banner"
-Cohesion: 0.16
-Nodes (11): HeroBanner(), HeroBannerProps, HeroItem, styles, tvStyles, DeviceModeContext, DeviceModeContextValue, DeviceModePreference (+3 more)
+Cohesion: 0.15
+Nodes (12): HeroBanner(), HeroBannerProps, HeroItem, styles, tvStyles, DeviceModeContext, DeviceModeContextValue, DeviceModePreference (+4 more)
 
 ### Community 12 - "Library & See-All Screens"
-Cohesion: 0.20
-Nodes (16): DiscoverScreen(), styles, LibraryScreen(), SeeAllScreen(), styles, tvStyles, AppearanceSettingsScreen(), DebridSettingsScreen() (+8 more)
+Cohesion: 0.17
+Nodes (19): CalendarScreen(), formatDateHeading(), DiscoverScreen(), styles, LibraryScreen(), SeeAllScreen(), styles, tvStyles (+11 more)
 
 ### Community 13 - "Player Gesture Controller"
 Cohesion: 0.18
 Nodes (12): PlayerScreen(), styles, ClosedEvent, ErrorEvent, NativePlayer, NativePlayerBridgeCallbacks, NativePlayerEventsMap, NativePlayerLaunchConfig (+4 more)
 
 ### Community 14 - "Calendar Screen"
-Cohesion: 0.25
-Nodes (8): expo-image, CalendarEntry, CalendarScreen(), formatDateHeading(), styles, PosterCardProps, styles, DARK_IMAGE_PLACEHOLDER
+Cohesion: 0.16
+Nodes (13): expo-image, CalendarEntry, styles, PreplayScreen(), styles, ContinueWatchingSettingsScreen(), PreplaySettingsScreen(), PosterCardProps (+5 more)
 
 ### Community 15 - "Smart Dev Script (Device ADB Tooling)"
 Cohesion: 0.33
 Nodes (9): usePlaybackPosition(), deletePosition(), getAllPositions(), PositionsMap, readPositions(), StoredPosition, writePositions(), getPreference() (+1 more)
 
 ### Community 16 - "Home Screen & Row Config"
-Cohesion: 0.17
-Nodes (14): CURRENT_YEAR, EXTRA_ROWS, HomeScreen(), RowConfig, seededShuffle(), styles, useMyList(), MeasurableNode (+6 more)
+Cohesion: 0.15
+Nodes (16): CURRENT_YEAR, EXTRA_ROWS, HomeScreen(), RowConfig, seededShuffle(), styles, Carousel(), ContinueWatchingRow() (+8 more)
 
 ### Community 17 - "Native Player Expo Module Bridge"
 Cohesion: 0.18
@@ -222,12 +221,12 @@ Cohesion: 0.33
 Nodes (9): dedupePerSeries(), RawEntry, useContinueWatching(), getHistoryEpisodes(), getHistoryMovies(), removePlaybackItem(), buildContentId(), parseContentId() (+1 more)
 
 ### Community 20 - "Carousel Component"
-Cohesion: 0.21
-Nodes (9): Carousel, CarouselItem, CarouselProps, styles, ContinueWatchingRow(), ContinueWatchingRowProps, PosterCard, CONTINUE_WATCHING_SOURCE_COLORS (+1 more)
+Cohesion: 0.40
+Nodes (4): CarouselItem, CarouselProps, styles, PosterCard
 
 ### Community 21 - "Expo Core Dependencies"
 Cohesion: 0.22
-Nodes (9): expo, expo-blur, expo-font, expo-notifications, dependencies, expo, expo-blur, expo-font (+1 more)
+Nodes (9): expo-blur, expo-constants, expo-font, expo-notifications, dependencies, expo-blur, expo-constants, expo-font (+1 more)
 
 ### Community 22 - "Project Reset Script"
 Cohesion: 0.22
@@ -245,10 +244,6 @@ Nodes (4): parseSubtitles(), stripTags(), SubtitleCue, toSeconds()
 Cohesion: 0.50
 Nodes (4): OUT, path, render(), sharp
 
-### Community 97 - "expo"
-Cohesion: 0.33
-Nodes (5): PreplayScreen(), styles, ContinueWatchingSettingsScreen(), PreplaySettingsScreen(), usePlayerSettings()
-
 ## Knowledge Gaps
 - **277 isolated node(s):** `codegraph`, `name`, `slug`, `version`, `orientation` (+272 more)
   These have ≤1 connection - possible missing edges or undocumented components.
@@ -257,8 +252,8 @@ Nodes (5): PreplayScreen(), styles, ContinueWatchingSettingsScreen(), PreplaySet
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `useAppTheme()` connect `Downloads/Preplay/Player Screens` to `expo`, `Discover & Player Screens`, `Details Screen & File Selection`, `Search & Genre Wall UI`, `Tab Layout & Splash Animation`, `App Tabs & Hero Banner`, `Library & See-All Screens`, `Player Gesture Controller`, `Calendar Screen`, `Home Screen & Row Config`, `Carousel Component`?**
-  _High betweenness centrality (0.056) - this node is a cross-community bridge._
+- **Why does `useAppTheme()` connect `Downloads/Preplay/Player Screens` to `Discover & Player Screens`, `Details Screen & File Selection`, `Search & Genre Wall UI`, `Tab Layout & Splash Animation`, `App Tabs & Hero Banner`, `Library & See-All Screens`, `Player Gesture Controller`, `Calendar Screen`, `Home Screen & Row Config`, `Carousel Component`?**
+  _High betweenness centrality (0.057) - this node is a cross-community bridge._
 - **Why does `plugins` connect `Adaptive App Icon Config` to `Search & Genre Wall UI`, `Calendar Screen`?**
   _High betweenness centrality (0.051) - this node is a cross-community bridge._
 - **What connects `codegraph`, `name`, `slug` to the rest of the system?**
