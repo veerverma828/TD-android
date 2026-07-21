@@ -132,7 +132,7 @@ class PlayerActivity : ComponentActivity() {
 
             PlayerRoot(
                 player = exoPlayer,
-                resizeMode = resizeMode,
+                initialResizeMode = resizeMode,
                 palette = palette,
                 controlsVisible = controlsVisible.value,
                 state = controlsState,
@@ -423,6 +423,7 @@ class PlayerActivity : ComponentActivity() {
 
         override fun onAudioTracksClick() = Unit
         override fun onSubtitleTracksClick() = Unit
+        override fun onResizeModeClick() = Unit
     }
 
     private fun seekBy(deltaSeconds: Int) {

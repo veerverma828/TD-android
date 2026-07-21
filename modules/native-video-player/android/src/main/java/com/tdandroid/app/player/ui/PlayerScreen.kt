@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.Forward10
@@ -63,6 +64,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.toArgb
+import androidx.media3.ui.CaptionStyleCompat
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -72,11 +76,26 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
 import kotlin.math.roundToInt
+
+// ---------------------------------------------------------------------------
+// TV device detection — gates auto-focus/focus-ring so touch phones don't
+// show a "hovering" highlighted row by default (only real TV needs it for
+// d-pad navigation).
+// ---------------------------------------------------------------------------
+
+fun isTvDevice(context: Context): Boolean {
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+    return uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+}
 
 // ---------------------------------------------------------------------------
 // TV focus-ring visual — mirrors the RN side's TVFocusRing.tsx contract
@@ -146,9 +165,18 @@ interface PlayerControlsCallbacks {
     fun onSeekTo(fraction: Float)
     fun onAudioTracksClick()
     fun onSubtitleTracksClick()
+    fun onResizeModeClick()
 }
 
-enum class TrackSheetKind { AUDIO, TEXT }
+enum class TrackSheetKind { AUDIO, TEXT, RESIZE }
+
+data class ResizeOption(val label: String, val mode: Int)
+
+val ResizeOptions = listOf(
+    ResizeOption("Fit", AspectRatioFrameLayout.RESIZE_MODE_FIT),
+    ResizeOption("Crop", AspectRatioFrameLayout.RESIZE_MODE_ZOOM),
+    ResizeOption("Stretch", AspectRatioFrameLayout.RESIZE_MODE_FILL),
+)
 
 // ---------------------------------------------------------------------------
 // Root
@@ -158,7 +186,7 @@ enum class TrackSheetKind { AUDIO, TEXT }
 @Composable
 fun PlayerRoot(
     player: ExoPlayer,
-    resizeMode: Int,
+    initialResizeMode: Int,
     palette: PlayerPalette,
     controlsVisible: Boolean,
     state: PlayerControlsState,
@@ -174,6 +202,7 @@ fun PlayerRoot(
     seekPreviewSeconds: Double?,
 ) {
     var tracksSheetKind by remember { mutableStateOf<TrackSheetKind?>(null) }
+    var resizeMode by remember { mutableStateOf(initialResizeMode) }
 
     CompositionLocalProvider(LocalPlayerPalette provides palette) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -184,6 +213,16 @@ fun PlayerRoot(
                         this.player = player
                         useController = false
                         this.resizeMode = resizeMode
+                        subtitleView?.setStyle(
+                            CaptionStyleCompat(
+                                Color.White.toArgb(),
+                                Color.Transparent.toArgb(),
+                                Color.Transparent.toArgb(),
+                                CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                Color.Black.toArgb(),
+                                null,
+                            ),
+                        )
                     }
                 },
                 update = { view ->
@@ -251,6 +290,9 @@ fun PlayerRoot(
                     override fun onSubtitleTracksClick() {
                         tracksSheetKind = TrackSheetKind.TEXT
                     }
+                    override fun onResizeModeClick() {
+                        tracksSheetKind = TrackSheetKind.RESIZE
+                    }
                 },
                 onActivity = onActivity,
             )
@@ -266,6 +308,8 @@ fun PlayerRoot(
                     textTracks = textTracks,
                     onSelectAudio = { onSelectAudioTrack(it) },
                     onSelectText = { onSelectTextTrack(it) },
+                    currentResizeMode = resizeMode,
+                    onSelectResizeMode = { resizeMode = it; tracksSheetKind = null },
                     onDismiss = { tracksSheetKind = null },
                 )
             }
@@ -310,6 +354,7 @@ fun PlayerControlsOverlay(
     // control the user was on, instead of always resetting — the native-side
     // mirror of the RN app's useRestoreFocus.
     val backFocus = remember { FocusRequester() }
+    val resizeFocus = remember { FocusRequester() }
     val audioFocus = remember { FocusRequester() }
     val subsFocus = remember { FocusRequester() }
     val lockFocus = remember { FocusRequester() }
@@ -347,6 +392,14 @@ fun PlayerControlsOverlay(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
                 )
+                IconButton(
+                    onClick = { callbacks.onResizeModeClick(); onActivity() },
+                    modifier = Modifier.focusRequester(resizeFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = resizeFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
+                    Icon(Icons.Filled.AspectRatio, contentDescription = "Video fit", tint = Color.White)
+                }
                 IconButton(
                     onClick = { callbacks.onAudioTracksClick(); onActivity() },
                     modifier = Modifier.focusRequester(audioFocus)
@@ -557,6 +610,8 @@ fun TrackSelectionSheet(
     textTracks: List<TrackOption>,
     onSelectAudio: (TrackOption) -> Unit,
     onSelectText: (TrackOption?) -> Unit,
+    currentResizeMode: Int,
+    onSelectResizeMode: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val palette = LocalPlayerPalette.current
@@ -603,6 +658,16 @@ fun TrackSelectionSheet(
                         TrackRow(track.label, track.selected, palette.accent) { onSelectText(track) }
                     }
                 }
+
+                TrackSheetKind.RESIZE -> {
+                    Text("Video fit", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
+                    ResizeOptions.forEachIndexed { index, option ->
+                        TrackRow(option.label, option.mode == currentResizeMode, palette.accent, isFirst = index == 0) {
+                            onSelectResizeMode(option.mode)
+                        }
+                    }
+                }
             }
         }
     }
@@ -610,15 +675,16 @@ fun TrackSelectionSheet(
 
 @Composable
 private fun TrackRow(label: String, selected: Boolean, accent: Color, isFirst: Boolean = false, onClick: () -> Unit) {
+    val isTv = isTvDevice(LocalContext.current)
     val focusRequester = remember { FocusRequester() }
-    if (isFirst) {
+    if (isFirst && isTv) {
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
     }
     Row(
         Modifier
             .fillMaxWidth()
             .focusRequester(focusRequester)
-            .tvFocusRing(accent, shape = RoundedCornerShape(8.dp))
+            .let { if (isTv) it.tvFocusRing(accent, shape = RoundedCornerShape(8.dp)) else it }
             .clip(RoundedCornerShape(8.dp))
             .background(if (selected) accent.copy(alpha = 0.25f) else Color.Transparent)
             .clickable(

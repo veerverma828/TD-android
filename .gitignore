@@ -47,3 +47,4 @@ android-keystore/
 modules/**/android/build/
 modules/**/android/.gradle/
 modules/**/ios/build/
+scripts/.last-native-build
