@@ -1,17 +1,10 @@
-import { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, View, StyleSheet, Easing } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -21,13 +14,18 @@ import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 const HOLD_MS = 1100;
 
 function Spinner({ color, size = 26 }: { color: string; size?: number }) {
-  const rotation = useSharedValue(0);
+  const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    rotation.value = withRepeat(withTiming(360, { duration: 900, easing: Easing.linear }), -1, false);
+    const anim = Animated.loop(
+      Animated.timing(rotation, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true })
+    );
+    anim.start();
+    return () => anim.stop();
   }, [rotation]);
 
-  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+  const rotate = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const style = { transform: [{ rotate }] };
 
   return (
     <Animated.View

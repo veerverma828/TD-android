@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(adb pair *)",
+      "Bash(adb connect *)",
+      "Bash(adb devices *)",
+      "Bash(adb -s 192.168.29.66:39873 logcat -d -t 400)",
+      "Bash(adb -s 192.168.29.66:39873 logcat -d -t 800)",
+      "Bash(adb -s 192.168.29.66:39873 logcat -d -t 1500)",
+      "Bash(adb -s 192.168.29.66:39873 logcat -d -b crash)",
+      "Bash(adb -s 192.168.29.66:39873 shell am start -a android.intent.action.VIEW -d \"exp+td-android://expo-development-client/?url=http%3A%2F%2F192.168.29.98%3A8081\")",
+      "Bash(adb -s 192.168.29.66:39873 logcat -d -t 300 ReactNativeJS:V ReactNative:V AndroidRuntime:E *:S)",
+      "Bash(adb -s 192.168.29.66:39873 logcat -d)",
+      "Bash(adb -s 192.168.29.66:39873 shell dumpsys activity activities)",
+      "Bash(adb -s 192.168.29.66:39873 shell am force-stop com.tdandroid.app)",
+      "Bash(adb -s 192.168.29.66:39873 shell monkey -p com.tdandroid.app -c android.intent.category.LAUNCHER 1)",
+      "Bash(graphify query *)",
+      "Bash(adb -s 192.168.29.18:5555 shell screencap -p /sdcard/screen.png)",
+      "Bash(adb -s 192.168.29.18:5555 pull /sdcard/screen.png \"C:\\\\Users\\\\veerk\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-veerk-OneDrive-Desktop-Project-TD-android\\\\647454ed-020a-44d9-8ae4-b2af610f8f34\\\\scratchpad\\\\screen.png\")",
+      "Bash(MSYS_NO_PATHCONV=1 adb -s 192.168.29.18:5555 shell screencap -p /sdcard/screen.png)",
+      "Bash(MSYS_NO_PATHCONV=1 adb -s 192.168.29.18:5555 pull /sdcard/screen.png \"C:\\\\Users\\\\veerk\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-veerk-OneDrive-Desktop-Project-TD-android\\\\647454ed-020a-44d9-8ae4-b2af610f8f34\\\\scratchpad\\\\screen.png\")",
+      "Bash(MSYS_NO_PATHCONV=1 adb -s 192.168.29.18:5555 shell screencap -p /sdcard/screen2.png)",
+      "Bash(MSYS_NO_PATHCONV=1 adb -s 192.168.29.18:5555 pull /sdcard/screen2.png \"C:\\\\Users\\\\veerk\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-veerk-OneDrive-Desktop-Project-TD-android\\\\647454ed-020a-44d9-8ae4-b2af610f8f34\\\\scratchpad\\\\screen2.png\")"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "codegraph"
+  ]
+}

@@ -11,6 +11,7 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.tdandroid.app"
     },
+    "newArchEnabled": false,
     "android": {
       "package": "com.tdandroid.app",
       "adaptiveIcon": {
@@ -19,7 +20,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
+      "predictiveBackGestureEnabled": true,
       "permissions": ["REQUEST_INSTALL_PACKAGES"]
     },
     "web": {

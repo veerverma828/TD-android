@@ -30,6 +30,7 @@ export default function PlayerScreen() {
   const { resumeFrom, resolved: resumeResolved, savePosition } = usePlaybackPosition(resolvedContentId);
   const nextEpisode = useNextEpisode(resolvedContentId);
   const launchedRef = useRef(false);
+  const pipNavigatedRef = useRef(false);
 
   // The player screen can be reached via router.replace() (e.g. auto-advancing to
   // the next episode), which leaves nothing to go "back" to — guard against that
@@ -47,16 +48,36 @@ export default function PlayerScreen() {
   });
 
   const { playback, launch } = useNativePlayerBridge({
-    onClosed: (e) => {
+    onClosed: async (e) => {
       if (resolvedContentId) savePosition(e.finalPositionSeconds, e.finalDurationSeconds, true);
-      ScreenOrientation.unlockAsync();
-      goBack();
+      // Awaited (not fire-and-forget): MainActivity is landscape-locked while
+      // PlayerActivity (sensorLandscape) is on top, so closing it triggers a
+      // device rotation back to portrait at the same time this unlock does. Firing
+      // goBack() before the unlock settles races two orientation/config-change
+      // transactions on MainActivity's window at once, which can leave its
+      // SurfaceControl committed at 0x0 (bugmark: `dumpsys window` shows
+      // MainActivity surface=[0,0][0,0] while isVisible=true — plain black until
+      // something forces another relayout, e.g. rotating the device).
+      await ScreenOrientation.unlockAsync();
+      // Already navigated off this placeholder when PiP started — a second goBack()
+      // here would pop one screen too many.
+      if (!pipNavigatedRef.current) goBack();
     },
-    onRequestNext: () => {
+    onRequestNext: async () => {
       if (settings.autoPlayNextEpisode && nextEpisode.hasNext) {
         nextEpisode.playNext();
       } else {
-        ScreenOrientation.unlockAsync();
+        await ScreenOrientation.unlockAsync();
+        if (!pipNavigatedRef.current) goBack();
+      }
+    },
+    onPipModeChanged: (e) => {
+      // This screen is a deliberate blank placeholder (see comment below) meant to sit
+      // behind the fullscreen native PlayerActivity. PiP shrinks that Activity down to a
+      // floating window, exposing the placeholder as plain black behind it — navigate back
+      // to a real screen so there's something to actually see around the floating video.
+      if (e.isInPictureInPicture && !pipNavigatedRef.current) {
+        pipNavigatedRef.current = true;
         goBack();
       }
     },

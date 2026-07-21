@@ -1,36 +1,43 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { AppState, Modal, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/themed-text';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { IconSymbol } from '@/components/IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { checkForUpdate, downloadAndInstallUpdate, isDevBuild, UpdateInfo } from '@/services/updateService';
 import { useTVBackHandler } from '@/hooks/tv/useTVBackHandler';
 
 const LAST_CHECK_KEY = 'update:last_auto_check';
 const DISMISSED_BUILD_KEY = 'update:dismissed_build';
-const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // don't hit the GitHub API more than once per 6h
+// Short cooldown, not a "once a day" gate — a TV/set-top box app is rarely force-quit,
+// so gating on cold start alone (previously 6h + mount-once) could leave a release
+// unseen for the entire life of that session. This just caps GitHub API calls when
+// the user is rapidly foregrounding/backgrounding (well under the 60 req/hr unauthenticated limit).
+const AUTO_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
 type InstallState = { status: 'idle' } | { status: 'downloading'; progress: number } | { status: 'error'; message: string };
 
 /**
- * Silently checks GitHub for a newer build shortly after app launch (throttled,
- * see AUTO_CHECK_INTERVAL_MS) and pops a themed dialog if one's available.
- * "Later" remembers the build it was dismissed for, so it won't nag again until
- * a build newer than that one shows up.
+ * Checks GitHub for a newer build on cold start AND every time the app returns
+ * to the foreground (throttled, see AUTO_CHECK_INTERVAL_MS), and slides up a
+ * bottom sheet if one's available. "Later" remembers the build it was dismissed
+ * for, so it won't nag again until a build newer than that one shows up.
  */
 export function UpdatePromptModal() {
   const { colors } = useAppTheme();
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [install, setInstall] = useState<InstallState>({ status: 'idle' });
-  const checkedRef = useRef(false);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
-    if (checkedRef.current || isDevBuild()) return;
-    checkedRef.current = true;
+    if (isDevBuild()) return;
 
-    (async () => {
+    const runCheck = async () => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
       try {
         const lastCheckRaw = await AsyncStorage.getItem(LAST_CHECK_KEY);
         const lastCheck = lastCheckRaw ? parseInt(lastCheckRaw, 10) : 0;
@@ -47,8 +54,16 @@ export function UpdatePromptModal() {
         setInfo(result);
       } catch {
         // silent — this is a background check, errors surface only when the user taps "Check for updates" manually
+      } finally {
+        inFlightRef.current = false;
       }
-    })();
+    };
+
+    runCheck();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') runCheck();
+    });
+    return () => sub.remove();
   }, []);
 
   const dismiss = () => {
@@ -75,28 +90,43 @@ export function UpdatePromptModal() {
     }
   };
 
+  const downloading = install.status === 'downloading';
+  const progressPct = downloading ? Math.round(install.progress * 100) : 0;
+
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
+    <Modal visible transparent animationType="slide" onRequestClose={dismiss}>
       <View style={styles.backdrop}>
-        <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText style={[styles.title, { color: colors.text }]}>Update available</ThemedText>
-          <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {info.releaseName} · Build {info.latestBuild}
-          </ThemedText>
-          {!!info.releaseNotes && (
+        {!downloading && <FocusablePressable onPress={dismiss} accessibilityLabel="Dismiss" style={StyleSheet.absoluteFill} />}
+
+        <View style={[styles.sheet, { backgroundColor: colors.backgroundElement }]}>
+          <View style={[styles.grabber, { backgroundColor: colors.backgroundSelected }]} />
+
+          <View style={styles.headerRow}>
+            <LinearGradient colors={[colors.accent, colors.accent + 'b3']} style={styles.badge}>
+              <IconSymbol name="arrow.down.circle.fill" size={22} color={colors.textOnAccent} />
+            </LinearGradient>
+            <View style={styles.headerText}>
+              <ThemedText style={[styles.title, { color: colors.text }]}>
+                {downloading ? 'Downloading update' : 'Update available'}
+              </ThemedText>
+              <ThemedText style={[styles.meta, { color: colors.textSecondary }]}>
+                {info.releaseName} · Build {info.latestBuild}
+              </ThemedText>
+            </View>
+          </View>
+
+          {!downloading && !!info.releaseNotes && (
             <ThemedText style={[styles.notes, { color: colors.textSecondary }]} numberOfLines={5}>
               {info.releaseNotes}
             </ThemedText>
           )}
 
-          {install.status === 'downloading' && (
+          {downloading && (
             <View style={styles.progressWrap}>
               <View style={[styles.progressTrack, { backgroundColor: colors.backgroundSelected }]}>
-                <View style={[styles.progressFill, { width: `${Math.round(install.progress * 100)}%`, backgroundColor: colors.accent }]} />
+                <View style={[styles.progressFill, { width: `${progressPct}%`, backgroundColor: colors.accent }]} />
               </View>
-              <ThemedText style={[styles.subtitle, { color: colors.textSecondary, marginTop: 6 }]}>
-                {Math.round(install.progress * 100)}%
-              </ThemedText>
+              <ThemedText style={[styles.progressLabel, { color: colors.textSecondary }]}>{progressPct}%</ThemedText>
             </View>
           )}
 
@@ -104,30 +134,39 @@ export function UpdatePromptModal() {
             <ThemedText style={[styles.notes, { color: '#ef4444' }]}>{install.message}</ThemedText>
           )}
 
-          {install.status !== 'downloading' && (
-            <View style={styles.actions}>
-              <FocusablePressable onPress={dismiss} accessibilityRole="button" accessibilityLabel="Later" focusRingBorderRadius={8}>
+          <View style={styles.actions}>
+            {!downloading && (
+              <FocusablePressable onPress={dismiss} accessibilityRole="button" accessibilityLabel="Later" focusRingBorderRadius={10}>
                 {({ pressed }) => (
                   <View style={[styles.secondaryButton, { backgroundColor: colors.backgroundSelected, opacity: pressed ? 0.7 : 1 }]}>
-                    <ThemedText style={{ color: colors.text, fontWeight: '600', fontSize: 14 }}>Later</ThemedText>
+                    <ThemedText style={{ color: colors.text, fontWeight: '600', fontSize: 13 }}>Later</ThemedText>
                   </View>
                 )}
               </FocusablePressable>
-              <FocusablePressable
-                onPress={install_}
-                accessibilityRole="button"
-                accessibilityLabel="Download and install"
-                focusRingBorderRadius={8}
-                hasTVPreferredFocus
-              >
-                {({ pressed }) => (
-                  <View style={[styles.primaryButton, { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 }]}>
-                    <ThemedText style={{ color: colors.textOnAccent, fontWeight: '700', fontSize: 14 }}>Install</ThemedText>
-                  </View>
-                )}
-              </FocusablePressable>
-            </View>
-          )}
+            )}
+            <FocusablePressable
+              onPress={downloading ? undefined : install_}
+              disabled={downloading}
+              accessibilityRole="button"
+              accessibilityLabel={downloading ? 'Downloading' : 'Download and install'}
+              focusRingBorderRadius={10}
+              hasTVPreferredFocus
+              style={styles.primaryFlex}
+            >
+              {({ pressed }) => (
+                <View
+                  style={[
+                    styles.primaryButton,
+                    { backgroundColor: colors.accent, opacity: downloading ? 0.6 : pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <ThemedText style={{ color: colors.textOnAccent, fontWeight: '700', fontSize: 13.5 }}>
+                    {downloading ? 'Installing…' : 'Install update'}
+                  </ThemedText>
+                </View>
+              )}
+            </FocusablePressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -137,37 +176,58 @@ export function UpdatePromptModal() {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 26,
+  },
+  grabber: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  badge: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
-  card: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: 16,
-    padding: 20,
+  headerText: {
+    flex: 1,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 15.5,
+    fontWeight: '800',
+    marginBottom: 2,
   },
-  subtitle: {
-    fontSize: 12.5,
-    marginBottom: 10,
+  meta: {
+    fontSize: 11.5,
   },
   notes: {
     fontSize: 12.5,
     lineHeight: 17,
-    marginBottom: 16,
+    marginBottom: 6,
   },
   progressWrap: {
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: 2,
+    marginBottom: 6,
   },
   progressTrack: {
-    height: 6,
+    height: 5,
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -175,20 +235,29 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
+  progressLabel: {
+    fontSize: 11,
+    marginTop: 6,
+  },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     gap: 10,
-    marginTop: 4,
+    marginTop: 16,
+  },
+  primaryFlex: {
+    flex: 1,
   },
   secondaryButton: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButton: {
-    paddingVertical: 9,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

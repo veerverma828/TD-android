@@ -1,15 +1,16 @@
 import { Image } from 'expo-image';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Pressable, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
-import Animated, {
-  cancelAnimation,
+import {
+  Animated,
+  StyleSheet,
+  View,
+  Pressable,
+  FlatList,
+  Dimensions,
   Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  type SharedValue,
-} from 'react-native-reanimated';
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from './IconSymbol';
 import { ThemedText } from './themed-text';
@@ -81,19 +82,17 @@ const ProgressBubble = memo(function ProgressBubble({
   accentColor,
 }: {
   isActive: boolean;
-  pulse: SharedValue<number>;
+  pulse: Animated.Value;
   accentColor: string;
 }) {
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: isActive ? interpolate(pulse.value, [0, 0.5, 1], [1, 1.35, 1]) : 1 }],
-  }));
+  const scale = pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.35, 1] });
 
   return (
     <Animated.View
       style={[
         styles.bubble,
         isActive && { backgroundColor: accentColor, shadowColor: accentColor },
-        animatedStyle,
+        { transform: [{ scale: isActive ? scale : 1 }] },
       ]}
     />
   );
@@ -105,7 +104,8 @@ export function HeroBanner({ items, onPlayPress, onListPress, hasTVPreferredFocu
   const listRef = useRef<FlatList<HeroItem>>(null);
   const indexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
-  const pulse = useSharedValue(0);
+  const pulse = useRef(new Animated.Value(0)).current;
+  const pulseAnimRef = useRef<Animated.CompositeAnimation | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const goToIndex = useCallback((index: number) => {
@@ -113,8 +113,14 @@ export function HeroBanner({ items, onPlayPress, onListPress, hasTVPreferredFocu
   }, []);
 
   const startProgress = useCallback(() => {
-    pulse.value = 0;
-    pulse.value = withTiming(1, { duration: AUTO_PLAY_INTERVAL, easing: Easing.linear });
+    pulse.setValue(0);
+    pulseAnimRef.current = Animated.timing(pulse, {
+      toValue: 1,
+      duration: AUTO_PLAY_INTERVAL,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    pulseAnimRef.current.start();
   }, [pulse]);
 
   const pauseAutoplay = useCallback(() => {
@@ -122,8 +128,8 @@ export function HeroBanner({ items, onPlayPress, onListPress, hasTVPreferredFocu
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    cancelAnimation(pulse);
-  }, [pulse]);
+    pulseAnimRef.current?.stop();
+  }, []);
 
   const resumeAutoplay = useCallback(() => {
     if (items.length <= 1) return;

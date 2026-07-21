@@ -11,7 +11,7 @@ class NativePlayerModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("NativePlayer")
 
-        Events("nativePlayerProgress", "nativePlayerEnded", "nativePlayerError", "nativePlayerRequestNext", "nativePlayerClosed")
+        Events("nativePlayerProgress", "nativePlayerEnded", "nativePlayerError", "nativePlayerRequestNext", "nativePlayerClosed", "nativePlayerPipModeChanged")
 
         OnCreate {
             instance = this@NativePlayerModule

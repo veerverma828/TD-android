@@ -1,6 +1,5 @@
 import { ReactNode, useRef, useState } from 'react';
-import { Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { Animated, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useFocusRingStyle } from './TVFocusRing';
 import { useTVScroll } from '@/contexts/TVScrollContext';

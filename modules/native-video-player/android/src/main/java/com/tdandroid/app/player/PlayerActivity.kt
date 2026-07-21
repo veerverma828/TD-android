@@ -1,11 +1,15 @@
 package com.tdandroid.app.player
 
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Rational
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -64,6 +68,8 @@ class PlayerActivity : ComponentActivity() {
     private val volumeIndicator = mutableStateOf<Float?>(null)
     private val brightnessIndicator = mutableStateOf<Float?>(null)
     private val seekPreview = mutableStateOf<Double?>(null)
+    private val speedBoostIndicator = mutableStateOf<Float?>(null)
+    private var speedBeforeBoost: Float? = null
     private val audioTracks = mutableStateOf<List<TrackOption>>(emptyList())
     private val textTracks = mutableStateOf<List<TrackOption>>(emptyList())
 
@@ -89,8 +95,22 @@ class PlayerActivity : ComponentActivity() {
         currentBrightness = window.attributes.screenBrightness.takeIf { it in 0f..1f } ?: 0.5f
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
 
+        // Android runs this Activity's onCreate() BEFORE the previous PlayerActivity's
+        // onDestroy() during a same-task activity swap (normal lifecycle guarantee, not a
+        // bug) — so if a video was just closed and another opened right after, the old
+        // ExoPlayer's release() hasn't necessarily run yet when we get here. Confirmed via
+        // logcat: the new player's hardware decoder session (Codec2/MediaTek HEVC) started
+        // configuring ~100ms BEFORE the old one's decoder stop/destroy landed — two decoder
+        // sessions briefly alive at once, and this device's hardware decoder can't serve
+        // both, so the second video gets no frames (black screen). Forcing a synchronous
+        // release of any still-alive previous player here guarantees full decoder teardown
+        // completes before this Activity requests its own decoder session.
+        activePlayer?.release()
+        activePlayer = null
+
         val exoPlayer = buildPlayer()
         player = exoPlayer
+        activePlayer = exoPlayer
 
         gestureController = PlayerGestureController(
             context = this,
@@ -101,6 +121,7 @@ class PlayerActivity : ComponentActivity() {
                 horizontalSeekEnabled = settingsJson.optBoolean("horizontalSeekGestureEnabled", true),
                 doubleTapSeekEnabled = settingsJson.optBoolean("doubleTapSeekEnabled", true),
                 sensitivity = settingsJson.optDouble("gestureSensitivity", 1.0).toFloat(),
+                pressHoldSpeedEnabled = settingsJson.optBoolean("pressHoldSpeedEnabled", true),
             ),
             callbacks = gestureCallbacks(),
             screenWidthPx = resources.displayMetrics.widthPixels,
@@ -148,6 +169,7 @@ class PlayerActivity : ComponentActivity() {
                 volumeLevel = volumeIndicator.value,
                 brightnessLevel = brightnessIndicator.value,
                 seekPreviewSeconds = seekPreview.value,
+                speedBoostLevel = speedBoostIndicator.value,
             )
         }
 
@@ -396,6 +418,23 @@ class PlayerActivity : ComponentActivity() {
             seekPreview.value = null
             seekBy(deltaSeconds.toInt())
         }
+
+        override fun onSpeedBoostStart() {
+            if (locked.value) return
+            val exoPlayer = player ?: return
+            speedBeforeBoost = exoPlayer.playbackParameters.speed
+            val multiplier = settingsJson.optDouble("pressHoldSpeedMultiplier", 2.0).toFloat()
+            exoPlayer.setPlaybackSpeed(multiplier)
+            speedBoostIndicator.value = multiplier
+        }
+
+        override fun onSpeedBoostEnd() {
+            val exoPlayer = player ?: return
+            val restoreSpeed = speedBeforeBoost ?: return
+            exoPlayer.setPlaybackSpeed(restoreSpeed)
+            speedBeforeBoost = null
+            speedBoostIndicator.value = null
+        }
     }
 
     private fun controlsCallbacks() = object : PlayerControlsCallbacks {
@@ -424,6 +463,67 @@ class PlayerActivity : ComponentActivity() {
         override fun onAudioTracksClick() = Unit
         override fun onSubtitleTracksClick() = Unit
         override fun onResizeModeClick() = Unit
+        override fun onPipClick() = enterPip()
+    }
+
+    // -----------------------------------------------------------------
+    // Picture-in-picture
+    // -----------------------------------------------------------------
+
+    private fun enterPip() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (locked.value) return
+        val exoPlayer = player
+        val width = exoPlayer?.videoFormat?.width ?: 0
+        val height = exoPlayer?.videoFormat?.height ?: 0
+        val paramsBuilder = PictureInPictureParams.Builder()
+        if (width > 0 && height > 0) {
+            // Rational requires both bounds within [1, 239] per PictureInPictureParams contract —
+            // extreme aspect ratios (e.g. ultrawide test streams) would otherwise crash enterPictureInPictureMode.
+            val ratio = Rational(width, height)
+            if (ratio.numerator > 0 && ratio.denominator > 0 &&
+                ratio.toFloat() in (1f / 2.39f)..2.39f
+            ) {
+                paramsBuilder.setAspectRatio(ratio)
+            }
+        }
+        try {
+            enterPictureInPictureMode(paramsBuilder.build())
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "enterPictureInPictureMode failed: ${e.message}")
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (!locked.value && player?.isPlaying == true) enterPip()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        // PiP window has no room/need for the controls chrome or gesture hints.
+        controlsVisible.value = !isInPictureInPictureMode
+        if (isInPictureInPictureMode) {
+            hideHandler.removeCallbacks(hideRunnable)
+            // Sticky-immersive (hidden system bars) mid-transition is a known trigger on
+            // several OEM skins for the compositor leaving a stale black overlay where this
+            // window was, instead of revealing the launcher behind the shrunk PiP rect —
+            // releasing the hide here avoids it since PiP doesn't need immersive chrome anyway.
+            WindowInsetsControllerCompat(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
+        } else {
+            scheduleAutoHide()
+            hideSystemBars()
+        }
+        // The RN screen underneath (src/app/player.tsx) is a deliberate blank placeholder —
+        // PlayerActivity normally fully covers it. Shrinking into PiP exposes it, so the JS
+        // side needs to navigate to a real screen behind the floating PiP window.
+        emitEvent(
+            "nativePlayerPipModeChanged",
+            Arguments.createMap().apply {
+                putContentId()
+                putBoolean("isInPictureInPicture", isInPictureInPictureMode)
+            },
+        )
     }
 
     private fun seekBy(deltaSeconds: Int) {
@@ -472,6 +572,9 @@ class PlayerActivity : ComponentActivity() {
     private fun finishWithResult() {
         if (finished) return
         finished = true
+        // Read by MainActivity.onResume() — see its comment for why closing this
+        // landscape-locked Activity needs a guaranteed fresh window on the way back.
+        returningFromPlayer = true
         val exoPlayer = player
         val finalPosition = (exoPlayer?.currentPosition ?: 0L) / 1000.0
         val finalDuration = (exoPlayer?.duration ?: 0L).coerceAtLeast(0L) / 1000.0
@@ -500,6 +603,10 @@ class PlayerActivity : ComponentActivity() {
         progressHandler.removeCallbacks(progressRunnable)
         hideHandler.removeCallbacksAndMessages(null)
         if (!finished) finishWithResult()
+        // Only clear the shared reference if nothing newer has already replaced it — a
+        // fresh PlayerActivity's onCreate() may have already released this exact instance
+        // and installed its own by the time this onDestroy() runs.
+        if (activePlayer === player) activePlayer = null
         player?.release()
         player = null
         super.onDestroy()
@@ -508,5 +615,12 @@ class PlayerActivity : ComponentActivity() {
     companion object {
         const val EXTRA_CONFIG_JSON = "config_json"
         private const val TAG = "NativePlayer"
+
+        // Process-wide — see the onCreate() comment above for why this needs to be
+        // synchronously released before building the next PlayerActivity's player.
+        private var activePlayer: ExoPlayer? = null
+
+        // Set right before finish(); consumed once by MainActivity.onResume().
+        var returningFromPlayer = false
     }
 }

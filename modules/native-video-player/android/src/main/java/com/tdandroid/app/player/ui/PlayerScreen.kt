@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
@@ -166,9 +167,10 @@ interface PlayerControlsCallbacks {
     fun onAudioTracksClick()
     fun onSubtitleTracksClick()
     fun onResizeModeClick()
+    fun onPipClick()
 }
 
-enum class TrackSheetKind { AUDIO, TEXT, RESIZE }
+enum class TrackSheetKind { AUDIO, TEXT }
 
 data class ResizeOption(val label: String, val mode: Int)
 
@@ -200,16 +202,20 @@ fun PlayerRoot(
     volumeLevel: Float?,
     brightnessLevel: Float?,
     seekPreviewSeconds: Double?,
+    speedBoostLevel: Float?,
 ) {
     var tracksSheetKind by remember { mutableStateOf<TrackSheetKind?>(null) }
     var resizeMode by remember { mutableStateOf(initialResizeMode) }
+    var resizeToast by remember { mutableStateOf<Pair<Int, String>?>(null) }
 
     CompositionLocalProvider(LocalPlayerPalette provides palette) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    PlayerView(ctx).apply {
+                    // Inflated (not `PlayerView(ctx)`) so the texture_view surface_type from
+                    // the XML applies — see res/layout/player_view.xml for why (PiP black-screen fix).
+                    (android.view.LayoutInflater.from(ctx).inflate(com.tdandroid.app.player.R.layout.player_view, null) as PlayerView).apply {
                         this.player = player
                         useController = false
                         this.resizeMode = resizeMode
@@ -291,8 +297,12 @@ fun PlayerRoot(
                         tracksSheetKind = TrackSheetKind.TEXT
                     }
                     override fun onResizeModeClick() {
-                        tracksSheetKind = TrackSheetKind.RESIZE
+                        val currentIndex = ResizeOptions.indexOfFirst { it.mode == resizeMode }.coerceAtLeast(0)
+                        val next = ResizeOptions[(currentIndex + 1) % ResizeOptions.size]
+                        resizeMode = next.mode
+                        resizeToast = ((resizeToast?.first ?: 0) + 1) to next.label
                     }
+                    override fun onPipClick() = callbacks.onPipClick()
                 },
                 onActivity = onActivity,
             )
@@ -300,6 +310,8 @@ fun PlayerRoot(
             VolumeIndicator(level = volumeLevel)
             BrightnessIndicator(level = brightnessLevel)
             SeekIndicator(deltaSeconds = seekPreviewSeconds)
+            SpeedBoostIndicator(multiplier = speedBoostLevel)
+            ResizeModeToast(toast = resizeToast, onExpire = { resizeToast = null })
 
             tracksSheetKind?.let { kind ->
                 TrackSelectionSheet(
@@ -308,8 +320,6 @@ fun PlayerRoot(
                     textTracks = textTracks,
                     onSelectAudio = { onSelectAudioTrack(it) },
                     onSelectText = { onSelectTextTrack(it) },
-                    currentResizeMode = resizeMode,
-                    onSelectResizeMode = { resizeMode = it; tracksSheetKind = null },
                     onDismiss = { tracksSheetKind = null },
                 )
             }
@@ -358,6 +368,7 @@ fun PlayerControlsOverlay(
     val audioFocus = remember { FocusRequester() }
     val subsFocus = remember { FocusRequester() }
     val lockFocus = remember { FocusRequester() }
+    val pipFocus = remember { FocusRequester() }
     val seekBackFocus = remember { FocusRequester() }
     val playPauseFocus = remember { FocusRequester() }
     val seekForwardFocus = remember { FocusRequester() }
@@ -423,6 +434,14 @@ fun PlayerControlsOverlay(
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.LockOpen, contentDescription = "Lock", tint = Color.White)
+                }
+                IconButton(
+                    onClick = { callbacks.onPipClick(); onActivity() },
+                    modifier = Modifier.focusRequester(pipFocus)
+                        .onFocusChanged { if (it.isFocused) lastFocused = pipFocus }
+                        .tvFocusRing(palette.accent),
+                ) {
+                    Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "Picture in picture", tint = Color.White)
                 }
             }
 
@@ -599,6 +618,54 @@ fun SeekIndicator(deltaSeconds: Double?) {
     }
 }
 
+@Composable
+fun SpeedBoostIndicator(multiplier: Float?) {
+    if (multiplier == null) return
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Row(
+            Modifier
+                .padding(top = 72.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "${formatSpeedLabel(multiplier)}x",
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+private fun formatSpeedLabel(speed: Float): String =
+    if (speed == speed.roundToInt().toFloat()) speed.roundToInt().toString() else "%.2f".format(speed).trimEnd('0').trimEnd('.')
+
+@Composable
+fun ResizeModeToast(toast: Pair<Int, String>?, onExpire: () -> Unit) {
+    if (toast == null) return
+    LaunchedEffect(toast.first) {
+        kotlinx.coroutines.delay(1200)
+        onExpire()
+    }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
+            Text(
+                toast.second,
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+            )
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Track selection
 // ---------------------------------------------------------------------------
@@ -610,8 +677,6 @@ fun TrackSelectionSheet(
     textTracks: List<TrackOption>,
     onSelectAudio: (TrackOption) -> Unit,
     onSelectText: (TrackOption?) -> Unit,
-    currentResizeMode: Int,
-    onSelectResizeMode: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val palette = LocalPlayerPalette.current
@@ -656,16 +721,6 @@ fun TrackSelectionSheet(
                     TrackRow("Off", textTracks.none { it.selected }, palette.accent, isFirst = true) { onSelectText(null) }
                     textTracks.forEach { track ->
                         TrackRow(track.label, track.selected, palette.accent) { onSelectText(track) }
-                    }
-                }
-
-                TrackSheetKind.RESIZE -> {
-                    Text("Video fit", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Spacer(Modifier.height(8.dp))
-                    ResizeOptions.forEachIndexed { index, option ->
-                        TrackRow(option.label, option.mode == currentResizeMode, palette.accent, isFirst = index == 0) {
-                            onSelectResizeMode(option.mode)
-                        }
                     }
                 }
             }

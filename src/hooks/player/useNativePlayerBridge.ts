@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { requireNativeModule, EventEmitter } from 'expo-modules-core';
 
 const NativePlayer = requireNativeModule('NativePlayer');
-const playerEmitter = new EventEmitter(NativePlayer);
 
 export interface NativePlayerLaunchConfig {
   streamUrl: string;
@@ -35,16 +34,38 @@ interface ErrorEvent {
   code?: string;
 }
 
+interface PipModeChangedEvent {
+  contentId: string | null;
+  isInPictureInPicture: boolean;
+}
+
 interface NativePlayerBridgeCallbacks {
   onClosed: (event: ClosedEvent) => void;
   onError?: (event: ErrorEvent) => void;
   onRequestNext?: () => void;
+  onPipModeChanged?: (event: PipModeChangedEvent) => void;
 }
+
+// Explicit event map — without it EventEmitter's generic defaults to
+// Record<never, never> and every addListener() call below fails to typecheck
+// (TS2345: argument not assignable to 'never'), even though the untyped emitter
+// works fine at runtime.
+type NativePlayerEventsMap = {
+  nativePlayerProgress: (event: ProgressEvent) => void;
+  nativePlayerClosed: (event: ClosedEvent) => void;
+  nativePlayerError: (event: ErrorEvent) => void;
+  nativePlayerRequestNext: () => void;
+  nativePlayerPipModeChanged: (event: PipModeChangedEvent) => void;
+};
+
+const playerEmitter = new EventEmitter<NativePlayerEventsMap>(NativePlayer);
 
 export function useNativePlayerBridge(callbacks: NativePlayerBridgeCallbacks) {
   const [playback, setPlayback] = useState({ paused: true, currentTime: 0, duration: 0 });
   const callbacksRef = useRef(callbacks);
-  callbacksRef.current = callbacks;
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  });
 
   useEffect(() => {
     const subs = [
@@ -59,6 +80,9 @@ export function useNativePlayerBridge(callbacks: NativePlayerBridgeCallbacks) {
       }),
       playerEmitter.addListener('nativePlayerRequestNext', () => {
         callbacksRef.current.onRequestNext?.();
+      }),
+      playerEmitter.addListener('nativePlayerPipModeChanged', (e: PipModeChangedEvent) => {
+        callbacksRef.current.onPipModeChanged?.(e);
       }),
     ];
     return () => subs.forEach((s) => s.remove());
