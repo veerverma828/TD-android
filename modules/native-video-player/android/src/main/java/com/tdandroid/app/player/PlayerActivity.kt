@@ -96,21 +96,28 @@ class PlayerActivity : ComponentActivity() {
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
 
         // Android runs this Activity's onCreate() BEFORE the previous PlayerActivity's
-        // onDestroy() during a same-task activity swap (normal lifecycle guarantee, not a
-        // bug) — so if a video was just closed and another opened right after, the old
-        // ExoPlayer's release() hasn't necessarily run yet when we get here. Confirmed via
-        // logcat: the new player's hardware decoder session (Codec2/MediaTek HEVC) started
-        // configuring ~100ms BEFORE the old one's decoder stop/destroy landed — two decoder
-        // sessions briefly alive at once, and this device's hardware decoder can't serve
-        // both, so the second video gets no frames (black screen). Forcing a synchronous
-        // release of any still-alive previous player here guarantees full decoder teardown
-        // completes before this Activity requests its own decoder session.
-        activePlayer?.release()
+        // onDestroy() during a same-task activity swap — so if a video was just closed
+        // and another opened right after, the old ExoPlayer's release() hasn't necessarily
+        // run yet. Synchronously stop, clear surface & media items, and release any alive
+        // previous ExoPlayer instance so hardware decoder resources are freed before building
+        // a new player instance.
+        lastPlayer?.let { previous ->
+            try {
+                previous.stop()
+                previous.clearMediaItems()
+                previous.clearVideoSurface()
+                previous.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error tearing down previous ExoPlayer: ${e.message}")
+            }
+        }
+        lastPlayer = null
         activePlayer = null
 
         val exoPlayer = buildPlayer()
         player = exoPlayer
         activePlayer = exoPlayer
+        lastPlayer = exoPlayer
 
         gestureController = PlayerGestureController(
             context = this,
@@ -603,11 +610,18 @@ class PlayerActivity : ComponentActivity() {
         progressHandler.removeCallbacks(progressRunnable)
         hideHandler.removeCallbacksAndMessages(null)
         if (!finished) finishWithResult()
-        // Only clear the shared reference if nothing newer has already replaced it — a
-        // fresh PlayerActivity's onCreate() may have already released this exact instance
-        // and installed its own by the time this onDestroy() runs.
+        player?.let { p ->
+            try {
+                p.stop()
+                p.clearMediaItems()
+                p.clearVideoSurface()
+                p.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing ExoPlayer in onDestroy: ${e.message}")
+            }
+        }
         if (activePlayer === player) activePlayer = null
-        player?.release()
+        if (lastPlayer === player) lastPlayer = null
         player = null
         super.onDestroy()
     }
@@ -619,6 +633,7 @@ class PlayerActivity : ComponentActivity() {
         // Process-wide — see the onCreate() comment above for why this needs to be
         // synchronously released before building the next PlayerActivity's player.
         private var activePlayer: ExoPlayer? = null
+        private var lastPlayer: ExoPlayer? = null
 
         // Set right before finish(); consumed once by MainActivity.onResume().
         var returningFromPlayer = false

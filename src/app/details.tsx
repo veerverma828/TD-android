@@ -25,6 +25,15 @@ import { EPISODE_SELECTORS } from '@/components/episodes';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
+type TabKey = 'episodes' | 'overview' | 'cast' | 'details';
+
+const TAB_LABELS: Record<TabKey, string> = {
+  episodes: 'Episodes',
+  overview: 'Overview',
+  cast: 'Cast',
+  details: 'Details',
+};
+
 export default function DetailsScreen() {
   const router = useRouter();
   const { id, type, autoplay, autoplaySeason, autoplayEpisode } = useLocalSearchParams<{
@@ -67,6 +76,16 @@ export default function DetailsScreen() {
   // Series state
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>(type === 'series' ? 'episodes' : 'overview');
+  // Resets the tab back to the default whenever navigating to a different
+  // title (screen instances get reused, so this can't just be init state) —
+  // adjusting state during render, not in an effect, per React's own pattern
+  // for resetting state on prop change.
+  const [tabResetKey, setTabResetKey] = useState(`${type}:${id}`);
+  if (tabResetKey !== `${type}:${id}`) {
+    setTabResetKey(`${type}:${id}`);
+    setActiveTab(type === 'series' ? 'episodes' : 'overview');
+  }
   const seasons = Array.from(new Set(meta?.videos?.map(v => v.season) || [])).sort((a, b) => {
     if (a === 0) return 1;
     if (b === 0) return -1;
@@ -378,16 +397,37 @@ export default function DetailsScreen() {
             )}
           </View>
 
-          {/* Synopsis */}
-          <ThemedText style={[styles.synopsis, { color: colors.text }, isTV && styles.synopsisTV]}>
-            {meta.description || 'No description available.'}
-          </ThemedText>
+          {/* Tabs */}
+          <View style={[styles.tabStrip, { borderBottomColor: colors.backgroundSelected }]}>
+            {(type === 'series'
+              ? (['episodes', 'overview', 'cast'] as const)
+              : (['overview', 'cast', 'details'] as const)
+            ).map((tab) => (
+              <FocusablePressable
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                focusRingBorderRadius={6}
+                accessibilityRole="tab"
+                accessibilityLabel={TAB_LABELS[tab]}
+                style={styles.tabItem}
+              >
+                <ThemedText
+                  style={[
+                    styles.tabItemText,
+                    { color: activeTab === tab ? colors.text : colors.textSecondary },
+                  ]}
+                >
+                  {TAB_LABELS[tab]}
+                </ThemedText>
+                {activeTab === tab && <View style={[styles.tabUnderline, { backgroundColor: colors.accent }]} />}
+              </FocusablePressable>
+            ))}
+          </View>
 
-          {type === 'series' && meta.videos && meta.videos.length > 0 && (() => {
+          {activeTab === 'episodes' && type === 'series' && meta.videos && meta.videos.length > 0 && (() => {
             const EpisodeSelector = EPISODE_SELECTORS[episodeLayout];
             return (
-              <View style={styles.episodesSection}>
-                <ThemedText style={styles.sectionTitle}>Seasons</ThemedText>
+              <View style={styles.tabContent}>
                 <EpisodeSelector
                   seasons={seasons}
                   selectedSeason={selectedSeason}
@@ -401,6 +441,75 @@ export default function DetailsScreen() {
               </View>
             );
           })()}
+
+          {activeTab === 'overview' && (
+            <View style={styles.tabContent}>
+              <ThemedText style={[styles.synopsis, { color: colors.text }, isTV && styles.synopsisTV]}>
+                {meta.description || 'No description available.'}
+              </ThemedText>
+              {!!meta.genres?.length && (
+                <View style={styles.chipRow}>
+                  {meta.genres.map((genre) => (
+                    <View key={genre} style={[styles.chip, { borderColor: colors.backgroundSelected }]}>
+                      <ThemedText style={[styles.chipText, { color: colors.textSecondary }]}>{genre}</ThemedText>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {activeTab === 'cast' && (
+            <View style={styles.tabContent}>
+              {meta.cast?.length ? (
+                <View style={styles.castGrid}>
+                  {meta.cast.map((name) => (
+                    <View key={name} style={styles.castItem}>
+                      <View style={[styles.castAvatar, { backgroundColor: colors.backgroundSelected }]}>
+                        <ThemedText style={[styles.castInitials, { color: colors.textSecondary }]}>
+                          {name.trim().charAt(0).toUpperCase()}
+                        </ThemedText>
+                      </View>
+                      <ThemedText style={[styles.castName, { color: colors.textSecondary }]} numberOfLines={2}>
+                        {name}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <ThemedText style={{ color: colors.textSecondary }}>No cast information available.</ThemedText>
+              )}
+            </View>
+          )}
+
+          {activeTab === 'details' && type !== 'series' && (
+            <View style={styles.tabContent}>
+              {!!meta.director?.length && (
+                <View style={styles.detailRow}>
+                  <ThemedText style={[styles.detailLabel, { color: colors.textSecondary }]}>Director</ThemedText>
+                  <ThemedText style={[styles.detailValue, { color: colors.text }]}>{meta.director.join(', ')}</ThemedText>
+                </View>
+              )}
+              {!!meta.genres?.length && (
+                <View style={styles.detailRow}>
+                  <ThemedText style={[styles.detailLabel, { color: colors.textSecondary }]}>Genres</ThemedText>
+                  <ThemedText style={[styles.detailValue, { color: colors.text }]}>{meta.genres.join(', ')}</ThemedText>
+                </View>
+              )}
+              {!!meta.runtime && (
+                <View style={styles.detailRow}>
+                  <ThemedText style={[styles.detailLabel, { color: colors.textSecondary }]}>Runtime</ThemedText>
+                  <ThemedText style={[styles.detailValue, { color: colors.text }]}>{meta.runtime}</ThemedText>
+                </View>
+              )}
+              {!!meta.releaseInfo && (
+                <View style={styles.detailRow}>
+                  <ThemedText style={[styles.detailLabel, { color: colors.textSecondary }]}>Released</ThemedText>
+                  <ThemedText style={[styles.detailValue, { color: colors.text }]}>{meta.releaseInfo}</ThemedText>
+                </View>
+              )}
+            </View>
+          )}
 
         </View>
       </ScrollView>
@@ -559,12 +668,83 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     maxWidth: 900,
   },
-  episodesSection: {
-    marginTop: 8,
+  tabStrip: {
+    flexDirection: 'row',
+    gap: 24,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 4,
   },
-  sectionTitle: {
-    fontSize: 18,
+  tabItem: {
+    paddingBottom: 12,
+  },
+  tabItemText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tabUnderline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -1,
+    height: 2,
+    borderRadius: 1,
+  },
+  tabContent: {
+    paddingTop: 16,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+  },
+  chip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  chipText: {
+    fontSize: 12,
     fontWeight: '600',
-    marginBottom: 12,
+  },
+  castGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  castItem: {
+    width: 76,
+    alignItems: 'center',
+    gap: 6,
+  },
+  castAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  castInitials: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  castName: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  detailRow: {
+    marginBottom: 16,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 15,
+    lineHeight: 21,
   },
 });

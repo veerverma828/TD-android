@@ -29,7 +29,8 @@ export default function PlayerScreen() {
 
   const { resumeFrom, resolved: resumeResolved, savePosition } = usePlaybackPosition(resolvedContentId);
   const nextEpisode = useNextEpisode(resolvedContentId);
-  const launchedRef = useRef(false);
+  const lastLaunchedKeyRef = useRef<string | null>(null);
+  const launchKey = `${url}_${resolvedContentId ?? ''}`;
   const pipNavigatedRef = useRef(false);
 
   // The player screen can be reached via router.replace() (e.g. auto-advancing to
@@ -86,8 +87,8 @@ export default function PlayerScreen() {
   useTraktScrobble(resolvedContentId, playback);
 
   useEffect(() => {
-    if (!url || launchedRef.current || !resumeResolved) return;
-    launchedRef.current = true;
+    if (!url || !resumeResolved || lastLaunchedKeyRef.current === launchKey) return;
+    lastLaunchedKeyRef.current = launchKey;
     launch({
       streamUrl: url,
       title,
@@ -98,7 +99,7 @@ export default function PlayerScreen() {
       settings: settings as unknown as Record<string, unknown>,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, resumeResolved]);
+  }, [url, resolvedContentId, resumeResolved, launchKey]);
 
   useEffect(() => {
     if (!resolvedContentId || !settings.rememberPosition) return;

@@ -235,6 +235,9 @@ fun PlayerRoot(
                     view.player = player
                     view.resizeMode = resizeMode
                 },
+                onRelease = { view ->
+                    view.player = null
+                },
             )
 
             // Gesture-catching scrim — ALWAYS present regardless of controls visibility,
