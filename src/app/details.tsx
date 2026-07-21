@@ -37,6 +37,35 @@ const TAB_LABELS: Record<TabKey, string> = {
   details: 'Details',
 };
 
+// Mounted with key={uri} by the caller so a new url remounts it fresh -
+// keeps `failed` scoped per-image without needing an effect/ref reset.
+function CoverImage({ uri, backgroundColor, iconColor }: { uri: string; backgroundColor: string; iconColor: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <View style={[styles.coverImage, styles.coverImageFallback, { backgroundColor }]}>
+        <IconSymbol name="photo" color={iconColor} size={48} />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri }}
+      style={styles.coverImage}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      priority="high"
+      recyclingKey={uri}
+      placeholder={DARK_IMAGE_PLACEHOLDER}
+      placeholderContentFit="cover"
+      transition={200}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export default function DetailsScreen() {
   const router = useRouter();
   const { id, type, title: paramTitle, poster: paramPoster, background: paramBackground, autoplay, autoplaySeason, autoplayEpisode } = useLocalSearchParams<{
@@ -292,20 +321,19 @@ export default function DetailsScreen() {
 
   const inMyList = displayMeta ? isInList(displayMeta.id, displayMeta.type) : false;
 
+  // Stick to whatever image showed first (the nav-param art passed from the
+  // poster grid) instead of swapping to the fetched meta's backdrop once
+  // loadMeta() resolves - that swap read as the poster changing/blanking.
+  // Only fall back to the fetched meta's art when no param art was passed
+  // (e.g. a deep link straight into details with no source poster).
   const coverImageUrl = useMemo(() => {
+    if (paramBackground) return normalizeImageUrl(paramBackground, 'backdrop');
+    if (paramPoster) return normalizeImageUrl(paramPoster, 'backdrop');
     if (!displayMeta) return fallbackImageUrl;
     if (displayMeta.background) return normalizeImageUrl(displayMeta.background, 'backdrop');
     if (displayMeta.poster) return normalizeImageUrl(displayMeta.poster, 'backdrop');
     return fallbackImageUrl;
-  }, [displayMeta]);
-
-  // Cover swaps from the nav-param poster to the fetched meta's artwork once
-  // loadMeta() resolves; if that fetched URL fails to load there was no
-  // fallback UI, so the header just went blank a few seconds after opening.
-  const [coverFailed, setCoverFailed] = useState(false);
-  useEffect(() => {
-    setCoverFailed(false);
-  }, [coverImageUrl]);
+  }, [paramBackground, paramPoster, displayMeta]);
 
   if (loading && !displayMeta) {
     return (
@@ -332,24 +360,7 @@ export default function DetailsScreen() {
 
         {/* Cinematic Header */}
         <View style={styles.headerContainer}>
-          {coverFailed ? (
-            <View style={[styles.coverImage, styles.coverImageFallback, { backgroundColor: colors.backgroundElement }]}>
-              <IconSymbol name="photo" color={colors.textSecondary} size={48} />
-            </View>
-          ) : (
-            <Image
-              source={{ uri: coverImageUrl }}
-              style={styles.coverImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              priority="high"
-              recyclingKey={coverImageUrl}
-              placeholder={DARK_IMAGE_PLACEHOLDER}
-              placeholderContentFit="cover"
-              transition={200}
-              onError={() => setCoverFailed(true)}
-            />
-          )}
+          <CoverImage key={coverImageUrl} uri={coverImageUrl} backgroundColor={colors.backgroundElement} iconColor={colors.textSecondary} />
           <LinearGradient
             colors={['rgba(0,0,0,0.6)', 'transparent', 'rgba(0,0,0,0.3)', colors.background]}
             locations={[0, 0.35, 0.7, 1]}

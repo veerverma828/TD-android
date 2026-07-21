@@ -179,6 +179,9 @@ export default function HomeScreen() {
       title: item.name,
       subtitle: item.releaseInfo,
       imageUrl: normalizeImageUrl(item.poster),
+      // Carried through to details' nav params so its header opens directly
+      // on the real backdrop art instead of a stretched poster crop.
+      backgroundUrl: normalizeImageUrl(item.background || item.poster, 'backdrop'),
       rating: showRating ? item.imdbRating : undefined,
       type: item.type,
     }));
@@ -228,7 +231,7 @@ export default function HomeScreen() {
   // row got a brand-new onPressItem/onLongPressItem closure per HomeScreen
   // render, defeating the memo just like the unstable `data` array did.
   const handleCarouselPress = useCallback((item: { id: string; title: string; imageUrl: string }) => {
-    handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl);
+    handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl, (item as any).backgroundUrl);
   }, [handleNavigateToDetails]);
   const handleCarouselLongPress = useCallback((item: { id: string }) => {
     handleLongPressItem(item.id);
@@ -285,7 +288,7 @@ export default function HomeScreen() {
                 item={heroItem}
                 onPlayPress={(item) => {
                   const meta = heroItemById(item.id);
-                  if (meta) handleNavigateToDetails(meta.id, meta.type);
+                  if (meta) handleNavigateToDetails(meta.id, meta.type, meta.name, normalizeImageUrl(meta.poster), normalizeImageUrl(meta.background || meta.poster, 'backdrop'));
                 }}
                 onListPress={(item) => {
                   const meta = heroItemById(item.id);
@@ -373,7 +376,7 @@ export default function HomeScreen() {
                 {
                   label: 'View Details',
                   icon: 'info.circle',
-                  onPress: () => handleNavigateToDetails(selectedItem.id, selectedItem.type),
+                  onPress: () => handleNavigateToDetails(selectedItem.id, selectedItem.type, selectedItem.name, normalizeImageUrl(selectedItem.poster), normalizeImageUrl(selectedItem.background || selectedItem.poster, 'backdrop')),
                 },
                 isInList(selectedItem.id, selectedItem.type)
                   ? {
