@@ -21,7 +21,7 @@ import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 import { FocusablePressable } from './tv/FocusablePressable';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const AUTO_PLAY_INTERVAL = 60000;
+const AUTO_PLAY_INTERVAL = 6000;
 
 export interface HeroItem {
   id: string;
@@ -47,12 +47,14 @@ const HeroSlide = memo(function HeroSlide({ item, colors }: { item: HeroItem; co
     <View style={styles.slide}>
       {item.imageUrl && !failed ? (
         <Image
+          key={item.id}
           source={{ uri: item.imageUrl }}
           style={styles.image}
           contentFit="cover"
-          transition={300}
+          transition={100}
           priority="high"
           cachePolicy="memory-disk"
+          recyclingKey={item.imageUrl}
           placeholder={DARK_IMAGE_PLACEHOLDER}
           placeholderContentFit="cover"
           onError={() => setFailed(true)}
@@ -85,14 +87,21 @@ const ProgressBubble = memo(function ProgressBubble({
   pulse: Animated.Value;
   accentColor: string;
 }) {
-  const scale = pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.35, 1] });
+  const scaleX = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
 
   return (
     <Animated.View
       style={[
         styles.bubble,
-        isActive && { backgroundColor: accentColor, shadowColor: accentColor },
-        { transform: [{ scale: isActive ? scale : 1 }] },
+        isActive
+          ? {
+              backgroundColor: accentColor,
+              width: 20,
+              borderRadius: 4,
+              opacity: 1,
+              transform: [{ scaleX }],
+            }
+          : { backgroundColor: 'rgba(255,255,255,0.4)', width: 6, borderRadius: 3, opacity: 0.7 },
       ]}
     />
   );
@@ -109,16 +118,29 @@ export function HeroBanner({ items, onPlayPress, onListPress, hasTVPreferredFocu
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const goToIndex = useCallback((index: number) => {
-    listRef.current?.scrollToIndex({ index, animated: true });
-  }, []);
+    if (!items || items.length === 0) return;
+    const safeIndex = Math.max(0, Math.min(index, items.length - 1));
+    indexRef.current = safeIndex;
+    setActiveIndex(safeIndex);
+    try {
+      listRef.current?.scrollToIndex({ index: safeIndex, animated: true });
+    } catch {
+      // Prevent crash if layout is not ready
+    }
+  }, [items]);
 
   const startProgress = useCallback(() => {
     pulse.setValue(0);
+    // useNativeDriver here crashes Fabric: every AUTO_PLAY_INTERVAL tick, the
+    // dot that becomes active swaps from a static style to this native-driven
+    // `transform` in the same commit as its other (JS-driven) style props
+    // change — SurfaceMountingManager.overridePropsReadableMap's assertion
+    // fails on the mixed native-override + JS prop update, killing the app.
     pulseAnimRef.current = Animated.timing(pulse, {
       toValue: 1,
       duration: AUTO_PLAY_INTERVAL,
       easing: Easing.linear,
-      useNativeDriver: true,
+      useNativeDriver: false,
     });
     pulseAnimRef.current.start();
   }, [pulse]);
@@ -132,33 +154,36 @@ export function HeroBanner({ items, onPlayPress, onListPress, hasTVPreferredFocu
   }, []);
 
   const resumeAutoplay = useCallback(() => {
-    if (items.length <= 1) return;
+    if (!items || items.length <= 1) return;
     pauseAutoplay();
     startProgress();
     timerRef.current = setInterval(() => {
       const next = (indexRef.current + 1) % items.length;
       goToIndex(next);
     }, AUTO_PLAY_INTERVAL);
-  }, [items.length, pauseAutoplay, startProgress, goToIndex]);
+  }, [items, pauseAutoplay, startProgress, goToIndex]);
 
   useEffect(() => {
+    indexRef.current = 0;
+    setActiveIndex(0);
     resumeAutoplay();
     return pauseAutoplay;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length]);
+  }, [items]);
 
   const handleScrollBeginDrag = useCallback(() => {
     pauseAutoplay();
   }, [pauseAutoplay]);
 
   const handleMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    if (!items || items.length === 0) return;
+    const index = Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH), items.length - 1));
     indexRef.current = index;
     setActiveIndex(index);
     resumeAutoplay();
-  }, [resumeAutoplay]);
+  }, [items, resumeAutoplay]);
 
-  if (items.length === 0) return null;
+  if (!items || items.length === 0) return null;
   const current = items[activeIndex] || items[0];
 
   return (
@@ -175,6 +200,13 @@ export function HeroBanner({ items, onPlayPress, onListPress, hasTVPreferredFocu
         showsHorizontalScrollIndicator={false}
         onScrollBeginDrag={handleScrollBeginDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
+        onScrollToIndexFailed={(info) => {
+          try {
+            listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+          } catch {
+            // Safe fallback
+          }
+        }}
         getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
         renderItem={({ item }) => <HeroSlide item={item} colors={colors} />}
         initialNumToRender={items.length}

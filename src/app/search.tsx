@@ -86,9 +86,18 @@ export default function SearchScreen() {
     };
   }, [searchQuery]);
 
-  const handleNavigateToDetails = (id?: string, type?: string) => {
+  const handleNavigateToDetails = (id: string, type: string, title?: string, poster?: string, background?: string) => {
     if (id && type) {
-      router.push({ pathname: '/details', params: { id, type } });
+      router.push({
+        pathname: '/details',
+        params: {
+          id,
+          type,
+          ...(title ? { title } : {}),
+          ...(poster ? { poster } : {}),
+          ...(background ? { background } : {}),
+        },
+      });
     }
   };
 
@@ -144,7 +153,7 @@ export default function SearchScreen() {
                     subtitle={item.releaseInfo}
                     icon="play.fill"
                     imageUrl={item.poster}
-                    onPress={() => handleNavigateToDetails(item.id, item.type)}
+                    onPress={() => handleNavigateToDetails(item.id, item.type, item.name, item.poster, item.background)}
                   />
                 ))
               ) : (
@@ -178,7 +187,7 @@ export default function SearchScreen() {
                       subtitle={item.releaseInfo}
                       icon="play.fill"
                       imageUrl={item.poster}
-                      onPress={() => handleNavigateToDetails(item.id, item.type)}
+                      onPress={() => handleNavigateToDetails(item.id, item.type, item.name, item.poster, item.background)}
                     />
                   ))
                 ) : (

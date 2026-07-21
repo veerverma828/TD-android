@@ -5,6 +5,7 @@ import { ThemedText } from './themed-text';
 import { IconSymbol, IconSymbolName } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { FocusablePressable } from './tv/FocusablePressable';
 
 interface ListItemProps {
@@ -19,6 +20,7 @@ interface ListItemProps {
 
 export const ListItem = memo(function ListItem({ title, subtitle, icon, imageUrl, trailingIcon, onPress, style }: ListItemProps) {
   const { colors } = useAppTheme();
+  const normalizedUrl = normalizeImageUrl(imageUrl, 'thumbnail');
 
   return (
     <FocusablePressable
@@ -34,13 +36,14 @@ export const ListItem = memo(function ListItem({ title, subtitle, icon, imageUrl
         style,
       ]}>
       <View style={styles.content}>
-        {imageUrl ? (
+        {normalizedUrl ? (
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: normalizedUrl }}
             style={styles.thumbnail}
             contentFit="cover"
             cachePolicy="memory-disk"
-            transition={200}
+            transition={100}
+            recyclingKey={normalizedUrl}
             placeholder={DARK_IMAGE_PLACEHOLDER}
             placeholderContentFit="cover"
           />

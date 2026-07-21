@@ -9,6 +9,8 @@ import { PosterCard } from '@/components/PosterCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { useSettings } from '@/contexts/SettingsContext';
 import { padToColumns } from '@/utils/gridHelpers';
@@ -39,7 +41,7 @@ export default function SeeAllScreen() {
       try {
         const data = await fetchCatalog(type, category, genre);
         setItems(data);
-        const visibleUrls = data.slice(0, 12).map((item) => item.poster).filter(Boolean) as string[];
+        const visibleUrls = data.slice(0, 12).map((item) => normalizeImageUrl(item.poster)).filter(Boolean) as string[];
         if (visibleUrls.length) Image.prefetch(visibleUrls, 'memory-disk');
       } catch (err) {
         console.error("Failed to fetch catalog:", err);
@@ -50,8 +52,17 @@ export default function SeeAllScreen() {
     loadData();
   }, [type, category, genre]);
 
-  const handleNavigateToDetails = (id: string, itemType: string) => {
-    router.push({ pathname: '/details', params: { id, type: itemType } });
+  const handleNavigateToDetails = (id: string, itemType: string, title?: string, poster?: string, background?: string) => {
+    router.push({
+      pathname: '/details',
+      params: {
+        id,
+        type: itemType,
+        ...(title ? { title } : {}),
+        ...(poster ? { poster } : {}),
+        ...(background ? { background } : {}),
+      },
+    });
   };
 
   return (
@@ -105,7 +116,7 @@ export default function SeeAllScreen() {
                   subtitle={item.releaseInfo}
                   imageUrl={item.poster || ''}
                   rating={showRating ? item.imdbRating : undefined}
-                  onPress={() => handleNavigateToDetails(item.id, item.type)}
+                  onPress={() => handleNavigateToDetails(item.id, item.type, item.name, item.poster, item.background)}
                   style={styles.posterCard}
                   hasTVPreferredFocus={hasPreferredFocus(restoreKey, index === 0)}
                   onFocus={() => registerFocusable(restoreKey)}

@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePlayerSettings } from '@/contexts/PlayerSettingsContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 
 const HOLD_MS = 1100;
 
@@ -80,7 +81,8 @@ export default function PreplayScreen() {
     return () => clearTimeout(timer);
   }, [loaded, isFocused]);
 
-  const artwork = params.backdrop || params.poster;
+  const rawArtwork = params.backdrop || params.poster;
+  const artwork = normalizeImageUrl(rawArtwork);
   const title = params.title || 'Preparing playback';
   const variant = settings.preplayVariant;
 

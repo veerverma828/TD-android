@@ -6,6 +6,7 @@ import { ThemedText } from './themed-text';
 import { IconSymbol } from './IconSymbol';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { FocusablePressable } from './tv/FocusablePressable';
 
 interface PosterCardProps {
@@ -25,7 +26,8 @@ interface PosterCardProps {
 export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style, hasTVPreferredFocus, onFocus }: PosterCardProps) {
   const { colors } = useAppTheme();
   const [failed, setFailed] = useState(false);
-  const showFallback = !imageUrl || failed;
+  const normalizedUrl = normalizeImageUrl(imageUrl);
+  const showFallback = !normalizedUrl || failed;
 
   return (
     <FocusablePressable
@@ -49,11 +51,12 @@ export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, 
           </View>
         ) : (
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: normalizedUrl }}
             style={[styles.image, { backgroundColor: colors.backgroundElement }]}
             contentFit="cover"
-            transition={200}
+            transition={100}
             cachePolicy="memory-disk"
+            recyclingKey={normalizedUrl}
             placeholder={DARK_IMAGE_PLACEHOLDER}
             placeholderContentFit="cover"
             onError={() => setFailed(true)}

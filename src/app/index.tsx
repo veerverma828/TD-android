@@ -18,6 +18,7 @@ import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 import { useMyList } from '@/contexts/MyListContext';
 import { useContinueWatching, ContinueWatchingItem } from '@/hooks/useContinueWatching';
 import { checkForNewEpisodes } from '@/services/notificationService';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 
 const CURRENT_YEAR = String(new Date().getFullYear());
 
@@ -101,7 +102,7 @@ export default function HomeScreen() {
     let cancelled = false;
 
     const prefetchPosters = (items: MetaItem[]) => {
-      const urls = items.map((item) => item.poster).filter(Boolean) as string[];
+      const urls = items.map((item) => normalizeImageUrl(item.poster)).filter(Boolean) as string[];
       if (urls.length) Image.prefetch(urls, 'memory-disk');
     };
 
@@ -167,8 +168,17 @@ export default function HomeScreen() {
     return picks.slice(0, HERO_SLIDE_COUNT);
   }, [movies, series, continueWatchingItems]);
 
-  const handleNavigateToDetails = (id: string, type: string) => {
-    router.push({ pathname: '/details', params: { id, type } });
+  const handleNavigateToDetails = (id: string, type: string, title?: string, poster?: string, background?: string) => {
+    router.push({
+      pathname: '/details',
+      params: {
+        id,
+        type,
+        ...(title ? { title } : {}),
+        ...(poster ? { poster } : {}),
+        ...(background ? { background } : {}),
+      },
+    });
   };
 
   const mapToCarousel = (items: MetaItem[]) => {
@@ -176,7 +186,7 @@ export default function HomeScreen() {
       id: item.id,
       title: item.name,
       subtitle: item.releaseInfo,
-      imageUrl: item.poster || '',
+      imageUrl: normalizeImageUrl(item.poster),
       rating: showRating ? item.imdbRating : undefined,
       type: item.type,
     }));
@@ -188,7 +198,7 @@ export default function HomeScreen() {
     id: item.id,
     title: item.name,
     subtitle: item.description?.substring(0, 80) + '...' || 'A journey beyond the edge of the known universe.',
-    imageUrl: item.background || item.poster || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
+    imageUrl: normalizeImageUrl(item.background || item.poster) || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
     tags: item.genres?.slice(0, 3) || ['Movie'],
     isInMyList: isInList(item.id, item.type),
   }));
@@ -265,7 +275,7 @@ export default function HomeScreen() {
             <Carousel
               title="Top Movies"
               data={mapToCarousel(movies)}
-              onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type)}
+              onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
               onLongPressItem={(item) => handleLongPressItem(item.id)}
               onPressSeeAll={() => router.push({ pathname: '/see-all', params: { type: 'movie', category: 'top', title: 'Top Movies' } })}
               screenKey="home"
@@ -274,7 +284,7 @@ export default function HomeScreen() {
             <Carousel
               title="Top Series"
               data={mapToCarousel(series)}
-              onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type)}
+              onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
               onLongPressItem={(item) => handleLongPressItem(item.id)}
               onPressSeeAll={() => router.push({ pathname: '/see-all', params: { type: 'series', category: 'top', title: 'Top Series' } })}
               screenKey="home"
@@ -284,7 +294,7 @@ export default function HomeScreen() {
               <Carousel
                 title="My List"
                 data={mapToCarousel(myList)}
-                onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type)}
+                onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
                 onLongPressItem={(item) => handleLongPressItem(item.id)}
                 screenKey="home"
               />
@@ -298,7 +308,7 @@ export default function HomeScreen() {
                   key={row.key}
                   title={row.title}
                   data={mapToCarousel(data)}
-                  onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type)}
+                  onPressItem={(item) => handleNavigateToDetails(item.id, (item as any).type, item.title, item.imageUrl)}
                   onLongPressItem={(item) => handleLongPressItem(item.id)}
                   onPressSeeAll={() => router.push({
                     pathname: '/see-all',
