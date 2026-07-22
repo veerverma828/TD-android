@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -112,11 +113,20 @@ fun Modifier.tvFocusRing(accent: Color, shape: Shape = CircleShape): Modifier {
     var isFocused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (isFocused) 1.08f else 1f, label = "tvFocusScale")
     val borderAlpha by animateFloatAsState(if (isFocused) 1f else 0f, label = "tvFocusBorderAlpha")
+    // No trailing .focusable() here on purpose: every call site already sits on an
+    // IconButton or a Row with its own .clickable(), which installs its own focus
+    // target with real key handling (Enter/DPAD_CENTER -> onClick). Adding a second,
+    // separate .focusable() here used to give this outer node its own focus target —
+    // FocusRequester and real DPAD input focus would land HERE instead of on the
+    // clickable's target underneath, so the ring correctly tracked and moved with
+    // focus, but OK/Enter had nothing to trigger on the node that actually had focus
+    // (root cause of "DPAD navigates fine, OK does nothing / needs 2 presses").
+    // onFocusChanged below observes the nearest descendant focus target - the
+    // clickable's - so it still reports the right state without a target of its own.
     return this
         .onFocusChanged { isFocused = it.isFocused }
         .scale(scale)
         .border(width = 2.dp, color = accent.copy(alpha = borderAlpha), shape = shape)
-        .focusable()
 }
 
 // ---------------------------------------------------------------------------
@@ -249,6 +259,7 @@ fun PlayerRoot(
     // unlocking via the always-visible Unlock button first) hide the controls overlay
     // if visible, else exit the player.
     BackHandler {
+        android.util.Log.d("BackDebug", "BackHandler invoked, tracksSheetKind=$tracksSheetKind locked=${state.locked} controlsVisible=$controlsVisible")
         when {
             tracksSheetKind != null -> closeMenu()
             state.locked -> Unit
@@ -312,7 +323,7 @@ fun PlayerRoot(
                     .pointerInput(Unit) {
                         awaitEachGesture {
                             val downTime = android.os.SystemClock.uptimeMillis()
-                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val down = awaitFirstDown(requireUnconsumed = true)
                             val downEvent = android.view.MotionEvent.obtain(
                                 downTime, downTime, android.view.MotionEvent.ACTION_DOWN,
                                 down.position.x, down.position.y, 0,
@@ -768,6 +779,11 @@ fun TrackSelectionSheet(
                 // Traps DPAD/Tab focus inside the sheet — without this, focus could wander
                 // out to the (visually covered, but still composed) overlay buttons behind
                 // the scrim. Any attempted focus-exit from within this subtree is cancelled.
+                // focusGroup() is required here: exit-cancelling only takes effect when this
+                // Column is itself a focus-search boundary, otherwise the DPAD search treats
+                // the whole screen as one flat group and walks straight past this subtree's
+                // last row onto whatever overlay control sits behind it.
+                .focusGroup()
                 .focusProperties { exit = { FocusRequester.Cancel } }
                 .padding(16.dp),
         ) {

@@ -13,6 +13,7 @@ import android.util.Rational
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.view.WindowCompat
@@ -133,6 +134,14 @@ class PlayerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
+
+        // Registered here (before Compose's setContent) so it sits at lower priority than
+        // PlayerRoot's own BackHandler — that one intercepts first once composed (menu-close /
+        // hide-controls / exit chain) and this only fires when nothing else claims Back.
+        // Overriding onBackPressed() directly instead of using the dispatcher would bypass
+        // that chain entirely for any device still routing Back through the legacy path
+        // (TV remote, 3-button nav) since it doesn't call through to Compose's callback.
+        onBackPressedDispatcher.addCallback(this) { finishWithResult() }
 
         val raw = intent.getStringExtra(EXTRA_CONFIG_JSON) ?: "{}"
         config = JSONObject(raw)
@@ -663,13 +672,6 @@ class PlayerActivity : ComponentActivity() {
         val controller = WindowInsetsControllerCompat(window, window.decorView)
         controller.hide(WindowInsetsCompat.Type.systemBars())
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-    }
-
-    // Fallback only — once Compose is up, PlayerRoot's BackHandler (menu-close / hide-controls /
-    // exit priority chain) intercepts Back first via the OnBackPressedDispatcher.
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun onBackPressed() {
-        finishWithResult()
     }
 
     // Single centralized interception point for all TV remote key handling — delegates
