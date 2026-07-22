@@ -16,6 +16,7 @@ export const Palettes = {
     textSecondary: '#a99d84',
     accent: '#e8823f',
     textOnAccent: '#ffffff',
+    ratingGold: '#FFD700',
   },
   classic: {
     text: '#ffffff',
@@ -25,6 +26,7 @@ export const Palettes = {
     textSecondary: '#999999',
     accent: '#e50914',
     textOnAccent: '#ffffff',
+    ratingGold: '#FFD700',
   },
   onyx: {
     text: '#f5f5f5',
@@ -34,6 +36,7 @@ export const Palettes = {
     textSecondary: '#8a8a8a',
     accent: '#ffffff',
     textOnAccent: '#0a0a0a',
+    ratingGold: '#FFD700',
   },
   azure: {
     text: '#eaf2fb',
@@ -43,6 +46,7 @@ export const Palettes = {
     textSecondary: '#8391a8',
     accent: '#3b82f6',
     textOnAccent: '#ffffff',
+    ratingGold: '#FFD700',
   },
   violet: {
     text: '#f1ecfb',
@@ -52,6 +56,7 @@ export const Palettes = {
     textSecondary: '#9384ab',
     accent: '#8b5cf6',
     textOnAccent: '#ffffff',
+    ratingGold: '#FFD700',
   },
   emerald: {
     text: '#eaf7f0',
@@ -61,6 +66,7 @@ export const Palettes = {
     textSecondary: '#7fa591',
     accent: '#10b981',
     textOnAccent: '#04150d',
+    ratingGold: '#FFD700',
   },
   gold: {
     text: '#f8f1e4',
@@ -70,6 +76,7 @@ export const Palettes = {
     textSecondary: '#ad9c7c',
     accent: '#d4af37',
     textOnAccent: '#1a1408',
+    ratingGold: '#d4af37',
   },
 } as const;
 

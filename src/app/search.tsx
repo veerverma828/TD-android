@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { Animated, StyleSheet, View, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
@@ -12,12 +12,17 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { searchMovies, searchSeries, fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useFocusRingStyle } from '@/components/tv/TVFocusRing';
+import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useScreenInitialFocus } from '@/hooks/tv/useScreenInitialFocus';
 
 export default function SearchScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
+  const isTV = useIsTV();
   const searchInputRef = useScreenInitialFocus<TextInput>();
+  const [searchInputFocused, setSearchInputFocused] = useState(false);
+  const searchRingStyle = useFocusRingStyle(isTV && searchInputFocused, false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
@@ -110,18 +115,28 @@ export default function SearchScreen() {
         </View>
 
         <View style={styles.searchContainer}>
-          <View style={[styles.searchInputWrapper, { backgroundColor: colors.backgroundElement }]}>
-            <IconSymbol name="magnifyingglass" color={colors.textSecondary} size={20} />
-            <TextInput
-              ref={searchInputRef}
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Movies, Series, Actors..."
-              placeholderTextColor={colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-              selectionColor={colors.accent}
-            />
+          <View style={styles.searchInputOuter}>
+            <View style={[styles.searchInputWrapper, { backgroundColor: colors.backgroundElement }]}>
+              <IconSymbol name="magnifyingglass" color={colors.textSecondary} size={20} />
+              <TextInput
+                ref={searchInputRef}
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder="Movies, Series, Actors..."
+                placeholderTextColor={colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                selectionColor={colors.accent}
+                onFocus={() => setSearchInputFocused(true)}
+                onBlur={() => setSearchInputFocused(false)}
+              />
+            </View>
+            {isTV && (
+              <Animated.View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFill, searchRingStyle, { borderRadius: 26 }]}
+              />
+            )}
           </View>
           <FocusablePressable
             onPress={() => router.push('/discover')}
@@ -224,6 +239,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 10,
     marginBottom: 24,
+  },
+  searchInputOuter: {
+    flex: 1,
+    position: 'relative',
   },
   searchInputWrapper: {
     flex: 1,

@@ -25,9 +25,12 @@ export function TVTabBar({ state, descriptors, navigation }: BottomTabBarProps) 
   const visibleRoutes = state.routes.filter((route) => route.name in TAB_ICONS);
 
   return (
-    <FocusSection style={[styles.rail, { backgroundColor: colors.background + 'e6', borderRightColor: colors.backgroundElement }]}>
+    // Solid, always-opaque backdrop — a translucent/gradient rail lets bright
+    // hero backdrops bleed through and wash out to a whitish look, since
+    // content renders directly behind this always-mounted overlay.
+    <FocusSection style={[styles.rail, { backgroundColor: colors.background }]}>
       {visibleRoutes.map((route) => {
-        const focused = route.key === activeRoute.key;
+        const isActiveRoute = route.key === activeRoute.key;
         const options = descriptors[route.key]?.options;
         const label = typeof options?.title === 'string' ? options.title : route.name;
 
@@ -38,16 +41,16 @@ export function TVTabBar({ state, descriptors, navigation }: BottomTabBarProps) 
             focusRingBorderRadius={12}
             accessibilityRole="button"
             accessibilityLabel={label}
-            accessibilityState={{ selected: focused }}
+            accessibilityState={{ selected: isActiveRoute }}
             onPress={() => {
               const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!focused && !event.defaultPrevented) {
+              if (!isActiveRoute && !event.defaultPrevented) {
                 navigation.navigate(route.name);
               }
             }}
           >
-            <View style={[styles.iconWrap, focused && { backgroundColor: colors.backgroundElement }]}>
-              <IconSymbol name={TAB_ICONS[route.name]} color={focused ? colors.accent : colors.textSecondary} size={26} />
+            <View style={[styles.iconWrap, isActiveRoute && { backgroundColor: colors.accent }]}>
+              <IconSymbol name={TAB_ICONS[route.name]} color={isActiveRoute ? colors.textOnAccent : colors.textSecondary} size={26} />
             </View>
           </FocusablePressable>
         );
@@ -66,7 +69,6 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     alignItems: 'center',
     gap: 20,
-    borderRightWidth: 1,
     zIndex: 20,
   },
   item: {

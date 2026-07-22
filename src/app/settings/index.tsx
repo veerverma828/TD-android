@@ -1,4 +1,4 @@
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -8,6 +8,8 @@ import { CategoryRow } from '@/components/settings/CategoryRow';
 import { settingsStyles } from '@/components/settings/settingsStyles';
 import { IconSymbolName } from '@/components/IconSymbol';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { Fonts } from '@/constants/theme';
 
 const CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route: string }[] = [
   { icon: 'lock.fill', label: 'Debrid', subtitle: 'Provider, API key', route: '/settings/debrid' },
@@ -22,6 +24,7 @@ const CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const isTV = useIsTV();
   const { hasPreferredFocus, registerFocusable } = useRestoreFocus('settings');
 
   return (
@@ -29,7 +32,7 @@ export default function SettingsScreen() {
       <SafeAreaView edges={['top']} style={settingsStyles.safeArea}>
 
         <ThemedView style={settingsStyles.header}>
-          <ThemedText type="title" style={settingsStyles.headerTitle}>Settings</ThemedText>
+          <ThemedText type="title" style={[settingsStyles.headerTitle, isTV && tvStyles.headerTitle]}>Settings</ThemedText>
         </ThemedView>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={settingsStyles.scrollContent}>
@@ -50,3 +53,10 @@ export default function SettingsScreen() {
     </ThemedView>
   );
 }
+
+const tvStyles = StyleSheet.create({
+  headerTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 40,
+  },
+});

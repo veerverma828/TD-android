@@ -1,15 +1,16 @@
 package com.tdandroid.app.player
 
 import android.app.PictureInPictureParams
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.media.AudioManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.util.Rational
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,18 +19,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
-import androidx.media3.exoplayer.mediacodec.MediaCodecRenderer
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.facebook.react.bridge.Arguments
 import com.tdandroid.app.player.ui.PlayerControlsCallbacks
@@ -41,6 +38,13 @@ import com.tdandroid.app.player.ui.parseThemeColor
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
+/**
+ * Thin controller: owns Activity lifecycle, wires gesture/PiP/Compose callbacks
+ * to the ExoPlayer instance, and delegates media-source construction, track
+ * handling, buffering, and error recovery to dedicated collaborators
+ * (MediaSourceFactory, TrackManager, BufferManager, ErrorRecoveryManager,
+ * PlaybackAnalyticsListener) instead of owning that logic itself.
+ */
 @UnstableApi
 class PlayerActivity : ComponentActivity() {
 
@@ -51,6 +55,34 @@ class PlayerActivity : ComponentActivity() {
     private var audioManager: AudioManager? = null
     private var contentId: String? = null
     private var finished = false
+    // Observable (drives PlayerRoot's surface_type swap - see onPictureInPictureModeChanged)
+    // rather than a plain var, so Compose recomposes with the PiP-specific PlayerView.
+    private val inPictureInPicture = mutableStateOf(false)
+    private var wasPlayingBeforeStop = false
+
+    private val errorRecoveryManager = ErrorRecoveryManager(object : ErrorRecoveryManager.Callbacks {
+        override fun retryPrepareAtCurrentPosition() {
+            player?.apply {
+                val position = currentPosition
+                prepare()
+                seekTo(position)
+                playWhenReady = true
+            }
+        }
+
+        override fun rebuildPlayerAfterDecoderFailure() = rebuildPlayer()
+
+        override fun reportFatalError(message: String, code: String) {
+            emitEvent(
+                "nativePlayerError",
+                Arguments.createMap().apply {
+                    putContentId()
+                    putString("message", message)
+                    putString("code", code)
+                },
+            )
+        }
+    })
 
     private val progressHandler = Handler(Looper.getMainLooper())
     private val progressRunnable = object : Runnable {
@@ -73,10 +105,29 @@ class PlayerActivity : ComponentActivity() {
     private val audioTracks = mutableStateOf<List<TrackOption>>(emptyList())
     private val textTracks = mutableStateOf<List<TrackOption>>(emptyList())
 
+    // Backs the AndroidView(player=...) below — rebuilding the ExoPlayer instance
+    // (decoder-failure recovery) needs Compose to recompose with the new instance,
+    // so the player reference itself must be observable state, not a plain val.
+    private val playerState = mutableStateOf<ExoPlayer?>(null)
+
     private val hideHandler = Handler(Looper.getMainLooper())
     private val hideRunnable = Runnable { if (!locked.value) controlsVisible.value = false }
 
+    // True while a track-selection menu is open — scheduleAutoHide() no-ops while this is
+    // set (menus cover the overlay; hiding it underneath would surface abruptly on close).
+    private var menuOpen = false
+
     private var currentBrightness = 0.5f
+
+    private val tvRemoteController = TvRemoteInputController(object : TvRemoteCallbacks {
+        override fun isControlsVisible() = controlsVisible.value
+        override fun isLocked() = locked.value
+        override fun showControlsForNavigation() { controlsVisible.value = true }
+        override fun onInteraction() = scheduleAutoHide()
+        override fun onPlayPauseToggle() = togglePlayPause()
+        override fun onFastForwardHoldStart() = startSpeedBoost()
+        override fun onFastForwardHoldEnd() = endSpeedBoost()
+    })
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -118,6 +169,7 @@ class PlayerActivity : ComponentActivity() {
         player = exoPlayer
         activePlayer = exoPlayer
         lastPlayer = exoPlayer
+        playerState.value = exoPlayer
 
         gestureController = PlayerGestureController(
             context = this,
@@ -149,6 +201,7 @@ class PlayerActivity : ComponentActivity() {
         }
 
         setContent {
+            val activePlayerValue = playerState.value ?: return@setContent
             val controlsState = PlayerControlsState(
                 locked = locked.value,
                 paused = paused.value,
@@ -159,7 +212,7 @@ class PlayerActivity : ComponentActivity() {
             )
 
             PlayerRoot(
-                player = exoPlayer,
+                player = activePlayerValue,
                 initialResizeMode = resizeMode,
                 palette = palette,
                 controlsVisible = controlsVisible.value,
@@ -177,12 +230,39 @@ class PlayerActivity : ComponentActivity() {
                 brightnessLevel = brightnessIndicator.value,
                 seekPreviewSeconds = seekPreview.value,
                 speedBoostLevel = speedBoostIndicator.value,
+                isInPictureInPicture = inPictureInPicture.value,
+                onMenuOpenChanged = { open -> onMenuOpenChanged(open) },
+                onHideControls = {
+                    controlsVisible.value = false
+                    hideHandler.removeCallbacks(hideRunnable)
+                },
             )
         }
 
         loadMedia(config.optDouble("resumePositionSeconds", 0.0))
         scheduleAutoHide()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        progressHandler.removeCallbacks(progressRunnable)
         progressHandler.post(progressRunnable)
+        if (!inPictureInPicture.value && wasPlayingBeforeStop) {
+            player?.play()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // PiP keeps the decoder running by design (that's the whole point of PiP) — only
+        // pause when actually backgrounded, otherwise a home-press / app-switch would leave
+        // the decoder decoding frames nobody can see (battery drain, wasted CPU, ANR risk
+        // if it fights the system for resources while not foregrounded).
+        if (!inPictureInPicture.value) {
+            wasPlayingBeforeStop = player?.isPlaying == true
+            player?.pause()
+            progressHandler.removeCallbacks(progressRunnable)
+        }
     }
 
     // -----------------------------------------------------------------
@@ -190,15 +270,8 @@ class PlayerActivity : ComponentActivity() {
     // -----------------------------------------------------------------
 
     private fun buildPlayer(): ExoPlayer {
-        val bufferPreference = settingsJson.optString("bufferPreference", "balanced")
-        val (minBufferMs, maxBufferMs) = when (bufferPreference) {
-            "low" -> 15_000 to 30_000
-            "high" -> 30_000 to 90_000
-            else -> 20_000 to 50_000
-        }
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(minBufferMs, maxBufferMs, 1_000, 2_000)
-            .build()
+        val loadControl = BufferManager.buildLoadControl(this, settingsJson.optString("bufferPreference", "balanced"))
+
         // PREFER (not ON): several WEB-DL MKVs ship E-AC3/DTS audio with no platform
         // decoder on most phones — video plays but audio silently drops unless the
         // FFmpeg extension renderer (media3-ffmpeg-decoder) is preferred over the
@@ -227,7 +300,46 @@ class PlayerActivity : ComponentActivity() {
             .apply {
                 playWhenReady = false
                 addListener(playerListener())
+                addAnalyticsListener(PlaybackAnalyticsListener(onHdrChanged = ::applyHdrColorMode))
             }
+    }
+
+    /**
+     * HDR video (Dolby Vision/HDR10/HLG) uses a different brightness curve (PQ/HLG) than SDR.
+     * Without switching the window into HDR color mode, Android composites HDR pixel data
+     * through the normal SDR pipeline — the decoder output is correct, but the screen renders
+     * it dark/washed out. COLOR_MODE_HDR is a request, not a guarantee; unsupported
+     * displays/devices silently ignore it, so this is safe to call unconditionally.
+     */
+    private fun applyHdrColorMode(isHdr: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val targetMode = if (isHdr) ActivityInfo.COLOR_MODE_HDR else ActivityInfo.COLOR_MODE_DEFAULT
+        if (window.colorMode == targetMode) return
+        window.colorMode = targetMode
+        PlaybackLogger.event("display.colorMode", "hdr" to isHdr)
+    }
+
+    /** Decoder-init failures aren't always recoverable in-place — a fresh ExoPlayer instance
+     * re-triggers renderer selection from scratch, which is what actually picks a different
+     * decoder path (a bare retry on the same instance replays the same failure). */
+    private fun rebuildPlayer() {
+        val oldPlayer = player
+        val resumePositionMs = oldPlayer?.currentPosition ?: 0L
+        try {
+            oldPlayer?.stop()
+            oldPlayer?.clearMediaItems()
+            oldPlayer?.clearVideoSurface()
+            oldPlayer?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error releasing ExoPlayer during recovery rebuild: ${e.message}")
+        }
+
+        val newPlayer = buildPlayer()
+        player = newPlayer
+        activePlayer = newPlayer
+        lastPlayer = newPlayer
+        playerState.value = newPlayer
+        loadMedia(resumePositionMs / 1000.0)
     }
 
     private fun loadMedia(resumeSeconds: Double) {
@@ -235,18 +347,11 @@ class PlayerActivity : ComponentActivity() {
         val subtitleUrl = config.optString("subtitleUrl").takeIf { it.isNotBlank() }
         val subtitleLanguage = config.optString("subtitleLanguage").takeIf { it.isNotBlank() }
 
-        val mediaItemBuilder = MediaItem.Builder().setUri(Uri.parse(streamUrl))
-        if (subtitleUrl != null) {
-            val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitleUrl))
-                .setMimeType(if (subtitleUrl.endsWith(".vtt", true)) MimeTypes.TEXT_VTT else MimeTypes.APPLICATION_SUBRIP)
-                .setLanguage(subtitleLanguage)
-                .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-                .build()
-            mediaItemBuilder.setSubtitleConfigurations(listOf(subtitleConfig))
-        }
+        val mediaItem = MediaSourceFactory.buildMediaItem(streamUrl, subtitleUrl, subtitleLanguage)
+        val mediaSource = MediaSourceFactory.buildMediaSource(this, mediaItem, streamUrl)
 
         player?.apply {
-            setMediaItem(mediaItemBuilder.build())
+            setMediaSource(mediaSource)
             prepare()
             if (resumeSeconds > 0) seekTo((resumeSeconds * 1000).toLong())
             val speed = settingsJson.optDouble("defaultSpeed", 1.0).toFloat()
@@ -263,6 +368,9 @@ class PlayerActivity : ComponentActivity() {
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_READY) {
                 duration.value = (player?.duration ?: 0L).coerceAtLeast(0L) / 1000.0
+                // Reached READY again after a prior error path (or never errored at all) —
+                // give a future error a fresh recovery budget instead of inheriting stale counts.
+                errorRecoveryManager.reset()
             } else if (playbackState == Player.STATE_ENDED) {
                 emitEvent("nativePlayerEnded", Arguments.createMap().apply { putContentId() })
                 requestNextOrClose()
@@ -270,21 +378,12 @@ class PlayerActivity : ComponentActivity() {
         }
 
         override fun onTracksChanged(tracks: Tracks) {
-            audioTracks.value = tracksOfType(tracks, C.TRACK_TYPE_AUDIO)
-            textTracks.value = tracksOfType(tracks, C.TRACK_TYPE_TEXT)
-            logVideoTrackSelection(tracks)
+            audioTracks.value = TrackManager.tracksOfType(tracks, C.TRACK_TYPE_AUDIO)
+            textTracks.value = TrackManager.tracksOfType(tracks, C.TRACK_TYPE_TEXT)
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            logDecoderError(error)
-            emitEvent(
-                "nativePlayerError",
-                Arguments.createMap().apply {
-                    putContentId()
-                    putString("message", error.message ?: "Playback error")
-                    putString("code", error.errorCodeName)
-                },
-            )
+            errorRecoveryManager.handle(error)
         }
     }
 
@@ -298,86 +397,32 @@ class PlayerActivity : ComponentActivity() {
             try {
                 val infos = MediaCodecUtil.getDecoderInfos(mimeType, false, false)
                 if (infos.isEmpty()) {
-                    Log.w(TAG, "HDR capability check: no decoders found for $mimeType")
+                    PlaybackLogger.warn("hdr.capabilityCheck", "mimeType" to mimeType, "result" to "noDecoders")
                     continue
                 }
                 infos.forEach { info ->
-                    val profiles = info.capabilities?.profileLevels?.joinToString { pl -> "profile=${pl.profile}" } ?: "unknown"
-                    Log.i(TAG, "HDR capability check: $mimeType decoder=${info.name} hardware=${info.hardwareAccelerated} secure=${info.secure} $profiles")
+                    PlaybackLogger.event(
+                        "hdr.capabilityCheck",
+                        "mimeType" to mimeType,
+                        "decoder" to info.name,
+                        "hardware" to info.hardwareAccelerated,
+                        "secure" to info.secure,
+                    )
                 }
             } catch (e: MediaCodecUtil.DecoderQueryException) {
-                Log.w(TAG, "HDR capability check failed for $mimeType: ${e.message}")
+                PlaybackLogger.warn("hdr.capabilityCheck", "mimeType" to mimeType, "error" to e.message)
             }
         }
-    }
-
-    /** Logs the codec/HDR profile actually selected for the current video track once tracks resolve. */
-    private fun logVideoTrackSelection(tracks: Tracks) {
-        tracks.groups.forEach { group ->
-            if (group.type != C.TRACK_TYPE_VIDEO) return@forEach
-            for (i in 0 until group.length) {
-                if (!group.isTrackSelected(i)) continue
-                val format = group.getTrackFormat(i)
-                val colorInfo = format.colorInfo
-                val hdrKind = when {
-                    format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION -> "DolbyVision"
-                    colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084 -> "HDR10"
-                    colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG -> "HLG"
-                    else -> "SDR"
-                }
-                Log.i(
-                    TAG,
-                    "Video track selected: mimeType=${format.sampleMimeType} codecs=${format.codecs} " +
-                        "hdrKind=$hdrKind colorSpace=${colorInfo?.colorSpace} colorTransfer=${colorInfo?.colorTransfer} " +
-                        "bitDepth=${colorInfo?.lumaBitdepth} resolution=${format.width}x${format.height}",
-                )
-            }
-        }
-    }
-
-    /** Logs decoder name + init cause on playback failure, so DV/HDR fallback behavior is traceable. */
-    private fun logDecoderError(error: PlaybackException) {
-        val cause = error.cause
-        if (cause is MediaCodecRenderer.DecoderInitializationException) {
-            Log.e(
-                TAG,
-                "Decoder init failed: mimeType=${cause.mimeType} decoderName=${cause.codecInfo?.name} " +
-                    "secureDecoderRequired=${cause.secureDecoderRequired}",
-                cause,
-            )
-        } else {
-            Log.e(TAG, "Player error [${error.errorCodeName}]: ${error.message}", error)
-        }
-    }
-
-    private fun tracksOfType(tracks: Tracks, type: Int): List<TrackOption> {
-        val result = mutableListOf<TrackOption>()
-        tracks.groups.forEachIndexed { groupIndex, group ->
-            if (group.type != type) return@forEachIndexed
-            for (i in 0 until group.length) {
-                if (!group.isTrackSupported(i)) continue
-                val format = group.getTrackFormat(i)
-                val label = format.label ?: format.language?.uppercase() ?: "Track ${i + 1}"
-                result.add(TrackOption(groupIndex, i, label, group.isTrackSelected(i)))
-            }
-        }
-        return result
     }
 
     private fun selectTrack(type: Int, option: TrackOption) {
         val exoPlayer = player ?: return
-        val group = exoPlayer.currentTracks.groups.getOrNull(option.groupIndex) ?: return
-        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
-            .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, option.indexInGroup))
-            .setTrackTypeDisabled(type, false)
-            .build()
+        TrackManager.selectTrack(exoPlayer, type, option)
     }
 
     private fun disableTrackType(type: Int) {
         val exoPlayer = player ?: return
-        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
-            .setTrackTypeDisabled(type, true)
-            .build()
+        TrackManager.disableTrackType(exoPlayer, type)
     }
 
     // -----------------------------------------------------------------
@@ -428,26 +473,36 @@ class PlayerActivity : ComponentActivity() {
 
         override fun onSpeedBoostStart() {
             if (locked.value) return
-            val exoPlayer = player ?: return
-            speedBeforeBoost = exoPlayer.playbackParameters.speed
-            val multiplier = settingsJson.optDouble("pressHoldSpeedMultiplier", 2.0).toFloat()
-            exoPlayer.setPlaybackSpeed(multiplier)
-            speedBoostIndicator.value = multiplier
+            startSpeedBoost()
         }
 
-        override fun onSpeedBoostEnd() {
-            val exoPlayer = player ?: return
-            val restoreSpeed = speedBeforeBoost ?: return
-            exoPlayer.setPlaybackSpeed(restoreSpeed)
-            speedBeforeBoost = null
-            speedBoostIndicator.value = null
-        }
+        override fun onSpeedBoostEnd() = endSpeedBoost()
+    }
+
+    // Shared by touch press-hold (gestureCallbacks above) and the TV remote's OK-hold
+    // (tvRemoteController below) — one implementation, two input sources.
+    private fun startSpeedBoost() {
+        val exoPlayer = player ?: return
+        speedBeforeBoost = exoPlayer.playbackParameters.speed
+        val multiplier = settingsJson.optDouble("pressHoldSpeedMultiplier", 2.0).toFloat()
+        exoPlayer.setPlaybackSpeed(multiplier)
+        speedBoostIndicator.value = multiplier
+    }
+
+    private fun endSpeedBoost() {
+        val exoPlayer = player ?: return
+        val restoreSpeed = speedBeforeBoost ?: return
+        exoPlayer.setPlaybackSpeed(restoreSpeed)
+        speedBeforeBoost = null
+        speedBoostIndicator.value = null
+    }
+
+    private fun togglePlayPause() {
+        player?.let { it.playWhenReady = !it.playWhenReady }
     }
 
     private fun controlsCallbacks() = object : PlayerControlsCallbacks {
-        override fun onPlayPause() {
-            player?.let { it.playWhenReady = !it.playWhenReady }
-        }
+        override fun onPlayPause() = togglePlayPause()
 
         override fun onSeekBack() = seekBy(-settingsJson.optInt("seekDurationSeconds", 10))
         override fun onSeekForward() = seekBy(settingsJson.optInt("seekDurationSeconds", 10))
@@ -508,6 +563,7 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        inPictureInPicture.value = isInPictureInPictureMode
         // PiP window has no room/need for the controls chrome or gesture hints.
         controlsVisible.value = !isInPictureInPictureMode
         if (isInPictureInPictureMode) {
@@ -542,8 +598,15 @@ class PlayerActivity : ComponentActivity() {
 
     private fun scheduleAutoHide() {
         hideHandler.removeCallbacks(hideRunnable)
-        val autoHideMs = settingsJson.optInt("autoHideMs", 4000)
+        if (menuOpen) return
+        val autoHideMs = settingsJson.optInt("autoHideMs", 5000)
         if (autoHideMs > 0) hideHandler.postDelayed(hideRunnable, autoHideMs.toLong())
+    }
+
+    /** Passed to PlayerRoot — pauses/resumes the auto-hide timer around a track-selection menu. */
+    private fun onMenuOpenChanged(open: Boolean) {
+        menuOpen = open
+        if (open) hideHandler.removeCallbacks(hideRunnable) else scheduleAutoHide()
     }
 
     // -----------------------------------------------------------------
@@ -602,8 +665,19 @@ class PlayerActivity : ComponentActivity() {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
+    // Fallback only — once Compose is up, PlayerRoot's BackHandler (menu-close / hide-controls /
+    // exit priority chain) intercepts Back first via the OnBackPressedDispatcher.
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun onBackPressed() {
         finishWithResult()
+    }
+
+    // Single centralized interception point for all TV remote key handling — delegates
+    // entirely to TvRemoteInputController so DPAD/OK logic lives in one testable place
+    // instead of scattered across key-event listeners.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (tvRemoteController.dispatchKeyEvent(event)) return true
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onDestroy() {
@@ -623,6 +697,7 @@ class PlayerActivity : ComponentActivity() {
         if (activePlayer === player) activePlayer = null
         if (lastPlayer === player) lastPlayer = null
         player = null
+        playerState.value = null
         super.onDestroy()
     }
 

@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ADDONS_KEY = 'stream_addons';
+// Guards the one-time default-addon seed below — set the first time this
+// device's addon list is ever read, so removing the seeded addon later
+// (a deliberate user action) doesn't get silently undone on next launch.
+const SEEDED_KEY = 'stream_addons_seeded_v1';
+
+const TORRENTIO_MANIFEST_URL = 'https://torrentio.strem.fun/manifest.json';
 
 export interface StreamAddon {
   id: string;
@@ -23,7 +29,25 @@ export function toStreamBaseUrl(manifestUrl: string): string {
 async function readAll(): Promise<StreamAddon[]> {
   try {
     const raw = await AsyncStorage.getItem(ADDONS_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      const alreadySeeded = await AsyncStorage.getItem(SEEDED_KEY);
+      if (!alreadySeeded) {
+        const seeded: StreamAddon[] = [
+          {
+            id: 'torrentio-default',
+            url: TORRENTIO_MANIFEST_URL,
+            manifestUrl: TORRENTIO_MANIFEST_URL,
+            name: 'Torrentio',
+            version: null,
+            enabled: true,
+          },
+        ];
+        await AsyncStorage.setItem(ADDONS_KEY, JSON.stringify(seeded));
+        await AsyncStorage.setItem(SEEDED_KEY, '1');
+        return seeded;
+      }
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {

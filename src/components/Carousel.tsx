@@ -6,6 +6,7 @@ import { PosterCard } from './PosterCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { useTVHorizontalAutoScroll } from '@/hooks/tv/useTVHorizontalAutoScroll';
 
 const CARD_WIDTH = 132; // PosterCard width (120) + marginRight (12)
 
@@ -37,6 +38,7 @@ export const Carousel = memo(function Carousel({ title, data, onPressItem, onLon
   const listRef = useRef<FlatList<CarouselItem>>(null);
   const leftInset = isTV ? 32 : 16;
   const { hasPreferredFocus, registerFocusable } = useRestoreFocus(screenKey ?? '__carousel_unscoped__');
+  const { scrollToIndex } = useTVHorizontalAutoScroll(listRef);
 
   // Stable renderItem reference - without useCallback, every Carousel
   // re-render (e.g. theme change) hands FlatList a new function identity,
@@ -57,13 +59,13 @@ export const Carousel = memo(function Carousel({ title, data, onPressItem, onLon
           onLongPress={() => onLongPressItem?.(item)}
           hasTVPreferredFocus={screenKey ? hasPreferredFocus(restoreKey, false) : undefined}
           onFocus={isTV ? () => {
-            listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+            scrollToIndex(index);
             if (screenKey) registerFocusable(restoreKey);
           } : undefined}
         />
       );
     },
-    [title, getProgressColor, onPressItem, onLongPressItem, screenKey, hasPreferredFocus, isTV, registerFocusable]
+    [title, getProgressColor, onPressItem, onLongPressItem, screenKey, hasPreferredFocus, isTV, registerFocusable, scrollToIndex]
   );
 
   return (

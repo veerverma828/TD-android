@@ -1,4 +1,4 @@
-import { ReactNode, useRef, useState } from 'react';
+import { ReactNode, Ref, forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { Animated, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useFocusRingStyle } from './TVFocusRing';
@@ -36,7 +36,7 @@ interface FocusablePressableProps extends Omit<PressableProps, 'style' | 'childr
   focusRingScale?: boolean;
 }
 
-export function FocusablePressable({
+function FocusablePressableImpl({
   style,
   children,
   hasTVPreferredFocus,
@@ -45,16 +45,18 @@ export function FocusablePressable({
   onFocus,
   onBlur,
   ...rest
-}: FocusablePressableProps) {
+}: FocusablePressableProps, ref: Ref<View>) {
   const isTV = useIsTV();
   const [focused, setFocused] = useState(false);
   const ringStyle = useFocusRingStyle(focused, focusRingScale);
   const nodeRef = useRef<View>(null);
   const tvScroll = useTVScroll();
 
+  useImperativeHandle(ref, () => nodeRef.current as View, []);
+
   if (!isTV) {
     return (
-      <Pressable style={style} onFocus={onFocus} onBlur={onBlur} {...rest}>
+      <Pressable ref={nodeRef} style={style} onFocus={onFocus} onBlur={onBlur} {...rest}>
         {typeof children === 'function'
           ? (state) => children({ pressed: state.pressed, focused: false })
           : children}
@@ -92,6 +94,8 @@ export function FocusablePressable({
     </View>
   );
 }
+
+export const FocusablePressable = forwardRef(FocusablePressableImpl);
 
 const styles = StyleSheet.create({
   wrapper: { position: 'relative' },

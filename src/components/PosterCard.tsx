@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { memo, useState } from 'react';
+import { Ref, forwardRef, memo, useState } from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 
 import { ThemedText } from './themed-text';
@@ -23,7 +23,7 @@ interface PosterCardProps {
   onFocus?: () => void;
 }
 
-export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style, hasTVPreferredFocus, onFocus }: PosterCardProps) {
+function PosterCardImpl({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style, hasTVPreferredFocus, onFocus }: PosterCardProps, ref: Ref<View>) {
   const { colors } = useAppTheme();
   const [failed, setFailed] = useState(false);
   const normalizedUrl = normalizeImageUrl(imageUrl);
@@ -31,6 +31,7 @@ export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, 
 
   return (
     <FocusablePressable
+      ref={ref}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
@@ -64,7 +65,7 @@ export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, 
         )}
         {rating && (
           <View style={styles.ratingBadge}>
-            <IconSymbol name="star.fill" color="#FFD700" size={10} />
+            <IconSymbol name="star.fill" color={colors.ratingGold} size={10} />
             <ThemedText style={styles.ratingText}>{rating}</ThemedText>
           </View>
         )}
@@ -91,7 +92,9 @@ export const PosterCard = memo(function PosterCard({ title, subtitle, imageUrl, 
       )}
     </FocusablePressable>
   );
-});
+}
+
+export const PosterCard = memo(forwardRef(PosterCardImpl));
 
 const styles = StyleSheet.create({
   container: {

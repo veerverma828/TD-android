@@ -7,7 +7,7 @@
   ".claude/settings.json": {
     "mtime": 1784644823.0778825,
     "ast_hash": "ba1427bd9f25da431149abdf4e57ee87",
-    "semantic_hash": ""
+    "semantic_hash": "ba1427bd9f25da431149abdf4e57ee87"
   },
   ".claude/settings.local.json": {
     "mtime": 1784489508.729851,
@@ -32,7 +32,7 @@
   "app.json": {
     "mtime": 1784647250.2642038,
     "ast_hash": "0f5299030a95f32f4e04f64368d63353",
-    "semantic_hash": ""
+    "semantic_hash": "0f5299030a95f32f4e04f64368d63353"
   },
   "assets/expo.icon/icon.json": {
     "mtime": 1784090240.945153,
@@ -45,29 +45,29 @@
     "semantic_hash": "b713dd66aa3ad59ed5098d7b9f8dc202"
   },
   "modules/native-video-player/android/build.gradle": {
-    "mtime": 1784465288.2730043,
-    "ast_hash": "b27e51be2ba1847373658f58d9f4ca62",
-    "semantic_hash": "b27e51be2ba1847373658f58d9f4ca62"
+    "mtime": 1784739084.4955118,
+    "ast_hash": "48ea5dbe3df20920393452dab94351ec",
+    "semantic_hash": "48ea5dbe3df20920393452dab94351ec"
   },
   "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/NativePlayerModule.kt": {
     "mtime": 1784644823.0868824,
     "ast_hash": "f5d8a06bcef3de3d740c591988ecba10",
-    "semantic_hash": ""
+    "semantic_hash": "f5d8a06bcef3de3d740c591988ecba10"
   },
   "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/PlayerActivity.kt": {
-    "mtime": 1784658341.773292,
-    "ast_hash": "a02ba55903d3f58f6cad4428275a8533",
-    "semantic_hash": ""
+    "mtime": 1784746240.2828722,
+    "ast_hash": "1cf60ca5552e7314ffd32fe64fdae1d8",
+    "semantic_hash": "1cf60ca5552e7314ffd32fe64fdae1d8"
   },
   "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/PlayerGestureController.kt": {
     "mtime": 1784644823.0868824,
     "ast_hash": "1cc416e56c80fc0efc21b7f069e3e154",
-    "semantic_hash": ""
+    "semantic_hash": "1cc416e56c80fc0efc21b7f069e3e154"
   },
   "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/ui/PlayerScreen.kt": {
-    "mtime": 1784658350.756059,
-    "ast_hash": "aff87b4881cc9f152893071a62639f82",
-    "semantic_hash": ""
+    "mtime": 1784746218.6713881,
+    "ast_hash": "b285d7ec45f8a62d7a099bf0e49f29b2",
+    "semantic_hash": "b285d7ec45f8a62d7a099bf0e49f29b2"
   },
   "modules/native-video-player/expo-module.config.json": {
     "mtime": 1784466222.575255,
@@ -97,7 +97,7 @@
   "package.json": {
     "mtime": 1784644823.0908823,
     "ast_hash": "7294b4bb1fc340d06439a5b4b404578d",
-    "semantic_hash": ""
+    "semantic_hash": "7294b4bb1fc340d06439a5b4b404578d"
   },
   "plugins/withAndroidTVBanner.js": {
     "mtime": 1784264180.4779334,
@@ -120,9 +120,9 @@
     "semantic_hash": "65b88b4daa296a3ae80285d48851d090"
   },
   "src/app/details.tsx": {
-    "mtime": 1784665914.3938298,
-    "ast_hash": "b7241accc56ab3877ce7ca47c639ac2c",
-    "semantic_hash": ""
+    "mtime": 1784718070.6020136,
+    "ast_hash": "4ecb154bc899b8de7e03004b7136580f",
+    "semantic_hash": "4ecb154bc899b8de7e03004b7136580f"
   },
   "src/app/discover.tsx": {
     "mtime": 1784496022.3892262,
@@ -135,34 +135,34 @@
     "semantic_hash": "93055faab7d602d3783ae9419a2b6ee2"
   },
   "src/app/index.tsx": {
-    "mtime": 1784665717.745129,
-    "ast_hash": "2351c29244677746254ffc15e33d9a2c",
-    "semantic_hash": ""
+    "mtime": 1784728468.7849493,
+    "ast_hash": "f38c7a79e6297914ee940f2e5099ffd8",
+    "semantic_hash": "f38c7a79e6297914ee940f2e5099ffd8"
   },
   "src/app/library.tsx": {
-    "mtime": 1784496112.5797725,
-    "ast_hash": "6e437f84a2de554166076ec787ff834e",
-    "semantic_hash": "6e437f84a2de554166076ec787ff834e"
+    "mtime": 1784715960.387601,
+    "ast_hash": "1c45579830da907d3c0f98ed068c5e85",
+    "semantic_hash": "1c45579830da907d3c0f98ed068c5e85"
   },
   "src/app/player.tsx": {
     "mtime": 1784658368.150378,
     "ast_hash": "64f49cf7c14678b7e00669345cde9559",
-    "semantic_hash": ""
+    "semantic_hash": "64f49cf7c14678b7e00669345cde9559"
   },
   "src/app/preplay.tsx": {
     "mtime": 1784658663.9634469,
     "ast_hash": "250a2d415edddfc0255350be324ce7ea",
-    "semantic_hash": ""
+    "semantic_hash": "250a2d415edddfc0255350be324ce7ea"
   },
   "src/app/search.tsx": {
-    "mtime": 1784659099.5406559,
-    "ast_hash": "c6188b096f9df168158cfd2e247d89c7",
-    "semantic_hash": ""
+    "mtime": 1784714692.6971424,
+    "ast_hash": "596a55756538518667638f0385f8cf95",
+    "semantic_hash": "596a55756538518667638f0385f8cf95"
   },
   "src/app/see-all.tsx": {
-    "mtime": 1784662328.3054607,
-    "ast_hash": "1add7e0a8a29995c2ceeb94fe4dd9bf0",
-    "semantic_hash": ""
+    "mtime": 1784715979.6535196,
+    "ast_hash": "795fefecfca65e9d10933ab7a9fea4e1",
+    "semantic_hash": "795fefecfca65e9d10933ab7a9fea4e1"
   },
   "src/app/settings/_layout.tsx": {
     "mtime": 1784299550.3264027,
@@ -195,9 +195,9 @@
     "semantic_hash": "b8c3a75f10ec6c9cc0963690d89185f3"
   },
   "src/app/settings/index.tsx": {
-    "mtime": 1784547125.8152337,
-    "ast_hash": "e277b21a3bcaa6f2523d939b759db158",
-    "semantic_hash": "e277b21a3bcaa6f2523d939b759db158"
+    "mtime": 1784714783.562767,
+    "ast_hash": "3f6af76bc5f7f93d1c3eda0422c11154",
+    "semantic_hash": "3f6af76bc5f7f93d1c3eda0422c11154"
   },
   "src/app/settings/notifications.tsx": {
     "mtime": 1784539028.7812047,
@@ -215,9 +215,9 @@
     "semantic_hash": "00fd733bd6f74c5853bd26dfccc771c5"
   },
   "src/components/Carousel.tsx": {
-    "mtime": 1784665623.498357,
-    "ast_hash": "ea68de78cedf9099e0186f1097f6354f",
-    "semantic_hash": ""
+    "mtime": 1784714528.6333141,
+    "ast_hash": "ef27cf5a22fda8f1b5ecd8579814cdcb",
+    "semantic_hash": "ef27cf5a22fda8f1b5ecd8579814cdcb"
   },
   "src/components/Chip.tsx": {
     "mtime": 1784264251.632334,
@@ -230,9 +230,9 @@
     "semantic_hash": "e4e74c3493e68fe03ff48b71d05fa2d3"
   },
   "src/components/EpisodeRow.tsx": {
-    "mtime": 1784495979.077948,
-    "ast_hash": "f96464ff3c34b3e778a878158d9abfa1",
-    "semantic_hash": "f96464ff3c34b3e778a878158d9abfa1"
+    "mtime": 1784670804.1914916,
+    "ast_hash": "52cb856c505cf68afbc0bb80b97b9d3f",
+    "semantic_hash": "52cb856c505cf68afbc0bb80b97b9d3f"
   },
   "src/components/ErrorBoundary.tsx": {
     "mtime": 1784496053.6654716,
@@ -245,9 +245,9 @@
     "semantic_hash": "164cdda398353db2be2f7b741bf404a0"
   },
   "src/components/HeroBanner.tsx": {
-    "mtime": 1784664421.8688667,
-    "ast_hash": "e9fff0838b5368924620ce4adee00b51",
-    "semantic_hash": ""
+    "mtime": 1784728882.6161973,
+    "ast_hash": "9d3d74107ec9d0a7c6ddc670d2893811",
+    "semantic_hash": "9d3d74107ec9d0a7c6ddc670d2893811"
   },
   "src/components/IconSymbol.tsx": {
     "mtime": 1784299417.94764,
@@ -257,7 +257,7 @@
   "src/components/ListItem.tsx": {
     "mtime": 1784658883.4183297,
     "ast_hash": "f8fc2c3e68dc35f6de70795fbedbd92e",
-    "semantic_hash": ""
+    "semantic_hash": "f8fc2c3e68dc35f6de70795fbedbd92e"
   },
   "src/components/PosterActionsSheet.tsx": {
     "mtime": 1784548436.436128,
@@ -265,14 +265,14 @@
     "semantic_hash": "93ca73a0978a116e77cb63fb6d48f9ff"
   },
   "src/components/PosterCard.tsx": {
-    "mtime": 1784658840.500111,
-    "ast_hash": "51f67ca02d11b062016ffc6d2a3969cc",
-    "semantic_hash": ""
+    "mtime": 1784715912.5228171,
+    "ast_hash": "558878752bc19a4e77a69d46d29a2b1c",
+    "semantic_hash": "558878752bc19a4e77a69d46d29a2b1c"
   },
   "src/components/TVTabBar.tsx": {
-    "mtime": 1784237035.6614804,
-    "ast_hash": "cc92a19b5e8c47708931eebdea2a2a8d",
-    "semantic_hash": "cc92a19b5e8c47708931eebdea2a2a8d"
+    "mtime": 1784716459.691154,
+    "ast_hash": "9248fae7c9b36b46b1c85b515ffce4ad",
+    "semantic_hash": "9248fae7c9b36b46b1c85b515ffce4ad"
   },
   "src/components/TorrentModal.tsx": {
     "mtime": 1784549204.9682405,
@@ -282,7 +282,7 @@
   "src/components/UpdatePromptModal.tsx": {
     "mtime": 1784653203.6685126,
     "ast_hash": "682ef256a5d870df27d222b7d261fd48",
-    "semantic_hash": ""
+    "semantic_hash": "682ef256a5d870df27d222b7d261fd48"
   },
   "src/components/animated-icon.tsx": {
     "mtime": 1784644823.0918822,
@@ -320,9 +320,9 @@
     "semantic_hash": "de1f20de7436254a57360d7634c93d06"
   },
   "src/components/episodes/EpisodeSelectorCardCarousel.tsx": {
-    "mtime": 1784496004.8042169,
-    "ast_hash": "e154f22b24be47b616b2ebb22f365609",
-    "semantic_hash": "e154f22b24be47b616b2ebb22f365609"
+    "mtime": 1784714540.3224764,
+    "ast_hash": "dd0af412367e32e359e514e5465ae8a7",
+    "semantic_hash": "dd0af412367e32e359e514e5465ae8a7"
   },
   "src/components/episodes/EpisodeSelectorNumberedGrid.tsx": {
     "mtime": 1784492081.8710878,
@@ -365,9 +365,9 @@
     "semantic_hash": "5f0a01d4e2f70459c55caffb3b01fd7d"
   },
   "src/components/settings/CategoryRow.tsx": {
-    "mtime": 1784495270.234394,
-    "ast_hash": "1ec7f837a8caf006fe48cf66461fc9e4",
-    "semantic_hash": "1ec7f837a8caf006fe48cf66461fc9e4"
+    "mtime": 1784714762.2836614,
+    "ast_hash": "049d1118be6601be2ad5176eb16cc1f8",
+    "semantic_hash": "049d1118be6601be2ad5176eb16cc1f8"
   },
   "src/components/settings/ChipPicker.tsx": {
     "mtime": 1784264257.7857153,
@@ -400,9 +400,9 @@
     "semantic_hash": "32b7c5923312164aca2acfe286438a12"
   },
   "src/components/tv/FocusablePressable.tsx": {
-    "mtime": 1784644823.0918822,
-    "ast_hash": "f2ef80e0d23694bd59398266ccc2e05f",
-    "semantic_hash": "f2ef80e0d23694bd59398266ccc2e05f"
+    "mtime": 1784715887.2129402,
+    "ast_hash": "362c420d4f0417e043c5139548a23bac",
+    "semantic_hash": "362c420d4f0417e043c5139548a23bac"
   },
   "src/components/tv/TVFocusRing.tsx": {
     "mtime": 1784644823.0918822,
@@ -425,9 +425,9 @@
     "semantic_hash": "2f0382ad916e026884f2f51aca4f6987"
   },
   "src/constants/theme.ts": {
-    "mtime": 1784264174.6287992,
-    "ast_hash": "18862b09c7b4ae19ac0c2f2bb8a32423",
-    "semantic_hash": "18862b09c7b4ae19ac0c2f2bb8a32423"
+    "mtime": 1784714446.7487524,
+    "ast_hash": "684d1504c55d3bd1a79f86d789f70ae2",
+    "semantic_hash": "684d1504c55d3bd1a79f86d789f70ae2"
   },
   "src/constants/trakt.ts": {
     "mtime": 1784219578.6886015,
@@ -467,7 +467,7 @@
   "src/hooks/player/useNativePlayerBridge.ts": {
     "mtime": 1784653655.7042313,
     "ast_hash": "e81f06e1967e9d57ab05f2b2005aed46",
-    "semantic_hash": ""
+    "semantic_hash": "e81f06e1967e9d57ab05f2b2005aed46"
   },
   "src/hooks/player/useNextEpisode.ts": {
     "mtime": 1784302283.0149057,
@@ -520,9 +520,9 @@
     "semantic_hash": "f401896384568d313b2ee4c00b2d03ed"
   },
   "src/services/addonService.ts": {
-    "mtime": 1784302293.41855,
-    "ast_hash": "155764b283a407ee3c9e1c037f934b37",
-    "semantic_hash": "155764b283a407ee3c9e1c037f934b37"
+    "mtime": 1784719017.2344573,
+    "ast_hash": "41b92b54ef4893b3d513c99c0f2a853c",
+    "semantic_hash": "41b92b54ef4893b3d513c99c0f2a853c"
   },
   "src/services/cinemeta.ts": {
     "mtime": 1784302245.2170198,
@@ -797,16 +797,61 @@
   "src/utils/imageUrl.ts": {
     "mtime": 1784658831.4222777,
     "ast_hash": "eb62838ed5abd29548eb45f4806b73a1",
-    "semantic_hash": ""
+    "semantic_hash": "eb62838ed5abd29548eb45f4806b73a1"
   },
   ".agents/rules/graphify.md": {
     "mtime": 1784665100.746892,
     "ast_hash": "f1e53ecc9194573d3c28fc116c743a2e",
-    "semantic_hash": ""
+    "semantic_hash": "f1e53ecc9194573d3c28fc116c743a2e"
   },
   ".agents/workflows/graphify.md": {
     "mtime": 1784665100.7499447,
     "ast_hash": "0bc020d491fca99550c1ea3de0a5f862",
-    "semantic_hash": ""
+    "semantic_hash": "0bc020d491fca99550c1ea3de0a5f862"
+  },
+  "src/hooks/tv/usePushedScreenFocus.ts": {
+    "mtime": 1784715859.8220806,
+    "ast_hash": "667b31f5b165f30b7f792a8f33a4beea",
+    "semantic_hash": "667b31f5b165f30b7f792a8f33a4beea"
+  },
+  "src/hooks/tv/useTVHorizontalAutoScroll.ts": {
+    "mtime": 1784714517.175154,
+    "ast_hash": "cba904d0499b9e0817b60301a842cd60",
+    "semantic_hash": "cba904d0499b9e0817b60301a842cd60"
+  },
+  "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/BufferManager.kt": {
+    "mtime": 1784742445.6366813,
+    "ast_hash": "babb334ba379e1481a3534d086d9af33",
+    "semantic_hash": "babb334ba379e1481a3534d086d9af33"
+  },
+  "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/ErrorRecoveryManager.kt": {
+    "mtime": 1784738947.0690062,
+    "ast_hash": "a1456c2ca30d65ed9b922742b60a3c79",
+    "semantic_hash": "a1456c2ca30d65ed9b922742b60a3c79"
+  },
+  "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/MediaSourceFactory.kt": {
+    "mtime": 1784739476.618871,
+    "ast_hash": "41a8736a7840c34dc7fe2f0d87fc0ec2",
+    "semantic_hash": "41a8736a7840c34dc7fe2f0d87fc0ec2"
+  },
+  "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/PlaybackAnalyticsListener.kt": {
+    "mtime": 1784742888.8294506,
+    "ast_hash": "168cfc73d4ceee8f1c2a2f736b39ca34",
+    "semantic_hash": "168cfc73d4ceee8f1c2a2f736b39ca34"
+  },
+  "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/PlaybackLogger.kt": {
+    "mtime": 1784738870.0947788,
+    "ast_hash": "6ad118c8d15e135103c6b1954ba7ff77",
+    "semantic_hash": "6ad118c8d15e135103c6b1954ba7ff77"
+  },
+  "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/TrackManager.kt": {
+    "mtime": 1784738911.0609152,
+    "ast_hash": "55e0c3512499647bc11f8a13f4eaf7ac",
+    "semantic_hash": "55e0c3512499647bc11f8a13f4eaf7ac"
+  },
+  "modules/native-video-player/android/src/main/java/com/tdandroid/app/player/TvRemoteInputController.kt": {
+    "mtime": 1784746035.4961329,
+    "ast_hash": "adc7b9ecdda92a80513b87ad6b25ff87",
+    "semantic_hash": "adc7b9ecdda92a80513b87ad6b25ff87"
   }
 }

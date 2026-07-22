@@ -17,6 +17,7 @@ import { padToColumns } from '@/utils/gridHelpers';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { usePushedScreenFocus } from '@/hooks/tv/usePushedScreenFocus';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 export default function SeeAllScreen() {
@@ -34,6 +35,9 @@ export default function SeeAllScreen() {
 
   const [items, setItems] = useState<MetaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // TVTabBar stays mounted across this push, so it can win the native
+  // default-focus race against the grid's hasTVPreferredFocus item.
+  const firstItemRef = usePushedScreenFocus<View>([loading, items.length > 0]);
 
   useEffect(() => {
     async function loadData() {
@@ -112,6 +116,7 @@ export default function SeeAllScreen() {
               const restoreKey = `${item.type}:${item.id}`;
               return (
                 <PosterCard
+                  ref={index === 0 ? firstItemRef : undefined}
                   title={item.name}
                   subtitle={item.releaseInfo}
                   imageUrl={item.poster || ''}

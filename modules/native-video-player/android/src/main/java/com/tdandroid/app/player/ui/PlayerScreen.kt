@@ -1,5 +1,6 @@
 package com.tdandroid.app.player.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -52,6 +53,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -172,6 +175,25 @@ interface PlayerControlsCallbacks {
 
 enum class TrackSheetKind { AUDIO, TEXT }
 
+/**
+ * One FocusRequester per overlay control, plus the remembered "last focused" one —
+ * owned by PlayerRoot (not PlayerControlsOverlay) so menu-close/Back handling can
+ * restore focus directly instead of reaching into the overlay's own local state.
+ */
+class OverlayFocusRequesters {
+    val back = FocusRequester()
+    val resize = FocusRequester()
+    val audio = FocusRequester()
+    val subs = FocusRequester()
+    val lock = FocusRequester()
+    val pip = FocusRequester()
+    val seekBack = FocusRequester()
+    val playPause = FocusRequester()
+    val seekForward = FocusRequester()
+    val next = FocusRequester()
+    val slider = FocusRequester()
+}
+
 data class ResizeOption(val label: String, val mode: Int)
 
 val ResizeOptions = listOf(
@@ -203,42 +225,79 @@ fun PlayerRoot(
     brightnessLevel: Float?,
     seekPreviewSeconds: Double?,
     speedBoostLevel: Float?,
+    isInPictureInPicture: Boolean,
+    onMenuOpenChanged: (Boolean) -> Unit,
+    onHideControls: () -> Unit,
 ) {
     var tracksSheetKind by remember { mutableStateOf<TrackSheetKind?>(null) }
     var resizeMode by remember { mutableStateOf(initialResizeMode) }
     var resizeToast by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    val focusTargets = remember { OverlayFocusRequesters() }
+    var lastFocused by remember { mutableStateOf(focusTargets.playPause) }
+
+    fun openMenu(kind: TrackSheetKind) {
+        tracksSheetKind = kind
+        onMenuOpenChanged(true)
+    }
+    fun closeMenu() {
+        tracksSheetKind = null
+        onMenuOpenChanged(false)
+        lastFocused.requestFocus()
+    }
+
+    // Back priority chain: close an open menu, else (unless locked, which requires
+    // unlocking via the always-visible Unlock button first) hide the controls overlay
+    // if visible, else exit the player.
+    BackHandler {
+        when {
+            tracksSheetKind != null -> closeMenu()
+            state.locked -> Unit
+            controlsVisible -> onHideControls()
+            else -> callbacks.onBack()
+        }
+    }
 
     CompositionLocalProvider(LocalPlayerPalette provides palette) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    // Inflated (not `PlayerView(ctx)`) so the texture_view surface_type from
-                    // the XML applies — see res/layout/player_view.xml for why (PiP black-screen fix).
-                    (android.view.LayoutInflater.from(ctx).inflate(com.tdandroid.app.player.R.layout.player_view, null) as PlayerView).apply {
-                        this.player = player
-                        useController = false
-                        this.resizeMode = resizeMode
-                        subtitleView?.setStyle(
-                            CaptionStyleCompat(
-                                Color.White.toArgb(),
-                                Color.Transparent.toArgb(),
-                                Color.Transparent.toArgb(),
-                                CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                                Color.Black.toArgb(),
-                                null,
-                            ),
-                        )
-                    }
-                },
-                update = { view ->
-                    view.player = player
-                    view.resizeMode = resizeMode
-                },
-                onRelease = { view ->
-                    view.player = null
-                },
-            )
+            // Keyed on isInPictureInPicture so toggling PiP disposes the old PlayerView and
+            // inflates the other layout — surface_type can't be changed on a live PlayerView,
+            // only picked at inflate. SurfaceView (player_view.xml) normally for smooth,
+            // correct-HDR-brightness playback; TextureView (player_view_pip.xml) only while
+            // in PiP, where it's needed for the transition to composite correctly.
+            key(isInPictureInPicture) {
+                val layoutRes = if (isInPictureInPicture) {
+                    com.tdandroid.app.player.R.layout.player_view_pip
+                } else {
+                    com.tdandroid.app.player.R.layout.player_view
+                }
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        (android.view.LayoutInflater.from(ctx).inflate(layoutRes, null) as PlayerView).apply {
+                            this.player = player
+                            useController = false
+                            this.resizeMode = resizeMode
+                            subtitleView?.setStyle(
+                                CaptionStyleCompat(
+                                    Color.White.toArgb(),
+                                    Color.Transparent.toArgb(),
+                                    Color.Transparent.toArgb(),
+                                    CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                    Color.Black.toArgb(),
+                                    null,
+                                ),
+                            )
+                        }
+                    },
+                    update = { view ->
+                        view.player = player
+                        view.resizeMode = resizeMode
+                    },
+                    onRelease = { view ->
+                        view.player = null
+                    },
+                )
+            }
 
             // Gesture-catching scrim — ALWAYS present regardless of controls visibility,
             // so volume/brightness/seek swipes keep working while controls are hidden.
@@ -285,6 +344,9 @@ fun PlayerRoot(
             PlayerControlsOverlay(
                 visible = controlsVisible,
                 state = state,
+                focusTargets = focusTargets,
+                lastFocused = lastFocused,
+                onLastFocusedChanged = { lastFocused = it },
                 callbacks = object : PlayerControlsCallbacks {
                     override fun onPlayPause() = callbacks.onPlayPause()
                     override fun onSeekBack() = callbacks.onSeekBack()
@@ -293,12 +355,8 @@ fun PlayerRoot(
                     override fun onBack() = callbacks.onBack()
                     override fun onNext() = callbacks.onNext()
                     override fun onSeekTo(fraction: Float) = callbacks.onSeekTo(fraction)
-                    override fun onAudioTracksClick() {
-                        tracksSheetKind = TrackSheetKind.AUDIO
-                    }
-                    override fun onSubtitleTracksClick() {
-                        tracksSheetKind = TrackSheetKind.TEXT
-                    }
+                    override fun onAudioTracksClick() = openMenu(TrackSheetKind.AUDIO)
+                    override fun onSubtitleTracksClick() = openMenu(TrackSheetKind.TEXT)
                     override fun onResizeModeClick() {
                         val currentIndex = ResizeOptions.indexOfFirst { it.mode == resizeMode }.coerceAtLeast(0)
                         val next = ResizeOptions[(currentIndex + 1) % ResizeOptions.size]
@@ -323,7 +381,7 @@ fun PlayerRoot(
                     textTracks = textTracks,
                     onSelectAudio = { onSelectAudioTrack(it) },
                     onSelectText = { onSelectTextTrack(it) },
-                    onDismiss = { tracksSheetKind = null },
+                    onDismiss = { closeMenu() },
                 )
             }
         }
@@ -341,19 +399,21 @@ fun PlayerRoot(
 fun PlayerControlsOverlay(
     visible: Boolean,
     state: PlayerControlsState,
+    focusTargets: OverlayFocusRequesters,
+    lastFocused: FocusRequester,
+    onLastFocusedChanged: (FocusRequester) -> Unit,
     callbacks: PlayerControlsCallbacks,
     onActivity: () -> Unit,
 ) {
     val palette = LocalPlayerPalette.current
 
     if (state.locked) {
-        val unlockFocus = remember { FocusRequester() }
-        LaunchedEffect(visible) { if (visible) unlockFocus.requestFocus() }
+        LaunchedEffect(visible) { if (visible) focusTargets.lock.requestFocus() }
         AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
                 IconButton(
                     onClick = { callbacks.onLockToggle(); onActivity() },
-                    modifier = Modifier.padding(24.dp).focusRequester(unlockFocus).tvFocusRing(palette.accent),
+                    modifier = Modifier.padding(24.dp).focusRequester(focusTargets.lock).tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.Lock, contentDescription = "Unlock", tint = Color.White)
                 }
@@ -362,22 +422,22 @@ fun PlayerControlsOverlay(
         return
     }
 
-    // One FocusRequester per control, plus a remembered "last focused" one so
-    // re-showing the overlay (after tap-to-hide) restores focus to whichever
-    // control the user was on, instead of always resetting — the native-side
-    // mirror of the RN app's useRestoreFocus.
-    val backFocus = remember { FocusRequester() }
-    val resizeFocus = remember { FocusRequester() }
-    val audioFocus = remember { FocusRequester() }
-    val subsFocus = remember { FocusRequester() }
-    val lockFocus = remember { FocusRequester() }
-    val pipFocus = remember { FocusRequester() }
-    val seekBackFocus = remember { FocusRequester() }
-    val playPauseFocus = remember { FocusRequester() }
-    val seekForwardFocus = remember { FocusRequester() }
-    val nextFocus = remember { FocusRequester() }
-    val sliderFocus = remember { FocusRequester() }
-    var lastFocused by remember { mutableStateOf(playPauseFocus) }
+    // focusTargets/lastFocused are owned by PlayerRoot (not remembered here) so
+    // menu-close and Back handling there can restore focus directly — re-showing
+    // the overlay (after tap/DPAD-to-hide) restores focus to whichever control the
+    // user was on instead of always resetting, the native-side mirror of the RN
+    // app's useRestoreFocus.
+    val backFocus = focusTargets.back
+    val resizeFocus = focusTargets.resize
+    val audioFocus = focusTargets.audio
+    val subsFocus = focusTargets.subs
+    val lockFocus = focusTargets.lock
+    val pipFocus = focusTargets.pip
+    val seekBackFocus = focusTargets.seekBack
+    val playPauseFocus = focusTargets.playPause
+    val seekForwardFocus = focusTargets.seekForward
+    val nextFocus = focusTargets.next
+    val sliderFocus = focusTargets.slider
 
     LaunchedEffect(visible) { if (visible) lastFocused.requestFocus() }
 
@@ -394,7 +454,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onBack(); onActivity() },
                     modifier = Modifier.focusRequester(backFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = backFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(backFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -409,7 +469,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onResizeModeClick(); onActivity() },
                     modifier = Modifier.focusRequester(resizeFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = resizeFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(resizeFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.AspectRatio, contentDescription = "Video fit", tint = Color.White)
@@ -417,7 +477,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onAudioTracksClick(); onActivity() },
                     modifier = Modifier.focusRequester(audioFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = audioFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(audioFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.Audiotrack, contentDescription = "Audio track", tint = Color.White)
@@ -425,7 +485,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onSubtitleTracksClick(); onActivity() },
                     modifier = Modifier.focusRequester(subsFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = subsFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(subsFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.Subtitles, contentDescription = "Subtitles", tint = Color.White)
@@ -433,7 +493,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onLockToggle(); onActivity() },
                     modifier = Modifier.focusRequester(lockFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = lockFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(lockFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.LockOpen, contentDescription = "Lock", tint = Color.White)
@@ -441,7 +501,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onPipClick(); onActivity() },
                     modifier = Modifier.focusRequester(pipFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = pipFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(pipFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "Picture in picture", tint = Color.White)
@@ -456,7 +516,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onSeekBack(); onActivity() },
                     modifier = Modifier.size(56.dp).focusRequester(seekBackFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = seekBackFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(seekBackFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.Replay10, contentDescription = "Seek back", tint = Color.White, modifier = Modifier.size(32.dp))
@@ -466,7 +526,7 @@ fun PlayerControlsOverlay(
                     onClick = { callbacks.onPlayPause(); onActivity() },
                     modifier = Modifier.size(72.dp)
                         .focusRequester(playPauseFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = playPauseFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(playPauseFocus) }
                         .tvFocusRing(palette.accent)
                         .clip(RoundedCornerShape(50))
                         .background(Color.White.copy(alpha = 0.15f)),
@@ -482,7 +542,7 @@ fun PlayerControlsOverlay(
                 IconButton(
                     onClick = { callbacks.onSeekForward(); onActivity() },
                     modifier = Modifier.size(56.dp).focusRequester(seekForwardFocus)
-                        .onFocusChanged { if (it.isFocused) lastFocused = seekForwardFocus }
+                        .onFocusChanged { if (it.isFocused) onLastFocusedChanged(seekForwardFocus) }
                         .tvFocusRing(palette.accent),
                 ) {
                     Icon(Icons.Filled.Forward10, contentDescription = "Seek forward", tint = Color.White, modifier = Modifier.size(32.dp))
@@ -492,7 +552,7 @@ fun PlayerControlsOverlay(
                     IconButton(
                         onClick = { callbacks.onNext(); onActivity() },
                         modifier = Modifier.size(48.dp).focusRequester(nextFocus)
-                            .onFocusChanged { if (it.isFocused) lastFocused = nextFocus }
+                            .onFocusChanged { if (it.isFocused) onLastFocusedChanged(nextFocus) }
                             .tvFocusRing(palette.accent),
                     ) {
                         Icon(Icons.Filled.SkipNext, contentDescription = "Next episode", tint = Color.White, modifier = Modifier.size(28.dp))
@@ -519,7 +579,7 @@ fun PlayerControlsOverlay(
                             .focusRequester(sliderFocus)
                             .onFocusChanged {
                                 sliderFocused = it.isFocused
-                                if (it.isFocused) lastFocused = sliderFocus
+                                if (it.isFocused) onLastFocusedChanged(sliderFocus)
                             }
                             // D-pad Left/Right while the seek bar has focus seeks by a fixed
                             // step (same as the seek-back/forward buttons) rather than trying
@@ -673,6 +733,7 @@ fun ResizeModeToast(toast: Pair<Int, String>?, onExpire: () -> Unit) {
 // Track selection
 // ---------------------------------------------------------------------------
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun TrackSelectionSheet(
     kind: TrackSheetKind,
@@ -704,6 +765,10 @@ fun TrackSelectionSheet(
                     indication = null,
                     onClick = {},
                 )
+                // Traps DPAD/Tab focus inside the sheet — without this, focus could wander
+                // out to the (visually covered, but still composed) overlay buttons behind
+                // the scrim. Any attempted focus-exit from within this subtree is cancelled.
+                .focusProperties { exit = { FocusRequester.Cancel } }
                 .padding(16.dp),
         ) {
             when (kind) {

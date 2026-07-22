@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  surface_type="texture_view" — SurfaceView punches a hole through the window into a
+  separate compositor layer that Android's PiP snapshot/resize transform does not
+  reliably capture on all launchers/OEM skins, showing a plain black rect once the
+  window shrinks into the PiP overlay. TextureView renders as a normal View bitmap,
+  so it composites correctly through the PiP transition. Used only while in PiP mode
+  (see PlayerScreen.PlayerRoot) — normal playback uses player_view.xml's SurfaceView
+  for smooth, correct-HDR-brightness output instead.
+-->
+<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/player_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:surface_type="texture_view" />

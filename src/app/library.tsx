@@ -14,16 +14,26 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { padToColumns } from '@/utils/gridHelpers';
 import { MetaItem } from '@/services/cinemeta';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { usePushedScreenFocus } from '@/hooks/tv/usePushedScreenFocus';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { Fonts } from '@/constants/theme';
 
 export default function LibraryScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
+  const isTV = useIsTV();
   const { list, loaded, toggle } = useMyList();
   const { hasPreferredFocus, registerFocusable } = useRestoreFocus('library');
   const { showRating } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<MetaItem | null>(null);
+  const columns = isTV ? 6 : 3;
+  // TVTabBar stays mounted across this push, so it can win the native
+  // default-focus race against the grid's hasTVPreferredFocus item. Re-fires
+  // once the list finishes loading, since the first item doesn't exist yet
+  // on the initial empty render.
+  const firstItemRef = usePushedScreenFocus<View>([loaded, list.length > 0]);
 
   const filteredList = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -35,7 +45,7 @@ export default function LibraryScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-          <ThemedText type="title" style={styles.headerTitle}>Library</ThemedText>
+          <ThemedText type="title" style={[styles.headerTitle, isTV && tvStyles.headerTitle]}>Library</ThemedText>
           <FocusablePressable onPress={() => router.push('/calendar')} hitSlop={12} focusRingBorderRadius={16} accessibilityRole="button" accessibilityLabel="Calendar">
             <IconSymbol name="calendar" color={colors.text} size={24} />
           </FocusablePressable>
@@ -65,24 +75,26 @@ export default function LibraryScreen() {
           </View>
         ) : (
           <FlatList
-            data={padToColumns(filteredList, 3)}
+            key={columns}
+            data={padToColumns(filteredList, columns)}
             keyExtractor={(item, index) => (item ? `${item.type}:${item.id}` : `filler-${index}`)}
-            numColumns={3}
+            numColumns={columns}
             contentContainerStyle={styles.listContent}
             columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
             renderItem={({ item, index }) => {
-              if (!item) return <View style={styles.posterCard} />;
+              if (!item) return <View style={[styles.posterCard, { width: `${100 / columns - 2}%` }]} />;
               const restoreKey = `${item.type}:${item.id}`;
               return (
                 <PosterCard
+                  ref={index === 0 ? firstItemRef : undefined}
                   title={item.name}
                   subtitle={item.releaseInfo}
                   imageUrl={item.poster || ''}
                   rating={showRating ? item.imdbRating : undefined}
                   onPress={() => router.push({ pathname: '/details', params: { id: item.id, type: item.type } })}
                   onLongPress={() => setSelectedItem(item)}
-                  style={styles.posterCard}
+                  style={{ ...styles.posterCard, width: `${100 / columns - 2}%` }}
                   hasTVPreferredFocus={hasPreferredFocus(restoreKey, index === 0)}
                   onFocus={() => registerFocusable(restoreKey)}
                 />
@@ -166,7 +178,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   posterCard: {
-    width: '31%',
     marginRight: 0,
+  },
+});
+
+// TV-only style overrides, applied on top of `styles` with `isTV && tvStyles.x`.
+const tvStyles = StyleSheet.create({
+  headerTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 40,
   },
 });

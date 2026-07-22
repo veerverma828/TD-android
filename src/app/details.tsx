@@ -1,4 +1,4 @@
-import { StyleSheet, View, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
+import { StyleSheet, View, ScrollView, FlatList, ActivityIndicator, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -9,7 +9,8 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/IconSymbol';
 import { TorrentModal } from '@/components/TorrentModal';
-import { fetchMeta, DetailedMetaItem, fetchMovieStreams, fetchEpisodeStreams } from '@/services/cinemeta';
+import { fetchMeta, DetailedMetaItem, fetchMovieStreams, fetchEpisodeStreams, fetchCatalog, MetaItem } from '@/services/cinemeta';
+import { PosterCard } from '@/components/PosterCard';
 import { TorrentioStream } from '@/utils/streamHelpers';
 import { getActiveDebridProvider, getDebridKey, checkCachedHashes } from '@/services/debridService';
 import { getEnabledAddons } from '@/services/addonService';
@@ -25,8 +26,9 @@ import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { EPISODE_SELECTORS } from '@/components/episodes';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { usePushedScreenFocus } from '@/hooks/tv/usePushedScreenFocus';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type TabKey = 'episodes' | 'overview' | 'cast' | 'details';
 
@@ -41,6 +43,7 @@ const TAB_LABELS: Record<TabKey, string> = {
 // keeps `failed` scoped per-image without needing an effect/ref reset.
 function CoverImage({ uri, backgroundColor, iconColor }: { uri: string; backgroundColor: string; iconColor: string }) {
   const [failed, setFailed] = useState(false);
+  const isTV = useIsTV();
 
   if (failed) {
     return (
@@ -54,12 +57,12 @@ function CoverImage({ uri, backgroundColor, iconColor }: { uri: string; backgrou
     <Image
       source={{ uri }}
       style={styles.coverImage}
-      contentFit="cover"
+      contentFit={isTV ? 'contain' : 'cover'}
       cachePolicy="memory-disk"
       priority="high"
       recyclingKey={uri}
       placeholder={DARK_IMAGE_PLACEHOLDER}
-      placeholderContentFit="cover"
+      placeholderContentFit={isTV ? 'contain' : 'cover'}
       transition={200}
       onError={() => setFailed(true)}
     />
@@ -82,6 +85,10 @@ export default function DetailsScreen() {
   const insets = useSafeAreaInsets();
   const isTV = useIsTV();
   const { hasPreferredFocus: hasDetailsFocus, registerFocusable: registerDetailsFocusable } = useRestoreFocus(`details-${id}`);
+  // TVTabBar stays mounted across the push into this screen, so it can win
+  // the native default-focus race against hasTVPreferredFocus below. This
+  // grabs focus imperatively once per title, closing that race.
+  const playButtonRef = usePushedScreenFocus<View>([id, type]);
   const { toggle: toggleMyList, isInList } = useMyList();
   const { episodeLayout } = useSettings();
 
@@ -107,6 +114,11 @@ export default function DetailsScreen() {
   const [activeTitle, setActiveTitle] = useState<string>('');
   const [activeContentId, setActiveContentId] = useState<string>('');
   const autoplayTriggeredRef = useRef(false);
+
+  // "More Like This" (movie, TV only) - no similar-titles API exists, so this
+  // approximates via the same genre-catalog lookup used elsewhere on Home,
+  // filtered to exclude the current title. Not a real recommendation engine.
+  const [similarItems, setSimilarItems] = useState<MetaItem[]>([]);
 
   // Series state
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
@@ -181,6 +193,21 @@ export default function DetailsScreen() {
       setWatchedIds(await getWatchedSet());
     })();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSimilarItems([]);
+    if (!isTV || type === 'series' || !meta?.genres?.length) return;
+    fetchCatalog(type, 'top', meta.genres[0])
+      .then((data) => {
+        if (cancelled) return;
+        setSimilarItems(data.filter((item) => item.id !== id).slice(0, 10));
+      })
+      .catch((err) => console.error('Failed to fetch similar titles:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [isTV, type, id, meta?.genres]);
 
   const handleToggleMovieWatched = async () => {
     const contentId = buildContentId(type, id);
@@ -321,17 +348,12 @@ export default function DetailsScreen() {
 
   const inMyList = displayMeta ? isInList(displayMeta.id, displayMeta.type) : false;
 
-  // Stick to whatever image showed first (the nav-param art passed from the
-  // poster grid) instead of swapping to the fetched meta's backdrop once
-  // loadMeta() resolves - that swap read as the poster changing/blanking.
-  // Only fall back to the fetched meta's art when no param art was passed
-  // (e.g. a deep link straight into details with no source poster).
+  // Prioritize landscape backdrop images for edge-to-edge landscape cover view
   const coverImageUrl = useMemo(() => {
     if (paramBackground) return normalizeImageUrl(paramBackground, 'backdrop');
+    if (displayMeta?.background) return normalizeImageUrl(displayMeta.background, 'backdrop');
     if (paramPoster) return normalizeImageUrl(paramPoster, 'backdrop');
-    if (!displayMeta) return fallbackImageUrl;
-    if (displayMeta.background) return normalizeImageUrl(displayMeta.background, 'backdrop');
-    if (displayMeta.poster) return normalizeImageUrl(displayMeta.poster, 'backdrop');
+    if (displayMeta?.poster) return normalizeImageUrl(displayMeta.poster, 'backdrop');
     return fallbackImageUrl;
   }, [paramBackground, paramPoster, displayMeta]);
 
@@ -358,14 +380,19 @@ export default function DetailsScreen() {
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-        {/* Cinematic Header */}
-        <View style={styles.headerContainer}>
+        {/* Cinematic Header - capped height on TV (Concept A) so it stops
+            swallowing the whole screen; title/meta move to a solid panel
+            below instead of overlaying the artwork. */}
+        <View style={[styles.headerContainer, isTV && tvStyles.headerContainer]}>
           <CoverImage key={coverImageUrl} uri={coverImageUrl} backgroundColor={colors.backgroundElement} iconColor={colors.textSecondary} />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.6)', 'transparent', 'rgba(0,0,0,0.3)', colors.background]}
-            locations={[0, 0.35, 0.7, 1]}
-            style={styles.gradient}
-          />
+          {/* TV: no darkening overlay - image stays fully visible, panel below is a hard solid cut. */}
+          {!isTV && (
+            <LinearGradient
+              colors={['rgba(0,0,0,0.6)', 'transparent', 'rgba(0,0,0,0.3)', colors.background]}
+              locations={[0, 0.35, 0.7, 1]}
+              style={styles.gradient}
+            />
+          )}
 
           {/* Back Button */}
           <View style={[styles.backButtonContainer, { top: Math.max(insets.top, 16) }, isTV && tvStyles.backButtonContainer]}>
@@ -383,102 +410,142 @@ export default function DetailsScreen() {
             </FocusablePressable>
           </View>
 
-          {/* Title + meta overlaid on the artwork itself */}
-          <View style={[styles.headerContent, isTV && tvStyles.headerContent]} pointerEvents="none">
-            <ThemedText style={styles.title} type="title">{displayMeta.name}</ThemedText>
-
-            <View style={styles.metaRow}>
-              {displayMeta.imdbRating && (
-                <ThemedText style={[styles.metaText, styles.metaTextShadow, { color: colors.accent }]}>IMDb {displayMeta.imdbRating}</ThemedText>
-              )}
-              {displayMeta.releaseInfo && (
-                <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{displayMeta.releaseInfo}</ThemedText>
-              )}
-              {displayMeta.runtime && (
-                <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{displayMeta.runtime}</ThemedText>
-              )}
+          {/* Title + meta overlaid on the artwork itself - mobile only.
+              TV renders this in a solid panel below (see tvStyles.titlePanel). */}
+          {!isTV && (
+            <View style={styles.headerContent} pointerEvents="none">
+              <ThemedText style={styles.title} type="title">{displayMeta.name}</ThemedText>
+              <View style={styles.metaRow}>
+                {displayMeta.imdbRating && (
+                  <ThemedText style={[styles.metaText, styles.metaTextShadow, { color: colors.accent }]}>IMDb {displayMeta.imdbRating}</ThemedText>
+                )}
+                {displayMeta.releaseInfo && (
+                  <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{displayMeta.releaseInfo}</ThemedText>
+                )}
+                {displayMeta.runtime && (
+                  <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{displayMeta.runtime}</ThemedText>
+                )}
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         {/* Content Body */}
         <View style={[styles.contentContainer, isTV && tvStyles.contentContainer]}>
 
-          {/* Primary Action */}
-          <View style={isTV && tvStyles.playButtonRow}>
-            <FocusablePressable
-              style={({ pressed }) => [
-                styles.playButton,
-                isTV && tvStyles.playButton,
-                { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }
-              ]}
-              hasTVPreferredFocus={hasDetailsFocus('play-button', true)}
-              onFocus={() => registerDetailsFocusable('play-button')}
-              focusRingBorderRadius={6}
-              accessibilityRole="button"
-              accessibilityLabel="Play"
-              onPress={() => {
-                if (type === 'series' && displayMeta?.videos?.length) {
-                  // Play first episode of selected season
-                  const firstEp = visibleEpisodes[0] || displayMeta.videos[0];
-                  handlePlayEpisode(firstEp.season, firstEp.episode);
-                } else {
-                  handlePlayMovie();
-                }
-              }}
-            >
-              <IconSymbol name="play.fill" color={colors.textOnAccent} size={20} />
-              <ThemedText style={[styles.playButtonText, { color: colors.textOnAccent }]}>
-                {type === 'series' && displayMeta?.videos?.length
-                  ? (visibleEpisodes[0] ? `Play S${visibleEpisodes[0].season}:E${visibleEpisodes[0].episode}` : 'Play')
-                  : 'Play'}
-              </ThemedText>
-            </FocusablePressable>
-          </View>
+          {isTV && (
+            <View style={tvStyles.titlePanel}>
+              <ThemedText style={[styles.title, tvStyles.titleTV, { color: colors.text }]} type="title">{displayMeta.name}</ThemedText>
+              <View style={styles.metaRow}>
+                {displayMeta.imdbRating && (
+                  <View style={[tvStyles.ratingPill, { backgroundColor: colors.backgroundElement }]}>
+                    <IconSymbol name="star.fill" color={colors.accent} size={12} />
+                    <ThemedText style={[styles.metaText, tvStyles.ratingPillText, { color: colors.accent }]}>IMDb {displayMeta.imdbRating}</ThemedText>
+                  </View>
+                )}
+                {displayMeta.releaseInfo && (
+                  <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>{displayMeta.releaseInfo}</ThemedText>
+                )}
+                {displayMeta.runtime && (
+                  <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>{displayMeta.runtime}</ThemedText>
+                )}
+              </View>
+              {!!displayMeta.description && (
+                <ThemedText style={[tvStyles.description, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {displayMeta.description}
+                </ThemedText>
+              )}
+            </View>
+          )}
 
-          {/* Secondary Actions */}
-          <View style={[styles.actionsRow, isTV && tvStyles.actionsRow]}>
-            <FocusablePressable style={[styles.actionItem, isTV && tvStyles.actionItem]} onPress={() => toggleMyList(displayMeta)} hasTVPreferredFocus={hasDetailsFocus('mylist', false)} onFocus={() => registerDetailsFocusable('mylist')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
-              <IconSymbol name={inMyList ? 'checkmark' : 'plus'} color={colors.textSecondary} size={28} />
-              <ThemedText style={[styles.actionText, { color: colors.textSecondary }]}>
-                {inMyList ? 'In List' : 'My List'}
-              </ThemedText>
-            </FocusablePressable>
-            {type === 'movie' && (
-              <FocusablePressable style={[styles.actionItem, isTV && tvStyles.actionItem]} onPress={handleToggleMovieWatched} hasTVPreferredFocus={hasDetailsFocus('watched', false)} onFocus={() => registerDetailsFocusable('watched')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={movieWatched ? 'Mark as unwatched' : 'Mark as watched'}>
-                <IconSymbol name="checkmark" color={movieWatched ? colors.accent : colors.textSecondary} size={28} />
-                <ThemedText style={[styles.actionText, { color: movieWatched ? colors.accent : colors.textSecondary }]}>
-                  {movieWatched ? 'Watched' : 'Mark Watched'}
+          {/* Actions - single row on TV (Play, My List, Watched together);
+              Play gets its own row on mobile, actions stacked below it. */}
+          <View style={isTV ? tvStyles.unifiedActionsRow : undefined}>
+            <View>
+              <FocusablePressable
+                ref={playButtonRef}
+                style={({ pressed }) => [
+                  styles.playButton,
+                  isTV && tvStyles.playButton,
+                  { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }
+                ]}
+                hasTVPreferredFocus={hasDetailsFocus('play-button', true)}
+                onFocus={() => registerDetailsFocusable('play-button')}
+                focusRingBorderRadius={6}
+                accessibilityRole="button"
+                accessibilityLabel="Play"
+                onPress={() => {
+                  if (type === 'series' && displayMeta?.videos?.length) {
+                    // Play first episode of selected season
+                    const firstEp = visibleEpisodes[0] || displayMeta.videos[0];
+                    handlePlayEpisode(firstEp.season, firstEp.episode);
+                  } else {
+                    handlePlayMovie();
+                  }
+                }}
+              >
+                <IconSymbol name="play.fill" color={colors.textOnAccent} size={20} />
+                <ThemedText style={[styles.playButtonText, { color: colors.textOnAccent }]}>
+                  {type === 'series' && displayMeta?.videos?.length
+                    ? (visibleEpisodes[0] ? `Play S${visibleEpisodes[0].season}:E${visibleEpisodes[0].episode}` : 'Play')
+                    : 'Play'}
                 </ThemedText>
               </FocusablePressable>
-            )}
+            </View>
+
+            <View style={[styles.actionsRow, isTV && tvStyles.actionsRow]}>
+              <FocusablePressable style={[styles.actionItem, isTV && tvStyles.actionItem, isTV && { backgroundColor: colors.backgroundElement }]} onPress={() => toggleMyList(displayMeta)} hasTVPreferredFocus={hasDetailsFocus('mylist', false)} onFocus={() => registerDetailsFocusable('mylist')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={inMyList ? 'Remove from My List' : 'Add to My List'}>
+                <IconSymbol name={inMyList ? 'checkmark' : 'plus'} color={colors.textSecondary} size={isTV ? 20 : 28} />
+                <ThemedText style={[styles.actionText, isTV && tvStyles.actionTextTV, { color: colors.textSecondary }]}>
+                  {inMyList ? 'In List' : 'My List'}
+                </ThemedText>
+              </FocusablePressable>
+              {type === 'movie' && (
+                <FocusablePressable style={[styles.actionItem, isTV && [tvStyles.actionItem, tvStyles.actionItemIconOnly], isTV && { backgroundColor: colors.backgroundElement }]} onPress={handleToggleMovieWatched} hasTVPreferredFocus={hasDetailsFocus('watched', false)} onFocus={() => registerDetailsFocusable('watched')} focusRingBorderRadius={8} accessibilityRole="button" accessibilityLabel={movieWatched ? 'Mark as unwatched' : 'Mark as watched'}>
+                  <IconSymbol name="checkmark" color={movieWatched ? colors.accent : colors.textSecondary} size={isTV ? 20 : 28} />
+                  {!isTV && (
+                    <ThemedText style={[styles.actionText, { color: movieWatched ? colors.accent : colors.textSecondary }]}>
+                      {movieWatched ? 'Watched' : 'Mark Watched'}
+                    </ThemedText>
+                  )}
+                </FocusablePressable>
+              )}
+            </View>
           </View>
 
-          {/* Tabs */}
-          <View style={[styles.tabStrip, { borderBottomColor: colors.backgroundSelected }]}>
+          {/* Tabs - underlined strip on mobile, pill row on TV */}
+          <View style={[styles.tabStrip, isTV && tvStyles.tabStrip, !isTV && { borderBottomColor: colors.backgroundSelected }]}>
             {(type === 'series'
               ? (['episodes', 'overview', 'cast'] as const)
               : (['overview', 'cast', 'details'] as const)
-            ).map((tab) => (
-              <FocusablePressable
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                focusRingBorderRadius={6}
-                accessibilityRole="tab"
-                accessibilityLabel={TAB_LABELS[tab]}
-                style={styles.tabItem}
-              >
-                <ThemedText
+            ).map((tab) => {
+              const active = activeTab === tab;
+              return (
+                <FocusablePressable
+                  key={tab}
+                  onPress={() => setActiveTab(tab)}
+                  focusRingBorderRadius={isTV ? 16 : 6}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={TAB_LABELS[tab]}
                   style={[
-                    styles.tabItemText,
-                    { color: activeTab === tab ? colors.text : colors.textSecondary },
+                    styles.tabItem,
+                    isTV && [tvStyles.tabItem, { backgroundColor: active ? colors.accent : colors.backgroundElement }],
                   ]}
                 >
-                  {TAB_LABELS[tab]}
-                </ThemedText>
-                {activeTab === tab && <View style={[styles.tabUnderline, { backgroundColor: colors.accent }]} />}
-              </FocusablePressable>
-            ))}
+                  <ThemedText
+                    style={[
+                      styles.tabItemText,
+                      isTV && tvStyles.tabItemText,
+                      { color: isTV ? (active ? colors.textOnAccent : colors.textSecondary) : (active ? colors.text : colors.textSecondary) },
+                    ]}
+                  >
+                    {TAB_LABELS[tab]}
+                  </ThemedText>
+                  {!isTV && active && <View style={[styles.tabUnderline, { backgroundColor: colors.accent }]} />}
+                </FocusablePressable>
+              );
+            })}
           </View>
 
           {loading ? (
@@ -490,7 +557,7 @@ export default function DetailsScreen() {
               {activeTab === 'episodes' && type === 'series' && displayMeta?.videos && displayMeta.videos.length > 0 && (() => {
                 const EpisodeSelector = EPISODE_SELECTORS[episodeLayout];
                 return (
-                  <View style={styles.tabContent}>
+                  <View style={[styles.tabContent, isTV && tvStyles.tabContent]}>
                     <EpisodeSelector
                       seasons={seasons}
                       selectedSeason={selectedSeason}
@@ -506,7 +573,7 @@ export default function DetailsScreen() {
               })()}
 
               {activeTab === 'overview' && (
-                <View style={styles.tabContent}>
+                <View style={[styles.tabContent, isTV && tvStyles.tabContent]}>
                   <ThemedText style={[styles.synopsis, { color: colors.text }, isTV && tvStyles.synopsis]}>
                     {displayMeta?.description || 'No description available.'}
                   </ThemedText>
@@ -523,17 +590,17 @@ export default function DetailsScreen() {
               )}
 
               {activeTab === 'cast' && (
-                <View style={styles.tabContent}>
+                <View style={[styles.tabContent, isTV && tvStyles.tabContent]}>
                   {displayMeta?.cast?.length ? (
-                    <View style={styles.castGrid}>
+                    <View style={[styles.castGrid, isTV && tvStyles.castGrid]}>
                       {displayMeta.cast.map((name) => (
-                        <View key={name} style={styles.castItem}>
-                          <View style={[styles.castAvatar, { backgroundColor: colors.backgroundSelected }]}>
+                        <View key={name} style={[styles.castItem, isTV && tvStyles.castItem]}>
+                          <View style={[styles.castAvatar, isTV && tvStyles.castAvatar, { backgroundColor: colors.backgroundSelected }]}>
                             <ThemedText style={[styles.castInitials, { color: colors.textSecondary }]}>
                               {name.trim().charAt(0).toUpperCase()}
                             </ThemedText>
                           </View>
-                          <ThemedText style={[styles.castName, { color: colors.textSecondary }]} numberOfLines={2}>
+                          <ThemedText style={[styles.castName, isTV && tvStyles.castName, { color: colors.textSecondary }]} numberOfLines={isTV ? 1 : 2}>
                             {name}
                           </ThemedText>
                         </View>
@@ -542,11 +609,42 @@ export default function DetailsScreen() {
                   ) : (
                     <ThemedText style={{ color: colors.textSecondary }}>No cast information available.</ThemedText>
                   )}
+                  {isTV && type !== 'series' && similarItems.length > 0 && (
+                    <View style={tvStyles.moreLikeThis}>
+                      <ThemedText style={tvStyles.moreLikeThisTitle}>More Like This</ThemedText>
+                      <FlatList
+                        data={similarItems}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={tvStyles.moreLikeThisRow}
+                        renderItem={({ item }) => (
+                          <PosterCard
+                            title={item.name}
+                            imageUrl={item.poster || ''}
+                            style={tvStyles.moreLikeThisCard}
+                            onPress={() => {
+                              router.push({
+                                pathname: '/details',
+                                params: {
+                                  id: item.id,
+                                  type: item.type,
+                                  title: item.name,
+                                  poster: normalizeImageUrl(item.poster),
+                                  background: normalizeImageUrl(item.background || item.poster, 'backdrop'),
+                                },
+                              });
+                            }}
+                          />
+                        )}
+                      />
+                    </View>
+                  )}
                 </View>
               )}
 
               {activeTab === 'details' && type !== 'series' && (
-                <View style={styles.tabContent}>
+                <View style={[styles.tabContent, isTV && tvStyles.tabContent]}>
                   {!!displayMeta?.director?.length && (
                     <View style={styles.detailRow}>
                       <ThemedText style={[styles.detailLabel, { color: colors.textSecondary }]}>Director</ThemedText>
@@ -611,7 +709,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   coverImage: {
-    width: SCREEN_WIDTH,
+    width: '100%',
     height: '100%',
   },
   coverImageFallback: {
@@ -797,33 +895,129 @@ const tvStyles = StyleSheet.create({
   backButtonContainer: {
     left: 32,
   },
-  headerContent: {
-    left: 32,
-    right: 32,
-    maxWidth: 800,
+  // Matches the imported design's backdrop ratio (~180/631 ≈ 28%) — the
+  // design fits title/meta/actions/tabs/full-tab-content on one screen with
+  // zero scroll; a taller header pushed content below the fold.
+  headerContainer: {
+    width: '100%',
+    height: SCREEN_HEIGHT * 0.15,
+    backgroundColor: '#000000',
+  },
+  titlePanel: {
+    marginBottom: 6,
+  },
+  titleTV: {
+    fontSize: 28,
+    marginBottom: 4,
+    textShadowColor: 'transparent',
+    textShadowRadius: 0,
   },
   contentContainer: {
     paddingHorizontal: 32,
-  },
-  playButtonRow: {
-    flexDirection: 'row',
+    paddingTop: 8,
   },
   playButton: {
-    paddingHorizontal: 28,
-    marginBottom: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 6,
   },
   actionsRow: {
     justifyContent: 'flex-start',
-    gap: 40,
-    marginBottom: 28,
+    gap: 12,
   },
   actionItem: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  // Watched is a compact icon-only toggle (no label) so the row keeps the
+  // design's two-prominent-pill visual weight (Play + My List) instead of a
+  // third full-width pill the design doesn't show.
+  actionItemIconOnly: {
+    paddingHorizontal: 12,
+  },
+  actionTextTV: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   synopsis: {
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 22,
     maxWidth: 900,
+    marginBottom: 6,
+  },
+  // Concept A, requested variant: description sits right under the meta row,
+  // and Play / My List / Watched are one pill-button row instead of a big
+  // Play button with a stacked icon row underneath.
+  unifiedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 4,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  ratingPillText: {
+    fontSize: 13,
+  },
+  description: {
+    fontSize: 14,
+    lineHeight: 19,
+    marginTop: 4,
+    maxWidth: 640,
+  },
+  tabStrip: {
+    borderBottomWidth: 0,
+    gap: 10,
+    marginBottom: 6,
+  },
+  tabItem: {
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  tabItemText: {
+    fontSize: 13,
+  },
+  tabContent: {
+    paddingTop: 2,
+  },
+  castGrid: {
+    gap: 12,
+  },
+  castItem: {
+    width: 100,
+  },
+  castAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  castName: {
+    fontSize: 12,
+  },
+  moreLikeThis: {
+    marginTop: 6,
+  },
+  moreLikeThisTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  moreLikeThisRow: {
+    gap: 10,
+  },
+  moreLikeThisCard: {
+    width: 90,
+    marginRight: 0,
   },
 });

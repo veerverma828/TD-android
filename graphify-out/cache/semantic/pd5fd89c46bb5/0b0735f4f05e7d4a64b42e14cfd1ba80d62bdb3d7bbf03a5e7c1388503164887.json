@@ -1,0 +1,1 @@
+{"nodes": [{"id": "doc:workflow:graphify_workflow", "label": "Graphify Workflow", "type": "concept", "source_file": ".agents/workflows/graphify.md", "summary": "Workflow guide for executing graphify knowledge graph pipeline.", "confidence": 0.95}], "edges": [], "hyperedges": []}

@@ -7,6 +7,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 import { FocusablePressable } from './tv/FocusablePressable';
 
+import { useIsTV } from '@/contexts/DeviceModeContext';
+
 interface EpisodeRowProps {
   episodeNumber: number;
   title: string;
@@ -21,6 +23,7 @@ interface EpisodeRowProps {
 
 export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, duration, imageUrl, overview, rating, watched, onPress, onToggleWatched }: EpisodeRowProps) {
   const { colors } = useAppTheme();
+  const isTV = useIsTV();
 
   return (
     <FocusablePressable
@@ -37,11 +40,11 @@ export const EpisodeRow = memo(function EpisodeRow({ episodeNumber, title, durat
         <Image
           source={{ uri: imageUrl }}
           style={styles.image}
-          contentFit="cover"
+          contentFit={isTV ? 'contain' : 'cover'}
           transition={200}
           cachePolicy="memory-disk"
           placeholder={DARK_IMAGE_PLACEHOLDER}
-          placeholderContentFit="cover"
+          placeholderContentFit={isTV ? 'contain' : 'cover'}
         />
         <View style={styles.playIconOverlay}>
           <IconSymbol name="play.circle.fill" color="#ffffff" size={28} />

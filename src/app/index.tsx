@@ -15,12 +15,14 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { TVScrollContext, useTVAutoScroll } from '@/contexts/TVScrollContext';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
+import { usePushedScreenFocus } from '@/hooks/tv/usePushedScreenFocus';
 import { useMyList } from '@/contexts/MyListContext';
 import { useContinueWatching, ContinueWatchingItem } from '@/hooks/useContinueWatching';
 import { checkForNewEpisodes } from '@/services/notificationService';
 import { normalizeImageUrl } from '@/utils/imageUrl';
 
 const CURRENT_YEAR = String(new Date().getFullYear());
+const HERO_SLIDE_COUNT = 5;
 
 interface RowConfig {
   key: string;
@@ -95,6 +97,10 @@ export default function HomeScreen() {
   const [extraRows, setExtraRows] = useState<Record<string, MetaItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<MetaItem | null>(null);
+  // TVTabBar stays mounted alongside Home in the same initial commit, so it
+  // can win the native default-focus race against hasTVPreferredFocus below
+  // (same race as pushed screens) — grab focus imperatively to close it.
+  const heroPlayButtonRef = usePushedScreenFocus<View>([loading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,21 +150,29 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Default main hero pick: continue-watching lead (if available), or top movie/series.
-  const heroSourceItem = useMemo(() => {
+  // Hero pick(s): continue-watching lead first (if available), then a fixed-size,
+  // artwork-only pool from top movies/series, shuffled with a per-day seed so the
+  // lineup feels editorial — stable through the day, not reshuffled on every
+  // focus, but still rotates daily instead of being frozen forever.
+  // Phone shows the full pool as a swipeable carousel; TV uses only the lead pick.
+  const heroSourceItems = useMemo(() => {
     const pool = [...movies, ...series].filter((m) => m.background || m.poster);
-    if (pool.length === 0) return null;
+    if (pool.length === 0) return [];
+
+    const daySeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    const shuffled = seededShuffle(pool, daySeed);
 
     const inProgressIds = new Set(
       continueWatchingItems.filter((i) => !i.isNext && i.progress > 0).map((i) => i.id)
     );
     const leadItem = pool.find((m) => inProgressIds.has(m.id));
-    if (leadItem) return leadItem;
 
-    const daySeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-    const shuffled = seededShuffle(pool, daySeed);
-    return shuffled[0] || pool[0];
+    const rest = leadItem ? shuffled.filter((m) => m.id !== leadItem.id) : shuffled;
+    const picks = leadItem ? [leadItem, ...rest] : rest;
+    return picks.slice(0, HERO_SLIDE_COUNT);
   }, [movies, series, continueWatchingItems]);
+
+  const heroSourceItem = heroSourceItems[0] || null;
 
   const handleNavigateToDetails = useCallback((id: string, type: string, title?: string, poster?: string, background?: string) => {
     router.push({
@@ -219,6 +233,19 @@ export default function HomeScreen() {
         isInMyList: isInList(heroSourceItem.id, heroSourceItem.type),
       }
     : null;
+
+  const heroItems: HeroItem[] = useMemo(
+    () =>
+      heroSourceItems.map((item) => ({
+        id: item.id,
+        title: item.name,
+        subtitle: item.description?.substring(0, 80) + '...' || 'A journey beyond the edge of the known universe.',
+        imageUrl: normalizeImageUrl(item.background || item.poster) || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
+        tags: item.genres?.slice(0, 3) || ['Movie'],
+        isInMyList: isInList(item.id, item.type),
+      })),
+    [heroSourceItems, isInList]
+  );
 
   const heroItemById = (id: string) => allMeta.find((m) => m.id === id);
 
@@ -286,6 +313,8 @@ export default function HomeScreen() {
             {heroItem && (
               <HeroBanner
                 item={heroItem}
+                items={heroItems}
+                eyebrow="Featured Original"
                 onPlayPress={(item) => {
                   const meta = heroItemById(item.id);
                   if (meta) handleNavigateToDetails(meta.id, meta.type, meta.name, normalizeImageUrl(meta.poster), normalizeImageUrl(meta.background || meta.poster, 'backdrop'));
@@ -294,8 +323,13 @@ export default function HomeScreen() {
                   const meta = heroItemById(item.id);
                   if (meta) toggleMyList(meta);
                 }}
+                onInfoPress={(item) => {
+                  const meta = heroItemById(item.id);
+                  if (meta) handleNavigateToDetails(meta.id, meta.type, meta.name, normalizeImageUrl(meta.poster), normalizeImageUrl(meta.background || meta.poster, 'backdrop'));
+                }}
                 hasTVPreferredFocus={hasHomeFocus('hero-play', true)}
                 onPlayFocus={() => registerHomeFocusable('hero-play')}
+                playButtonRef={heroPlayButtonRef}
               />
             )}
 

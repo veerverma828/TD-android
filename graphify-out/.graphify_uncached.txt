@@ -1,0 +1,2 @@
+/home/veer/TD-android/.agents/rules/graphify.md
+/home/veer/TD-android/.agents/workflows/graphify.md

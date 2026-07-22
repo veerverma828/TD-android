@@ -6,6 +6,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useIsTV } from '@/contexts/DeviceModeContext';
+import { useTVHorizontalAutoScroll } from '@/hooks/tv/useTVHorizontalAutoScroll';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 import { Video } from '@/services/cinemeta';
 import { EpisodeSelectorProps, seasonLabel } from './types';
@@ -17,6 +18,7 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
   const { colors } = useAppTheme();
   const isTV = useIsTV();
   const listRef = useRef<FlatList<Video>>(null);
+  const { scrollToIndex } = useTVHorizontalAutoScroll(listRef);
   const visibleEpisodes = allVideos.filter((v) => v.season === selectedSeason);
 
   return (
@@ -54,17 +56,17 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
             focusRingBorderRadius={10}
             accessibilityRole="button"
             accessibilityLabel={ep.title ? `Episode ${ep.episode}, ${ep.title}` : `Episode ${ep.episode}`}
-            onFocus={isTV ? () => listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true }) : undefined}
+            onFocus={isTV ? () => scrollToIndex(index) : undefined}
           >
             <View style={[styles.thumbWrap, { backgroundColor: colors.backgroundElement }]}>
               <Image
                 source={{ uri: ep.thumbnail || posterFallback || '' }}
                 style={styles.thumb}
-                contentFit="cover"
+                contentFit={isTV ? 'contain' : 'cover'}
                 transition={200}
                 cachePolicy="memory-disk"
                 placeholder={DARK_IMAGE_PLACEHOLDER}
-                placeholderContentFit="cover"
+                placeholderContentFit={isTV ? 'contain' : 'cover'}
               />
               <View style={styles.numberBadge}>
                 <ThemedText style={styles.numberBadgeText}>{ep.episode}</ThemedText>
