@@ -141,7 +141,10 @@ class PlayerActivity : ComponentActivity() {
         // Overriding onBackPressed() directly instead of using the dispatcher would bypass
         // that chain entirely for any device still routing Back through the legacy path
         // (TV remote, 3-button nav) since it doesn't call through to Compose's callback.
-        onBackPressedDispatcher.addCallback(this) { finishWithResult() }
+        onBackPressedDispatcher.addCallback(this) {
+            android.util.Log.d("BackDebug", "Activity-level dispatcher fallback fired (Compose BackHandler did not intercept)")
+            finishWithResult()
+        }
 
         val raw = intent.getStringExtra(EXTRA_CONFIG_JSON) ?: "{}"
         config = JSONObject(raw)
@@ -678,8 +681,15 @@ class PlayerActivity : ComponentActivity() {
     // entirely to TvRemoteInputController so DPAD/OK logic lives in one testable place
     // instead of scattered across key-event listeners.
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            android.util.Log.d("BackDebug", "Activity.dispatchKeyEvent BACK action=${event.action}")
+        }
         if (tvRemoteController.dispatchKeyEvent(event)) return true
-        return super.dispatchKeyEvent(event)
+        val result = super.dispatchKeyEvent(event)
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            android.util.Log.d("BackDebug", "Activity.dispatchKeyEvent BACK super result=$result")
+        }
+        return result
     }
 
     override fun onDestroy() {
