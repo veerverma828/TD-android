@@ -423,6 +423,7 @@ fun PlayerRoot(
 // top of it in z-order, so Compose hit-testing gives them priority.
 // ---------------------------------------------------------------------------
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun PlayerControlsOverlay(
     visible: Boolean,
