@@ -223,17 +223,28 @@ export interface StreamSourceAddon {
   name: string;
 }
 
+// Collects whichever addons settle, log-and-drop the rest instead of failing the
+// whole batch on one slow/dead addon (Promise.all would wait for it AND discard
+// every other addon's already-successful results once it rejected).
+function collectSettled(results: PromiseSettledResult<TorrentioStream[]>[]): TorrentioStream[] {
+  const streams: TorrentioStream[] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      streams.push(...result.value);
+    } else if (result.reason?.message !== 'AbortError') {
+      console.error(result.reason);
+    }
+  }
+  return streams;
+}
+
 export async function fetchMovieStreams(id: string, addons: StreamSourceAddon[], options?: FetchOptions): Promise<TorrentioStream[]> {
   if (addons.length === 0) return [];
   const fetchPromises = addons.map((addon) => {
     const baseUrl = addon.manifestUrl.replace(/\/manifest\.json$/, "");
-    return fetchAddonStreams(`${baseUrl}/stream/movie/${encodePathPart(id)}.json`, addon.name, options).catch(err => {
-      if (err.message !== 'AbortError') console.error(err);
-      throw err;
-    });
+    return fetchAddonStreams(`${baseUrl}/stream/movie/${encodePathPart(id)}.json`, addon.name, options);
   });
-  const dataArray = await Promise.all(fetchPromises);
-  return dataArray.flat();
+  return collectSettled(await Promise.allSettled(fetchPromises));
 }
 
 export async function fetchEpisodeStreams(id: string, season: number, episode: number, addons: StreamSourceAddon[], options?: FetchOptions): Promise<TorrentioStream[]> {
@@ -244,11 +255,7 @@ export async function fetchEpisodeStreams(id: string, season: number, episode: n
       `${baseUrl}/stream/series/${encodePathPart(id)}:${encodePathPart(season)}:${encodePathPart(episode)}.json`,
       addon.name,
       options
-    ).catch(err => {
-      if (err.message !== 'AbortError') console.error(err);
-      throw err;
-    });
+    );
   });
-  const dataArray = await Promise.all(fetchPromises);
-  return dataArray.flat();
+  return collectSettled(await Promise.allSettled(fetchPromises));
 }

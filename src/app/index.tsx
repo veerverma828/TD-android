@@ -342,6 +342,10 @@ export default function HomeScreen() {
                     params.autoplaySeason = String(item.season);
                     params.autoplayEpisode = String(item.episode);
                   }
+                  if (item.poster) {
+                    params.poster = normalizeImageUrl(item.poster);
+                    params.background = normalizeImageUrl(item.poster, 'backdrop');
+                  }
                   router.push({ pathname: '/details', params });
                 }}
                 onLongPressItem={(item) => setSelectedContinueWatchingItem(item)}

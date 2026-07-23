@@ -326,6 +326,12 @@ export default function DetailsScreen() {
   useEffect(() => {
     if (!meta || autoplayTriggeredRef.current || autoplay !== '1') return;
     autoplayTriggeredRef.current = true;
+    // Consume-and-clear: this screen instance gets reused across titles (router.push to
+    // the same route merges params rather than replacing them), so a leftover autoplay=1
+    // (+ stale season/episode) from a Continue Watching open would otherwise survive into
+    // the next, unrelated /details navigation - popping the streams modal uninvited and
+    // fetching the wrong season/episode's streams for whatever title you actually tapped.
+    router.setParams({ autoplay: undefined, autoplaySeason: undefined, autoplayEpisode: undefined });
     if (autoplaySeason && autoplayEpisode) {
       handlePlayEpisode(Number(autoplaySeason), Number(autoplayEpisode));
     } else {

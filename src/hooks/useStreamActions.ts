@@ -26,6 +26,7 @@ export interface PlaybackMeta {
 export function useStreamActions(meta: PlaybackMeta = {}) {
   const router = useRouter();
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolvingStage, setResolvingStage] = useState<string | null>(null);
   const [fileSelection, setFileSelection] = useState<{ files: DebridFile[], torrentId: string | number, provider: DebridProvider, apiKey: string, sourceKey: string } | null>(null);
   const requestTokenRef = useRef(0);
   // Set right before resolution starts; consulted once the final playable URL is
@@ -89,12 +90,13 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
   const resolveAndPlay = async (torrentId: string | number, fileId: string | number, provider: DebridProvider, apiKey: string, sourceKey?: string) => {
     setResolvingId(sourceKey ?? torrentId.toString());
     try {
-      const downloadUrl = await generateLink(torrentId, fileId, provider, apiKey);
+      const downloadUrl = await generateLink(torrentId, fileId, provider, apiKey, setResolvingStage);
       await handleResolvedUrl(downloadUrl);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to generate download link');
     } finally {
       setResolvingId(null);
+      setResolvingStage(null);
       setFileSelection(null);
     }
   };
@@ -141,21 +143,26 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
     const token = ++requestTokenRef.current;
     setResolvingId(magnetOrUrl);
     try {
-      const result = await getFiles(magnetOrUrl, provider, apiKey);
+      const result = await getFiles(magnetOrUrl, provider, apiKey, (stage) => {
+        if (requestTokenRef.current === token) setResolvingStage(stage);
+      });
       if (requestTokenRef.current !== token) return; // a newer play() superseded this one
       if (result.files.length === 1) {
         await resolveAndPlay(result.torrentId, result.files[0].id, provider, apiKey, magnetOrUrl);
       } else if (result.files.length > 1) {
         setFileSelection({ files: result.files, torrentId: result.torrentId, provider, apiKey, sourceKey: magnetOrUrl });
         setResolvingId(null);
+        setResolvingStage(null);
       } else {
         Alert.alert('Error', 'No playable files found in this stream.');
         setResolvingId(null);
+        setResolvingStage(null);
       }
     } catch (e: any) {
       if (requestTokenRef.current !== token) return;
       Alert.alert('Error resolving stream', e.message);
       setResolvingId(null);
+      setResolvingStage(null);
     }
   };
 
@@ -178,6 +185,7 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
     copyUrl,
     download,
     resolvingId,
+    resolvingStage,
     fileSelection,
     setFileSelection,
     resolveAndPlay

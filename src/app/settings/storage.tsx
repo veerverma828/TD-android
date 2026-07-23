@@ -114,7 +114,7 @@ export default function StorageSettingsScreen() {
               <View>
                 <ThemedText style={settingsStyles.rowLabel}>You're up to date</ThemedText>
                 <ThemedText style={[settingsStyles.rowSubtext, { color: colors.textSecondary, marginBottom: 12 }]}>
-                  Build {String(Application.nativeBuildVersion ?? '0')} is the latest available
+                  Build {String(buildNumber)} is the latest available
                 </ThemedText>
                 <FocusablePressable
                   onPress={handleCheck}

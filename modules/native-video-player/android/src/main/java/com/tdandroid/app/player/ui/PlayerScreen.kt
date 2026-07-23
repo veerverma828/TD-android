@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -43,6 +45,7 @@ import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -236,6 +239,10 @@ fun PlayerRoot(
     seekPreviewSeconds: Double?,
     speedBoostLevel: Float?,
     isInPictureInPicture: Boolean,
+    isBuffering: Boolean,
+    fatalErrorMessage: String?,
+    onRetryError: () -> Unit,
+    onDismissError: () -> Unit,
     onMenuOpenChanged: (Boolean) -> Unit,
     onHideControls: () -> Unit,
 ) {
@@ -261,6 +268,7 @@ fun PlayerRoot(
     BackHandler {
         android.util.Log.d("BackDebug", "BackHandler invoked, tracksSheetKind=$tracksSheetKind locked=${state.locked} controlsVisible=$controlsVisible")
         when {
+            fatalErrorMessage != null -> onDismissError()
             tracksSheetKind != null -> closeMenu()
             state.locked -> Unit
             controlsVisible -> onHideControls()
@@ -384,6 +392,7 @@ fun PlayerRoot(
             SeekIndicator(deltaSeconds = seekPreviewSeconds)
             SpeedBoostIndicator(multiplier = speedBoostLevel)
             ResizeModeToast(toast = resizeToast, onExpire = { resizeToast = null })
+            BufferingIndicator(visible = isBuffering)
 
             tracksSheetKind?.let { kind ->
                 TrackSelectionSheet(
@@ -394,6 +403,14 @@ fun PlayerRoot(
                     onSelectText = { onSelectTextTrack(it) },
                     onDismiss = { closeMenu() },
                 )
+            }
+
+            // Topmost in z-order on purpose - whatever ultimately kills playback (decoder
+            // rejection, network failure, unsupported container, ...) should always end up
+            // visible here instead of leaving the user staring at a plain black surface with
+            // no way to tell a hung stream from a genuinely dead one.
+            fatalErrorMessage?.let { message ->
+                FatalErrorOverlay(message = message, accent = palette.accent, onRetry = onRetryError, onBack = onDismissError)
             }
         }
     }
@@ -692,6 +709,19 @@ fun SeekIndicator(deltaSeconds: Double?) {
     }
 }
 
+// Covers the gap between STATE_BUFFERING and the first decoded frame (or a mid-playback
+// rebuffer) — without this, the SurfaceView shows nothing during that gap and looks
+// indistinguishable from a broken black screen instead of "loading."
+@Composable
+fun BufferingIndicator(visible: Boolean) {
+    val palette = LocalPlayerPalette.current
+    AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = palette.accent, strokeWidth = 3.dp)
+        }
+    }
+}
+
 @Composable
 fun SpeedBoostIndicator(multiplier: Float?) {
     if (multiplier == null) return
@@ -834,5 +864,69 @@ private fun TrackRow(label: String, selected: Boolean, accent: Color, isFirst: B
             .padding(vertical = 10.dp, horizontal = 8.dp),
     ) {
         Text(label, color = if (selected) accent else Color.White, fontSize = 14.sp)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Fatal error - full-screen, always wins z-order (see call site). Whatever
+// ErrorRecoveryManager gave up on lands here as plain text instead of the user
+// just staring at a black SurfaceView with no way to tell what happened.
+// ---------------------------------------------------------------------------
+
+@Composable
+fun FatalErrorOverlay(message: String, accent: Color, onRetry: () -> Unit, onBack: () -> Unit) {
+    val isTv = isTvDevice(LocalContext.current)
+    val retryFocus = remember { FocusRequester() }
+    if (isTv) {
+        LaunchedEffect(Unit) { retryFocus.requestFocus() }
+    }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.92f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})
+            .focusGroup()
+            .focusProperties { exit = { FocusRequester.Cancel } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+            Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(48.dp))
+            Spacer(Modifier.height(12.dp))
+            Text("Playback Error", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                message,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 14.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.widthIn(max = 480.dp),
+            )
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                Row(
+                    Modifier
+                        .focusRequester(retryFocus)
+                        .let { if (isTv) it.tvFocusRing(accent, shape = RoundedCornerShape(8.dp)) else it }
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accent)
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRetry)
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Retry", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+                Row(
+                    Modifier
+                        .let { if (isTv) it.tvFocusRing(accent, shape = RoundedCornerShape(8.dp)) else it }
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onBack)
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Go Back", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 }

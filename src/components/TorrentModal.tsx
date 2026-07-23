@@ -25,7 +25,7 @@ interface TorrentModalProps {
 
 export function TorrentModal({ visible, onClose, options, cachedHashes, loading, error, contentTitle, contentPoster, contentBackdrop, contentId }: TorrentModalProps) {
   const { colors } = useAppTheme();
-  const { play, playExternal, copyUrl, download, resolvingId, fileSelection, setFileSelection, resolveAndPlay } = useStreamActions({
+  const { play, playExternal, copyUrl, download, resolvingId, resolvingStage, fileSelection, setFileSelection, resolveAndPlay } = useStreamActions({
     title: contentTitle,
     poster: contentPoster,
     backdrop: contentBackdrop,
@@ -238,8 +238,8 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
                           ) : (
                             <IconSymbol name="play.fill" color={colors.textOnAccent} size={16} />
                           )}
-                          <ThemedText style={[styles.actionBtnText, { color: colors.textOnAccent }]}>
-                            {resolvingId === opt.magnet ? 'Resolving...' : 'Play'}
+                          <ThemedText style={[styles.actionBtnText, { color: colors.textOnAccent }]} numberOfLines={1}>
+                            {resolvingId === opt.magnet ? (resolvingStage ?? 'Resolving...') : 'Play'}
                           </ThemedText>
                         </FocusablePressable>
                         <FocusablePressable

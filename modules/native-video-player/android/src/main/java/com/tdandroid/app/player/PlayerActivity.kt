@@ -74,6 +74,11 @@ class PlayerActivity : ComponentActivity() {
         override fun rebuildPlayerAfterDecoderFailure() = rebuildPlayer()
 
         override fun reportFatalError(message: String, code: String) {
+            // Shown directly on the player screen (see fatalError below) - emitting to JS
+            // alone isn't enough since player.tsx never wired an onError handler, so without
+            // this the failure was silently invisible: black surface, no message, no way to
+            // tell a hung stream from a dead one.
+            fatalError.value = message
             emitEvent(
                 "nativePlayerError",
                 Arguments.createMap().apply {
@@ -96,6 +101,8 @@ class PlayerActivity : ComponentActivity() {
     private val controlsVisible = mutableStateOf(true)
     private val locked = mutableStateOf(false)
     private val paused = mutableStateOf(true)
+    private val isBuffering = mutableStateOf(false)
+    private val fatalError = mutableStateOf<String?>(null)
     private val currentTime = mutableStateOf(0.0)
     private val duration = mutableStateOf(0.0)
     private val volumeIndicator = mutableStateOf<Float?>(null)
@@ -243,6 +250,17 @@ class PlayerActivity : ComponentActivity() {
                 seekPreviewSeconds = seekPreview.value,
                 speedBoostLevel = speedBoostIndicator.value,
                 isInPictureInPicture = inPictureInPicture.value,
+                isBuffering = isBuffering.value,
+                fatalErrorMessage = fatalError.value,
+                onRetryError = {
+                    fatalError.value = null
+                    errorRecoveryManager.reset()
+                    rebuildPlayer()
+                },
+                onDismissError = {
+                    fatalError.value = null
+                    finishWithResult()
+                },
                 onMenuOpenChanged = { open -> onMenuOpenChanged(open) },
                 onHideControls = {
                     controlsVisible.value = false
@@ -378,6 +396,9 @@ class PlayerActivity : ComponentActivity() {
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            // Covers initial prepare, mid-playback rebuffer, and the decoder-rebuild recovery
+            // path — all three otherwise show a plain black SurfaceView with no feedback.
+            isBuffering.value = playbackState == Player.STATE_BUFFERING
             if (playbackState == Player.STATE_READY) {
                 duration.value = (player?.duration ?: 0L).coerceAtLeast(0L) / 1000.0
                 // Reached READY again after a prior error path (or never errored at all) —
