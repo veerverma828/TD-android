@@ -13,6 +13,7 @@ import { useMyList } from '@/contexts/MyListContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { padToColumns } from '@/utils/gridHelpers';
 import { MetaItem } from '@/services/cinemeta';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 import { usePushedScreenFocus } from '@/hooks/tv/usePushedScreenFocus';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
@@ -92,7 +93,16 @@ export default function LibraryScreen() {
                   subtitle={item.releaseInfo}
                   imageUrl={item.poster || ''}
                   rating={showRating ? item.imdbRating : undefined}
-                  onPress={() => router.push({ pathname: '/details', params: { id: item.id, type: item.type } })}
+                  onPress={() => router.push({
+                    pathname: '/details',
+                    params: {
+                      id: item.id,
+                      type: item.type,
+                      title: item.name,
+                      ...(item.poster ? { poster: normalizeImageUrl(item.poster) } : {}),
+                      ...((item.background || item.poster) ? { background: normalizeImageUrl(item.background || item.poster, 'backdrop') } : {}),
+                    },
+                  })}
                   onLongPress={() => setSelectedItem(item)}
                   style={{ ...styles.posterCard, width: `${100 / columns - 2}%` }}
                   hasTVPreferredFocus={hasPreferredFocus(restoreKey, index === 0)}
@@ -115,7 +125,16 @@ export default function LibraryScreen() {
                   label: 'View Details',
                   icon: 'info.circle',
                   onPress: () =>
-                    router.push({ pathname: '/details', params: { id: selectedItem.id, type: selectedItem.type } }),
+                    router.push({
+                      pathname: '/details',
+                      params: {
+                        id: selectedItem.id,
+                        type: selectedItem.type,
+                        title: selectedItem.name,
+                        ...(selectedItem.poster ? { poster: normalizeImageUrl(selectedItem.poster) } : {}),
+                        ...((selectedItem.background || selectedItem.poster) ? { background: normalizeImageUrl(selectedItem.background || selectedItem.poster, 'backdrop') } : {}),
+                      },
+                    }),
                 },
                 {
                   label: 'Remove from Library',

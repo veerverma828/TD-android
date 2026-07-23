@@ -12,6 +12,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useMyList } from '@/contexts/MyListContext';
 import { fetchMeta, Video } from '@/services/cinemeta';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
@@ -19,6 +20,7 @@ interface CalendarEntry {
   showId: string;
   showName: string;
   poster?: string;
+  background?: string;
   season: number;
   episode: number;
   title: string;
@@ -62,6 +64,7 @@ export default function CalendarScreen() {
               showId: show.id,
               showName: show.name,
               poster: show.poster,
+              background: show.background,
               season: v.season,
               episode: v.episode,
               title: v.title,
@@ -129,7 +132,16 @@ export default function CalendarScreen() {
                   <FocusablePressable
                     key={restoreKey}
                     style={[styles.row, { borderColor: colors.backgroundSelected }]}
-                    onPress={() => router.push({ pathname: '/details', params: { id: entry.showId, type: 'series' } })}
+                    onPress={() => router.push({
+                      pathname: '/details',
+                      params: {
+                        id: entry.showId,
+                        type: 'series',
+                        title: entry.showName,
+                        ...(entry.poster ? { poster: normalizeImageUrl(entry.poster) } : {}),
+                        ...((entry.background || entry.poster) ? { background: normalizeImageUrl(entry.background || entry.poster, 'backdrop') } : {}),
+                      },
+                    })}
                     hasTVPreferredFocus={hasPreferredFocus(restoreKey, sectionIndex === 0 && entryIndex === 0)}
                     onFocus={() => registerFocusable(restoreKey)}
                     focusRingScale={false}

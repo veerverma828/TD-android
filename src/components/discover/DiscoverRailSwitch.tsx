@@ -9,6 +9,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { padToColumns } from '@/utils/gridHelpers';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 
@@ -123,7 +124,16 @@ export function DiscoverRailSwitch() {
                 subtitle={item.releaseInfo}
                 imageUrl={item.poster || ''}
                 rating={showRating ? item.imdbRating : undefined}
-                onPress={() => router.push({ pathname: '/details', params: { id: item.id, type: item.type } })}
+                onPress={() => router.push({
+                  pathname: '/details',
+                  params: {
+                    id: item.id,
+                    type: item.type,
+                    title: item.name,
+                    ...(item.poster ? { poster: normalizeImageUrl(item.poster) } : {}),
+                    ...((item.background || item.poster) ? { background: normalizeImageUrl(item.background || item.poster, 'backdrop') } : {}),
+                  },
+                })}
                 style={styles.poster}
                 hasTVPreferredFocus={hasPreferredFocus(restoreKey, index === 0)}
                 onFocus={() => registerFocusable(restoreKey)}

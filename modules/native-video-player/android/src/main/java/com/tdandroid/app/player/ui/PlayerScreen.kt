@@ -873,6 +873,7 @@ private fun TrackRow(label: String, selected: Boolean, accent: Color, isFirst: B
 // just staring at a black SurfaceView with no way to tell what happened.
 // ---------------------------------------------------------------------------
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun FatalErrorOverlay(message: String, accent: Color, onRetry: () -> Unit, onBack: () -> Unit) {
     val isTv = isTvDevice(LocalContext.current)

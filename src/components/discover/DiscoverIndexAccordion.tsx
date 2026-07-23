@@ -8,6 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { fetchCatalog, MetaItem } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 
 type MediaType = 'movie' | 'series';
@@ -96,7 +97,16 @@ export function DiscoverIndexAccordion() {
                       {(items || []).map((item) => (
                         <FocusablePressable
                           key={item.id}
-                          onPress={() => router.push({ pathname: '/details', params: { id: item.id, type: item.type } })}
+                          onPress={() => router.push({
+                            pathname: '/details',
+                            params: {
+                              id: item.id,
+                              type: item.type,
+                              title: item.name,
+                              ...(item.poster ? { poster: normalizeImageUrl(item.poster) } : {}),
+                              ...((item.background || item.poster) ? { background: normalizeImageUrl(item.background || item.poster, 'backdrop') } : {}),
+                            },
+                          })}
                           style={{ width: 78 }}
                           focusRingBorderRadius={4}
                           accessibilityRole="button"
