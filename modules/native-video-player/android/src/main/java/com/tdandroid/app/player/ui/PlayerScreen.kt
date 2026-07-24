@@ -259,7 +259,22 @@ fun PlayerRoot(
     fun closeMenu() {
         tracksSheetKind = null
         onMenuOpenChanged(false)
-        lastFocused.requestFocus()
+    }
+
+    // Deferred to a LaunchedEffect (not called directly in closeMenu()) - the focused
+    // TrackRow is disposed when the sheet leaves composition, and Compose's own focus
+    // system auto-recovers focus to the first focusable in the overlay (the Back icon)
+    // as part of that disposal. That recovery happens on the same recomposition, after
+    // closeMenu()'s own requestFocus() call, so a synchronous call there loses the race
+    // and gets silently overridden. Running it here, keyed on tracksSheetKind, guarantees
+    // it fires after the sheet (and its disposal-time focus fallback) is done.
+    LaunchedEffect(tracksSheetKind) {
+        if (tracksSheetKind == null) {
+            // Play/pause always, not lastFocused (which points at whichever button opened
+            // the sheet - audio/subs) - it's the natural place to land back on after
+            // dismissing the menu, not the icon that spawned it.
+            focusTargets.playPause.requestFocus()
+        }
     }
 
     // Back priority chain: close an open menu, else (unless locked, which requires
