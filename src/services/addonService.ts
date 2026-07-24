@@ -22,6 +22,40 @@ function toManifestUrl(rawUrl: string): string {
   return trimmed.endsWith('/manifest.json') ? trimmed : `${trimmed}/manifest.json`;
 }
 
+// A malicious "addon" URL is otherwise indistinguishable from a real one until
+// fetched — this app has fetched it (and every stream/manifest request derived from
+// it, see cinemeta.ts) with no scheme or host restriction at all. Blocks the obvious
+// cases: non-http(s) schemes, and literal loopback/private/link-local IPs or
+// "localhost" naming an address on the device's own LAN. Doesn't (can't, from pure
+// JS with no DNS-resolution access) catch DNS-rebinding to those same ranges via a
+// public hostname - this is a floor, not a complete SSRF defense.
+const BLOCKED_HOSTS = new Set(['localhost', '0.0.0.0', '[::1]', '::1']);
+
+function isPrivateIPv4(host: string): boolean {
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  if (a === 127) return true; // loopback
+  if (a === 10) return true; // 10.0.0.0/8
+  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+  if (a === 192 && b === 168) return true; // 192.168.0.0/16
+  if (a === 169 && b === 254) return true; // link-local
+  return false;
+}
+
+export function isSafeAddonUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    if (BLOCKED_HOSTS.has(host)) return false;
+    if (isPrivateIPv4(host)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function toStreamBaseUrl(manifestUrl: string): string {
   return manifestUrl.replace(/\/manifest\.json$/, '');
 }
@@ -80,6 +114,9 @@ export interface ValidateAddonResult {
 // dead source that will just return zero results forever.
 export async function validateAddonUrl(rawUrl: string): Promise<ValidateAddonResult> {
   const manifestUrl = toManifestUrl(rawUrl);
+  if (!isSafeAddonUrl(manifestUrl)) {
+    return { success: false, message: 'That address is not allowed.' };
+  }
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);

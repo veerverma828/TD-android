@@ -11,7 +11,7 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.tdandroid.app"
     },
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "android": {
       "package": "com.tdandroid.app",
       "adaptiveIcon": {
@@ -42,6 +42,8 @@
       "expo-notifications",
       "./plugins/withAndroidTVBanner.js",
       "./plugins/withGradleCaching.js",
+      "./plugins/withCleartextLoopback.js",
+      "./plugins/withReleaseSigning.js",
       "expo-image",
       "expo-status-bar",
       "expo-web-browser"

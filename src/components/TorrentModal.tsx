@@ -43,8 +43,28 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
   const filteredOptions = activeSource === 'All' ? options : options.filter((o) => (o.addonName || 'Unknown') === activeSource);
 
   useEffect(() => {
-    if (visible) setActiveSource('All');
+    if (visible) {
+      setActiveSource('All');
+      // Defensive reset on open, on top of the close-time reset in handleClose below -
+      // this component and its useStreamActions() instance stay mounted for the whole
+      // details.tsx lifetime (only the `visible` prop toggles), so any leftover
+      // fileSelection/expandedId from a previous title showing this modal must not
+      // carry over to whatever title opens it next.
+      setFileSelection(null);
+      setExpandedId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // Backdrop tap / header close button dismiss the modal directly (bypassing the
+  // TV back-handler chain below), which otherwise left fileSelection/expandedId set
+  // for whatever title opens this same modal instance next - route both through this
+  // so every dismissal path clears the same state the back-handler chain does.
+  const handleClose = () => {
+    setFileSelection(null);
+    setExpandedId(null);
+    onClose();
+  };
 
   // Split into three mutually-exclusive handlers (only one is ever `enabled`
   // at a time based on state) instead of one hand-rolled if-priority chain —
@@ -59,19 +79,19 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        
+        <Pressable style={styles.backdrop} onPress={handleClose} />
+
         <View style={[styles.sheet, { backgroundColor: colors.background }]}>
           <View style={styles.handleContainer}>
             <View style={[styles.handle, { backgroundColor: colors.backgroundElement }]} />
           </View>
-          
+
           <View style={styles.header}>
             <ThemedText style={styles.title}>Select Stream</ThemedText>
-            <FocusablePressable onPress={onClose} style={styles.closeBtn} focusRingBorderRadius={16} accessibilityRole="button" accessibilityLabel="Close">
+            <FocusablePressable onPress={handleClose} style={styles.closeBtn} focusRingBorderRadius={16} accessibilityRole="button" accessibilityLabel="Close">
               <IconSymbol name="plus" color={colors.textSecondary} style={{ transform: [{ rotate: '45deg' }] }} size={24} />
             </FocusablePressable>
           </View>

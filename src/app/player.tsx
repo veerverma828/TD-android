@@ -14,6 +14,7 @@ import { usePlaybackPosition } from '@/hooks/player/usePlaybackPosition';
 import { useNextEpisode } from '@/hooks/player/useNextEpisode';
 import { useNativePlayerBridge } from '@/hooks/player/useNativePlayerBridge';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { stopP2PStream } from '@/services/p2pStreamService';
 
 export default function PlayerScreen() {
   const { url, title, poster, contentId } = useLocalSearchParams<{
@@ -32,6 +33,10 @@ export default function PlayerScreen() {
   const lastLaunchedKeyRef = useRef<string | null>(null);
   const launchKey = `${url}_${resolvedContentId ?? ''}`;
   const pipNavigatedRef = useRef(false);
+  // Set right before each launch() call below - lets onClosed tell a genuine final
+  // close apart from the stale close of a stream that's already been superseded by
+  // auto-advancing to the next episode (see onClosed comment).
+  const activeContentIdRef = useRef<string | null>(null);
 
   // The player screen can be reached via router.replace() (e.g. auto-advancing to
   // the next episode), which leaves nothing to go "back" to — guard against that
@@ -51,6 +56,17 @@ export default function PlayerScreen() {
   const { playback, launch } = useNativePlayerBridge({
     onClosed: async (e) => {
       if (resolvedContentId) savePosition(e.finalPositionSeconds, e.finalDurationSeconds, true);
+      // Only stop the P2P torrent session if this close event belongs to the
+      // stream that's still current. Auto-advancing to the next episode reuses this
+      // same screen (router.replace, not unmount) and starts the new episode's torrent
+      // session BEFORE the old native PlayerActivity actually finishes and fires this
+      // event (see PlayerActivity's same-task-swap comment) - stopping unconditionally
+      // here would kill the already-playing next episode's torrent session out from
+      // under it. TorrentEngine is a single shared session for the whole app, so this
+      // is a real footgun, not just a wasted call.
+      if (e.contentId === activeContentIdRef.current) {
+        stopP2PStream().catch(() => {});
+      }
       // Awaited (not fire-and-forget): MainActivity is landscape-locked while
       // PlayerActivity (sensorLandscape) is on top, so closing it triggers a
       // device rotation back to portrait at the same time this unlock does. Firing
@@ -89,6 +105,7 @@ export default function PlayerScreen() {
   useEffect(() => {
     if (!url || !resumeResolved || lastLaunchedKeyRef.current === launchKey) return;
     lastLaunchedKeyRef.current = launchKey;
+    activeContentIdRef.current = resolvedContentId;
     launch({
       streamUrl: url,
       title,

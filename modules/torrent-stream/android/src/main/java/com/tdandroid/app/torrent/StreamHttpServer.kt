@@ -60,6 +60,15 @@ class StreamHttpServer {
 
     fun setActiveStream(handle: TorrentHandle, torrentInfo: TorrentInfo, fileIndex: Int, saveDir: File) {
         val path = File(torrentInfo.files().filePath(fileIndex, saveDir.absolutePath))
+        // Defense-in-depth against a malicious torrent's file entries containing "../"
+        // components: this app doesn't control how libtorrent4j lays files out on disk
+        // during download, but it does control what it serves back over HTTP - refuse
+        // to ever read/serve a path that resolves outside the torrent's own saveDir.
+        val canonicalSaveDir = saveDir.canonicalFile
+        val canonicalPath = path.canonicalFile
+        if (canonicalPath != canonicalSaveDir && !canonicalPath.path.startsWith(canonicalSaveDir.path + File.separator)) {
+            throw StreamNotReadyException("Refusing to stream file outside torrent save directory: ${path.name}")
+        }
         active = ActiveStream(handle, torrentInfo, fileIndex, path)
     }
 
@@ -136,6 +145,14 @@ class StreamHttpServer {
             pumpFile(output, stream, rangeStart, rangeEnd)
         } catch (_: IOException) {
             // Client disconnected or seeked away mid-response - not an error.
+        } catch (e: Exception) {
+            // Runs on a bare Executor thread (pool.execute {} in start()) with no
+            // exception handler above it - anything past IOException (e.g. a malformed
+            // torrent's pieceLength()==0 causing ArithmeticException in pumpFile, or a
+            // handle invalidated by a concurrent stop()) would otherwise hit the
+            // default UncaughtExceptionHandler and kill the whole process, not just
+            // this one client's request.
+            Log.w(TAG, "handleClient failed", e)
         } finally {
             try {
                 socket.close()

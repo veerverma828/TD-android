@@ -8,6 +8,7 @@ import { EpisodeSelectorAccordion } from './EpisodeSelectorAccordion';
 import { EpisodeSelectorSplitRail } from './EpisodeSelectorSplitRail';
 
 export type { EpisodeSelectorProps } from './types';
+export { EpisodeSelectorCardCarousel } from './EpisodeSelectorCardCarousel';
 
 export const EPISODE_SELECTORS: Record<EpisodeLayout, ComponentType<EpisodeSelectorProps>> = {
   verticalRail: EpisodeSelectorVerticalRail,

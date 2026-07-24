@@ -43,7 +43,7 @@ export function useNextEpisode(contentId: string | null) {
   }, [contentId]);
 
   const playNext = useCallback(async () => {
-    if (!parsed || !next) return;
+    if (!parsed || !next || loading) return;
     setLoading(true);
     try {
       const provider = await getActiveDebridProvider();
@@ -76,7 +76,7 @@ export function useNextEpisode(contentId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [parsed, next, router]);
+  }, [parsed, next, router, loading]);
 
   return { hasNext: !!next, nextTitle: next?.title ?? null, loading, playNext };
 }

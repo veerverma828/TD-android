@@ -40,20 +40,26 @@ export default function SeeAllScreen() {
   const firstItemRef = usePushedScreenFocus<View>([loading, items.length > 0]);
 
   useEffect(() => {
+    let cancelled = false;
     async function loadData() {
       if (!type || !category) return;
+      setLoading(true);
       try {
         const data = await fetchCatalog(type, category, genre);
+        if (cancelled) return;
         setItems(data);
         const visibleUrls = data.slice(0, 12).map((item) => normalizeImageUrl(item.poster)).filter(Boolean) as string[];
         if (visibleUrls.length) Image.prefetch(visibleUrls, 'memory-disk');
       } catch (err) {
-        console.error("Failed to fetch catalog:", err);
+        if (!cancelled) console.error("Failed to fetch catalog:", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     loadData();
+    return () => {
+      cancelled = true;
+    };
   }, [type, category, genre]);
 
   const handleNavigateToDetails = (id: string, itemType: string, title?: string, poster?: string, background?: string) => {

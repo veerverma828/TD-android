@@ -125,6 +125,12 @@ object TorrentEngine {
         httpServer = null
         session?.stop()
         session = null
+        // Downloaded pieces live under cacheDir/torrent-stream/<infoHash> (see
+        // TorrentStreamModule) - stop() previously only tore down the network
+        // session/HTTP server and left this data on disk indefinitely, since nothing
+        // else ever deletes it. session.stop() blocks until libtorrent has fully shut
+        // down, so it's safe to delete the backing directories right after.
+        sessions.values.forEach { it.saveDir.deleteRecursively() }
         sessions.clear()
     }
 }

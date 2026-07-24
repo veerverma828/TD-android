@@ -23,7 +23,7 @@ import { normalizeImageUrl } from '@/utils/imageUrl';
 import { buildContentId, parseContentId } from '@/utils/contentId';
 import { useScreenBackHandler } from '@/hooks/tv/useTVBackHandler';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
-import { EPISODE_SELECTORS } from '@/components/episodes';
+import { EPISODE_SELECTORS, EpisodeSelectorCardCarousel } from '@/components/episodes';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 import { usePushedScreenFocus } from '@/hooks/tv/usePushedScreenFocus';
@@ -43,7 +43,6 @@ const TAB_LABELS: Record<TabKey, string> = {
 // keeps `failed` scoped per-image without needing an effect/ref reset.
 function CoverImage({ uri, backgroundColor, iconColor }: { uri: string; backgroundColor: string; iconColor: string }) {
   const [failed, setFailed] = useState(false);
-  const isTV = useIsTV();
 
   if (failed) {
     return (
@@ -57,12 +56,13 @@ function CoverImage({ uri, backgroundColor, iconColor }: { uri: string; backgrou
     <Image
       source={{ uri }}
       style={styles.coverImage}
-      contentFit={isTV ? 'contain' : 'cover'}
+      contentFit="cover"
+      contentPosition="top"
       cachePolicy="memory-disk"
       priority="high"
       recyclingKey={uri}
       placeholder={DARK_IMAGE_PLACEHOLDER}
-      placeholderContentFit={isTV ? 'contain' : 'cover'}
+      placeholderContentFit="cover"
       transition={200}
       onError={() => setFailed(true)}
     />
@@ -389,9 +389,11 @@ export default function DetailsScreen() {
         {/* Cinematic Header - capped height on TV (Concept A) so it stops
             swallowing the whole screen; title/meta move to a solid panel
             below instead of overlaying the artwork. */}
-        <View style={[styles.headerContainer, isTV && tvStyles.headerContainer]}>
+        <View style={[styles.headerContainer, isTV && tvStyles.headerContainer, isTV && type === 'series' && tvStyles.headerContainerSeries]}>
           <CoverImage key={coverImageUrl} uri={coverImageUrl} backgroundColor={colors.backgroundElement} iconColor={colors.textSecondary} />
-          {/* TV: no darkening overlay - image stays fully visible, panel below is a hard solid cut. */}
+          {/* Mobile only: darkens toward the bottom so overlaid title/meta stay
+              readable, then blends into the page background. TV backdrop is
+              shown clean with no shade. */}
           {!isTV && (
             <LinearGradient
               colors={['rgba(0,0,0,0.6)', 'transparent', 'rgba(0,0,0,0.3)', colors.background]}
@@ -416,53 +418,34 @@ export default function DetailsScreen() {
             </FocusablePressable>
           </View>
 
-          {/* Title + meta overlaid on the artwork itself - mobile only.
-              TV renders this in a solid panel below (see tvStyles.titlePanel). */}
-          {!isTV && (
-            <View style={styles.headerContent} pointerEvents="none">
-              <ThemedText style={styles.title} type="title">{displayMeta.name}</ThemedText>
-              <View style={styles.metaRow}>
-                {displayMeta.imdbRating && (
-                  <ThemedText style={[styles.metaText, styles.metaTextShadow, { color: colors.accent }]}>IMDb {displayMeta.imdbRating}</ThemedText>
-                )}
-                {displayMeta.releaseInfo && (
-                  <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{displayMeta.releaseInfo}</ThemedText>
-                )}
-                {displayMeta.runtime && (
-                  <ThemedText style={[styles.metaText, styles.metaTextShadow]}>{displayMeta.runtime}</ThemedText>
-                )}
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Content Body */}
-        <View style={[styles.contentContainer, isTV && tvStyles.contentContainer]}>
-
-          {isTV && (
-            <View style={tvStyles.titlePanel}>
-              <ThemedText style={[styles.title, tvStyles.titleTV, { color: colors.text }]} type="title">{displayMeta.name}</ThemedText>
-              <View style={styles.metaRow}>
-                {displayMeta.imdbRating && (
+          {/* Title + meta overlaid on the artwork itself. TV skips the drop
+              shadow (backdrop already reads dark at 62% height) and skips the
+              description here - it's shown once, in the Overview tab below. */}
+          <View style={[styles.headerContent, isTV && tvStyles.headerContent]} pointerEvents="none">
+            <ThemedText style={[styles.title, isTV && tvStyles.titleTV]} type="title">{displayMeta.name}</ThemedText>
+            <View style={styles.metaRow}>
+              {displayMeta.imdbRating && (
+                isTV ? (
                   <View style={[tvStyles.ratingPill, { backgroundColor: colors.backgroundElement }]}>
                     <IconSymbol name="star.fill" color={colors.accent} size={12} />
                     <ThemedText style={[styles.metaText, tvStyles.ratingPillText, { color: colors.accent }]}>IMDb {displayMeta.imdbRating}</ThemedText>
                   </View>
-                )}
-                {displayMeta.releaseInfo && (
-                  <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>{displayMeta.releaseInfo}</ThemedText>
-                )}
-                {displayMeta.runtime && (
-                  <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>{displayMeta.runtime}</ThemedText>
-                )}
-              </View>
-              {!!displayMeta.description && (
-                <ThemedText style={[tvStyles.description, { color: colors.textSecondary }]} numberOfLines={2}>
-                  {displayMeta.description}
-                </ThemedText>
+                ) : (
+                  <ThemedText style={[styles.metaText, styles.metaTextShadow, { color: colors.accent }]}>IMDb {displayMeta.imdbRating}</ThemedText>
+                )
+              )}
+              {displayMeta.releaseInfo && (
+                <ThemedText style={[styles.metaText, !isTV && styles.metaTextShadow]}>{displayMeta.releaseInfo}</ThemedText>
+              )}
+              {displayMeta.runtime && (
+                <ThemedText style={[styles.metaText, !isTV && styles.metaTextShadow]}>{displayMeta.runtime}</ThemedText>
               )}
             </View>
-          )}
+          </View>
+        </View>
+
+        {/* Content Body */}
+        <View style={[styles.contentContainer, isTV && tvStyles.contentContainer]}>
 
           {/* Actions - single row on TV (Play, My List, Watched together);
               Play gets its own row on mobile, actions stacked below it. */}
@@ -519,7 +502,11 @@ export default function DetailsScreen() {
             </View>
           </View>
 
-          {/* Tabs - underlined strip on mobile, pill row on TV */}
+          {/* Tabs - underlined strip on mobile, pill row on TV. Series drops
+              the tab strip on TV entirely (Episodes is the only view shown) -
+              that's the vertical space the horizontal episode carousel needed
+              to keep the whole details screen on one page without scrolling. */}
+          {!(isTV && type === 'series') && (
           <View style={[styles.tabStrip, isTV && tvStyles.tabStrip, !isTV && { borderBottomColor: colors.backgroundSelected }]}>
             {(type === 'series'
               ? (['episodes', 'overview', 'cast'] as const)
@@ -553,6 +540,7 @@ export default function DetailsScreen() {
               );
             })}
           </View>
+          )}
 
           {loading ? (
             <View style={{ paddingVertical: 40, alignItems: 'center' }}>
@@ -561,7 +549,11 @@ export default function DetailsScreen() {
           ) : (
             <>
               {activeTab === 'episodes' && type === 'series' && displayMeta?.videos && displayMeta.videos.length > 0 && (() => {
-                const EpisodeSelector = EPISODE_SELECTORS[episodeLayout];
+                // TV always gets the horizontal card carousel regardless of the
+                // mobile layout setting - it's the only one of the five layouts
+                // that doesn't grow into a tall vertical list, so it's the only
+                // one that keeps the whole details screen on one page.
+                const EpisodeSelector = isTV ? EpisodeSelectorCardCarousel : EPISODE_SELECTORS[episodeLayout];
                 return (
                   <View style={[styles.tabContent, isTV && tvStyles.tabContent]}>
                     <EpisodeSelector
@@ -711,7 +703,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     width: '100%',
-    height: 500,
+    height: 460,
     position: 'relative',
   },
   coverImage: {
@@ -901,39 +893,50 @@ const tvStyles = StyleSheet.create({
   backButtonContainer: {
     left: 32,
   },
-  // Matches the imported design's backdrop ratio (~180/631 ≈ 28%) — the
-  // design fits title/meta/actions/tabs/full-tab-content on one screen with
-  // zero scroll; a taller header pushed content below the fold.
+  // Tall enough to hold title/meta/description overlaid at the bottom edge
+  // (Netflix-style) instead of handing them off to a separate solid panel -
+  // that panel used to leave a flat, empty black band between the artwork
+  // and the actions row.
   headerContainer: {
     width: '100%',
-    height: SCREEN_HEIGHT * 0.15,
-    backgroundColor: '#000000',
+    height: SCREEN_HEIGHT * 0.62,
   },
-  titlePanel: {
-    marginBottom: 6,
+  // Series gives back some backdrop height to the episode carousel below -
+  // it needs the room, movies don't have anything past the synopsis chips.
+  headerContainerSeries: {
+    height: SCREEN_HEIGHT * 0.5,
+  },
+  headerContent: {
+    left: 32,
+    right: 32,
+    bottom: 24,
   },
   titleTV: {
-    fontSize: 28,
-    marginBottom: 4,
+    fontSize: 34,
+    marginBottom: 10,
     textShadowColor: 'transparent',
     textShadowRadius: 0,
   },
   contentContainer: {
     paddingHorizontal: 32,
-    paddingTop: 8,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   playButton: {
     paddingHorizontal: 24,
     paddingVertical: 8,
     borderRadius: 8,
-    marginBottom: 6,
+    marginBottom: 0,
   },
   actionsRow: {
     justifyContent: 'flex-start',
+    alignItems: 'center',
     gap: 12,
+    marginBottom: 0,
   },
   actionItem: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 8,
@@ -963,6 +966,7 @@ const tvStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginTop: 4,
+    marginBottom: 12,
   },
   ratingPill: {
     flexDirection: 'row',
@@ -974,12 +978,6 @@ const tvStyles = StyleSheet.create({
   },
   ratingPillText: {
     fontSize: 13,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 19,
-    marginTop: 4,
-    maxWidth: 640,
   },
   tabStrip: {
     borderBottomWidth: 0,

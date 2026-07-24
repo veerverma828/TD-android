@@ -301,7 +301,12 @@ export async function generateLink(torrentId: string | number, fileId: string | 
     return pollUntil<string>(async () => {
       try {
         const res = await fetchWithRetry(
-          `https://api.torbox.app/v1/api/torrents/requestdl?token=${encodeURIComponent(apiKey)}&torrent_id=${torrentId}&file_id=${fileId}`,
+          // Authorization header alone is sufficient (and what Torbox needs to record
+          // live usage data against this key) - the `token` query param is documented
+          // as an alternate auth method for building shareable permalinks, not something
+          // this call needs on top of the header. Dropping it stops the API key from
+          // sitting in request logs/proxies as plain URL text alongside the header.
+          `https://api.torbox.app/v1/api/torrents/requestdl?torrent_id=${torrentId}&file_id=${fileId}`,
           { headers: { Authorization: `Bearer ${apiKey}` } },
           { timeoutMs: SLOW_FETCH_TIMEOUT_MS }
         );

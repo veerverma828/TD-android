@@ -30,6 +30,7 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
             style={[styles.seasonPill, { backgroundColor: s === selectedSeason ? colors.accent : colors.backgroundElement }]}
             onPress={() => onSelectSeason(s)}
             focusRingBorderRadius={16}
+            focusRingScale={false}
             accessibilityRole="button"
             accessibilityState={{ selected: s === selectedSeason }}
             accessibilityLabel={seasonLabel(s)}
@@ -45,6 +46,7 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
         ref={listRef}
         data={visibleEpisodes}
         horizontal
+        removeClippedSubviews={false}
         showsHorizontalScrollIndicator={false}
         keyExtractor={(ep) => ep.id}
         contentContainerStyle={styles.cardRow}
@@ -54,6 +56,7 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
             style={styles.card}
             onPress={() => onPlayEpisode(ep.season, ep.episode)}
             focusRingBorderRadius={10}
+            focusRingScale={false}
             accessibilityRole="button"
             accessibilityLabel={ep.title ? `Episode ${ep.episode}, ${ep.title}` : `Episode ${ep.episode}`}
             onFocus={isTV ? () => scrollToIndex(index) : undefined}
@@ -99,23 +102,28 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
 }
 
 const styles = StyleSheet.create({
-  seasonScroll: { gap: 8, paddingVertical: 6 },
-  seasonPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  seasonText: { fontSize: 14, fontWeight: '600' },
-  cardRow: { gap: CARD_GAP, paddingTop: 16, paddingBottom: 8 },
-  card: { width: CARD_WIDTH },
-  thumbWrap: { width: CARD_WIDTH, height: 94, borderRadius: 8, overflow: 'hidden', position: 'relative' },
+  seasonScroll: { gap: 6, paddingVertical: 2, paddingLeft: 4 },
+  seasonPill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14 },
+  seasonText: { fontSize: 12.5, fontWeight: '600' },
+  // paddingLeft gives the first card's focus ring room to draw its left edge -
+  // flush against the FlatList's own horizontal clip boundary (x:0), the ring's
+  // left stroke was being clipped by the mandatory horizontal scroll-clipping
+  // (vertical bleed on the other 3 sides isn't clipped the same way, which is
+  // why only the left edge went missing).
+  cardRow: { gap: CARD_GAP, paddingTop: 10, paddingBottom: 2, paddingLeft: 4 },
+  card: { width: CARD_WIDTH, alignSelf: 'flex-start' },
+  thumbWrap: { width: CARD_WIDTH, height: 80, borderRadius: 8, overflow: 'hidden', position: 'relative' },
   thumb: { flex: 1 },
   numberBadge: {
-    position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.65)',
-    borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2,
+    position: 'absolute', top: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1,
   },
-  numberBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  numberBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   watchedBadge: {
-    position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: 9,
+    position: 'absolute', top: 5, right: 5, width: 16, height: 16, borderRadius: 8,
     justifyContent: 'center', alignItems: 'center',
   },
   playIconOverlay: { ...(StyleSheet.absoluteFill as object), justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)' },
-  cardTitle: { fontSize: 13, fontWeight: '600', marginTop: 6 },
-  cardDuration: { fontSize: 11, marginTop: 2 },
+  cardTitle: { fontSize: 12.5, fontWeight: '600', marginTop: 4 },
+  cardDuration: { fontSize: 10.5, marginTop: 1 },
 });

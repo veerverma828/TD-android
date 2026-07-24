@@ -88,16 +88,28 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
   };
 
   const resolveAndPlay = async (torrentId: string | number, fileId: string | number, provider: DebridProvider, apiKey: string, sourceKey?: string) => {
+    // Shares requestTokenRef with startPlayback below - guards the same race here:
+    // called directly from the file-selection modal (not just via startPlayback), so
+    // a rapid double-tap on two different files could otherwise have the
+    // first-to-resolve call's handleResolvedUrl/setFileSelection(null) fire after (and
+    // clobber) the second, more recent selection.
+    const token = ++requestTokenRef.current;
     setResolvingId(sourceKey ?? torrentId.toString());
     try {
-      const downloadUrl = await generateLink(torrentId, fileId, provider, apiKey, setResolvingStage);
+      const downloadUrl = await generateLink(torrentId, fileId, provider, apiKey, (stage) => {
+        if (requestTokenRef.current === token) setResolvingStage(stage);
+      });
+      if (requestTokenRef.current !== token) return; // a newer selection superseded this one
       await handleResolvedUrl(downloadUrl);
     } catch (e: any) {
+      if (requestTokenRef.current !== token) return;
       Alert.alert('Error', e.message || 'Failed to generate download link');
     } finally {
-      setResolvingId(null);
-      setResolvingStage(null);
-      setFileSelection(null);
+      if (requestTokenRef.current === token) {
+        setResolvingId(null);
+        setResolvingStage(null);
+        setFileSelection(null);
+      }
     }
   };
 
