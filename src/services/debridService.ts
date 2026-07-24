@@ -22,6 +22,34 @@ const FETCH_TIMEOUT_MS = 15000;
 const SLOW_FETCH_TIMEOUT_MS = 30000;
 const RETRY_ATTEMPTS = 3;
 const RETRY_BASE_DELAY_MS = 1000;
+// Key verification is interactive - the user is staring at a spinner - so it gets a
+// tighter budget than the background torrent calls. 3x15s left them waiting ~48s
+// before seeing an error on a network that was never going to answer.
+const VERIFY_TIMEOUT_MS = 10000;
+const VERIFY_ATTEMPTS = 2;
+// Android's own captive-portal check endpoint: 204, empty body, and about as close to
+// never-blocked as a control URL gets. Used only to tell "this device has no internet"
+// apart from "this device has internet but can't reach the debrid provider."
+const CONNECTIVITY_PROBE_URL = 'https://connectivitycheck.gstatic.com/generate_204';
+const CONNECTIVITY_PROBE_TIMEOUT_MS = 5000;
+
+type NetworkFailureKind = 'timeout' | 'unreachable';
+
+interface DebridNetworkError extends Error {
+  networkFailureKind: NetworkFailureKind;
+}
+
+// Tagged plain Error rather than an Error subclass: `instanceof` on subclassed built-ins
+// is unreliable once Hermes/TS downleveling gets involved, a tag property never is.
+function networkError(kind: NetworkFailureKind, message: string): DebridNetworkError {
+  const error = new Error(message) as DebridNetworkError;
+  error.networkFailureKind = kind;
+  return error;
+}
+
+function isNetworkError(error: any): error is DebridNetworkError {
+  return !!error?.networkFailureKind;
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -33,14 +61,67 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs =
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (error: any) {
-    const isAbort = error?.name === 'AbortError' || /abort|cancel/i.test(error?.message || '');
-    if (isAbort) {
-      throw new Error('Request timed out. Check your connection and try again.');
+    const message = error?.message || '';
+    if (error?.name === 'AbortError' || /abort|cancel/i.test(message)) {
+      throw networkError('timeout', 'Request timed out. Check your connection and try again.');
+    }
+    // React Native collapses DNS failures, refused connections and blocked hosts into a
+    // bare TypeError('Network request failed'), so this is the only signal we get that the
+    // host was never reached at all - as opposed to reached and slow.
+    if (error?.name === 'TypeError' || /network request failed|failed to fetch/i.test(message)) {
+      throw networkError('unreachable', 'Could not reach the server. Your network may be blocking it.');
     }
     throw error;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// Best-effort: a false here means "probe failed too," which is exactly what we want to
+// treat as offline. Never throws - callers use it purely to pick an error message.
+async function hasInternetAccess(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CONNECTIVITY_PROBE_TIMEOUT_MS);
+  try {
+    const res = await fetch(CONNECTIVITY_PROBE_URL, { signal: controller.signal });
+    return res.status === 204 || res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// A timeout against one host tells the user nothing actionable on its own. Probing a
+// control URL turns it into a diagnosis: no internet at all, or this provider specifically
+// unreachable while everything else works (ISP/router DNS filtering, or provider outage).
+async function describeNetworkFailure(error: DebridNetworkError, label: string): Promise<string> {
+  if (!(await hasInternetAccess())) {
+    return 'No internet connection. Check your Wi-Fi or mobile data and try again.';
+  }
+  if (error.networkFailureKind === 'timeout') {
+    return `${label} did not respond in time, though the rest of your connection works. ${label} may be down, or your network may be blocking it — try mobile data or a VPN.`;
+  }
+  return `Can't reach ${label}, though the rest of your connection works. Your network or DNS is likely blocking it — try mobile data, a VPN, or set Private DNS to dns.google.`;
+}
+
+// 429/5xx are the provider's problem, not the key's - the key may well be fine, so these
+// count as "no verdict" rather than a rejection.
+function httpFailureReason(status: number): VerifyFailureReason {
+  return status === 401 || status === 403 ? 'invalid' : 'network';
+}
+
+function describeHttpFailure(status: number, label: string): string {
+  if (status === 401 || status === 403) {
+    return `Invalid ${label} API key. Copy it again from your ${label} account settings.`;
+  }
+  if (status === 429) {
+    return `${label} is rate-limiting this key. Wait a minute and try again.`;
+  }
+  if (status >= 500) {
+    return `${label} is having server trouble (HTTP ${status}). Not your key — try again shortly.`;
+  }
+  return `${label} rejected the request (HTTP ${status}).`;
 }
 
 // Retries transient failures (timeouts, network drops, 429/5xx) with exponential backoff + jitter.
@@ -64,6 +145,12 @@ async function fetchWithRetry(
       return res;
     } catch (error) {
       lastError = error;
+      // A host that can't be resolved or connected to at all won't start working within a
+      // few seconds of backoff - retrying just multiplies the wait before the user gets
+      // told what's actually wrong. Timeouts still retry: those do recover.
+      if (isNetworkError(error) && error.networkFailureKind === 'unreachable') {
+        break;
+      }
       if (i < attempts - 1) {
         await sleep(RETRY_BASE_DELAY_MS * Math.pow(2, i) + Math.random() * 300);
         continue;
@@ -109,30 +196,48 @@ export async function getDebridKey(provider: DebridProvider): Promise<string | n
   return await getSecureItem(`debrid_key_${provider}`);
 }
 
-export async function verifyDebridKey(service: DebridProvider, apiKey: string): Promise<{ success: boolean; username?: string; premium?: boolean; message?: string }> {
+// 'network' means we never got a verdict on the key - the request never landed. 'invalid'
+// means the provider actively rejected it. Callers must keep these apart: only the first
+// is safe to offer a "save anyway" escape hatch for.
+export type VerifyFailureReason = 'network' | 'invalid' | 'unsupported';
+
+export interface VerifyResult {
+  success: boolean;
+  username?: string;
+  premium?: boolean;
+  message?: string;
+  reason?: VerifyFailureReason;
+}
+
+export async function verifyDebridKey(service: DebridProvider, apiKey: string): Promise<VerifyResult> {
+  const label = service === 'torbox' ? 'TorBox' : 'Real-Debrid';
+  const options = { timeoutMs: VERIFY_TIMEOUT_MS, attempts: VERIFY_ATTEMPTS };
   try {
     if (service === 'real-debrid') {
-      const res = await fetchWithTimeout("https://api.real-debrid.com/rest/1.0/user", {
+      const res = await fetchWithRetry("https://api.real-debrid.com/rest/1.0/user", {
         headers: { Authorization: `Bearer ${apiKey}` },
-      });
-      if (!res.ok) throw new Error('Invalid key');
+      }, options);
+      if (!res.ok) return { success: false, message: describeHttpFailure(res.status, label), reason: httpFailureReason(res.status) };
       const data = await res.json();
       return { success: true, username: data.username, premium: !!data.premium };
     }
     if (service === 'torbox') {
       const res = await fetchWithRetry("https://api.torbox.app/v1/api/user/me", {
         headers: { Authorization: `Bearer ${apiKey}` },
-      });
-      if (!res.ok) throw new Error('Invalid key');
+      }, options);
+      if (!res.ok) return { success: false, message: describeHttpFailure(res.status, label), reason: httpFailureReason(res.status) };
       const data = await res.json();
       if (data.success === false) {
-        return { success: false, message: "Invalid Torbox API key" };
+        return { success: false, message: `Invalid ${label} API key. Copy it again from your ${label} account settings.`, reason: 'invalid' };
       }
       return { success: true, username: data.data?.email };
     }
-    return { success: false, message: "Unsupported service" };
+    return { success: false, message: "Unsupported service", reason: 'unsupported' };
   } catch (error: any) {
-    return { success: false, message: error?.message || "Invalid API key" };
+    if (isNetworkError(error)) {
+      return { success: false, message: await describeNetworkFailure(error, label), reason: 'network' };
+    }
+    return { success: false, message: error?.message || `Could not verify your ${label} API key.`, reason: 'network' };
   }
 }
 

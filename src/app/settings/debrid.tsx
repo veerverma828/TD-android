@@ -51,9 +51,26 @@ export default function DebridSettingsScreen() {
     try {
       const result = await verifyDebridKey(debridProvider, debridKey.trim());
       if (result.success) {
-        await saveSecureItem(`debrid_key_${debridProvider}`, debridKey.trim());
-        await saveSecureItem('debrid_active_provider', debridProvider);
+        await persistKey();
         Alert.alert('Success', `Connected to ${debridProvider} successfully!${result.username ? `\nUser: ${result.username}` : ''}`);
+      } else if (result.reason === 'network') {
+        // The key was never actually rejected - the request just never landed. Refusing to
+        // save would lock the user out of configuring the app on a network that blocks the
+        // provider, even when the key is perfectly good on mobile data or a VPN.
+        Alert.alert(
+          "Couldn't verify",
+          `${result.message}\n\nYou can save the key anyway and it'll be used once the connection works.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Save anyway',
+              onPress: async () => {
+                await persistKey();
+                Alert.alert('Saved', 'Key stored unverified. Retry verification once your connection can reach the provider.');
+              },
+            },
+          ]
+        );
       } else {
         Alert.alert('Error', result.message || 'Invalid API Key');
       }
@@ -62,6 +79,11 @@ export default function DebridSettingsScreen() {
     } finally {
       setVerifying(false);
     }
+  }
+
+  async function persistKey() {
+    await saveSecureItem(`debrid_key_${debridProvider}`, debridKey.trim());
+    await saveSecureItem('debrid_active_provider', debridProvider);
   }
 
   return (
