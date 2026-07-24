@@ -117,8 +117,8 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
     const provider = await getActiveDebridProvider();
     if (!provider) {
       Alert.alert(
-        'No Debrid Configured',
-        'Please add your Real-Debrid or TorBox API key in Settings to stream.',
+        'No Streaming Source Configured',
+        'Please set up Real-Debrid, TorBox, or P2P in Settings to stream.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Settings', onPress: () => router.push('/settings' as any) }
@@ -127,17 +127,21 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
       return;
     }
 
-    const apiKey = await getDebridKey(provider);
-    if (!apiKey) {
-      Alert.alert(
-        'API Key Missing',
-        `Please add your ${provider} API key in Settings.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Settings', onPress: () => router.push('/settings' as any) }
-        ]
-      );
-      return;
+    // P2P streams straight from peers - no account/API key involved.
+    let apiKey = '';
+    if (provider !== 'p2p') {
+      apiKey = (await getDebridKey(provider)) ?? '';
+      if (!apiKey) {
+        Alert.alert(
+          'API Key Missing',
+          `Please add your ${provider} API key in Settings.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Settings', onPress: () => router.push('/settings' as any) }
+          ]
+        );
+        return;
+      }
     }
 
     const token = ++requestTokenRef.current;

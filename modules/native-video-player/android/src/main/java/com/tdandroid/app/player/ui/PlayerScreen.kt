@@ -810,12 +810,13 @@ fun TrackSelectionSheet(
                 // Traps DPAD/Tab focus inside the sheet — without this, focus could wander
                 // out to the (visually covered, but still composed) overlay buttons behind
                 // the scrim. Any attempted focus-exit from within this subtree is cancelled.
-                // focusGroup() is required here: exit-cancelling only takes effect when this
-                // Column is itself a focus-search boundary, otherwise the DPAD search treats
-                // the whole screen as one flat group and walks straight past this subtree's
-                // last row onto whatever overlay control sits behind it.
-                .focusGroup()
+                // focusProperties MUST precede focusGroup() here: it only configures the focus
+                // node created by the next focus modifier downstream in the chain, so declaring
+                // it after focusGroup() (as before) attached exit-cancel to nothing, leaving
+                // the sheet's boundary untrapped - DPAD Left walked straight past it onto
+                // whatever overlay control sits behind the scrim.
                 .focusProperties { exit = { FocusRequester.Cancel } }
+                .focusGroup()
                 .padding(16.dp),
         ) {
             when (kind) {
@@ -845,16 +846,24 @@ fun TrackSelectionSheet(
 
 @Composable
 private fun TrackRow(label: String, selected: Boolean, accent: Color, isFirst: Boolean = false, onClick: () -> Unit) {
-    val isTv = isTvDevice(LocalContext.current)
     val focusRequester = remember { FocusRequester() }
-    if (isFirst && isTv) {
+    // Unconditional (not gated on isTvDevice()) - DPAD/keyboard focus must land inside
+    // the sheet the moment it opens, otherwise it stays on whatever overlay control was
+    // focused before the sheet appeared. That control sits behind the scrim but is still
+    // composed and focusable, so arrow keys silently move focus around the background
+    // overlay instead of the sheet's own rows, and the focusProperties{exit=Cancel} trap
+    // on the sheet's Column (below) never engages since focus never entered it to begin
+    // with - isTvDevice() also isn't a reliable signal here (many TV boxes/emulators
+    // misreport UI mode, and a phone can just as easily have a DPAD-emitting remote or
+    // keyboard attached).
+    if (isFirst) {
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
     }
     Row(
         Modifier
             .fillMaxWidth()
             .focusRequester(focusRequester)
-            .let { if (isTv) it.tvFocusRing(accent, shape = RoundedCornerShape(8.dp)) else it }
+            .tvFocusRing(accent, shape = RoundedCornerShape(8.dp))
             .clip(RoundedCornerShape(8.dp))
             .background(if (selected) accent.copy(alpha = 0.25f) else Color.Transparent)
             .clickable(

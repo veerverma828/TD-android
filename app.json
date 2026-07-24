@@ -20,7 +20,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "permissions": ["REQUEST_INSTALL_PACKAGES"]
     },
     "web": {
@@ -41,6 +41,7 @@
       "expo-dev-client",
       "expo-notifications",
       "./plugins/withAndroidTVBanner.js",
+      "./plugins/withGradleCaching.js",
       "expo-image",
       "expo-status-bar",
       "expo-web-browser"

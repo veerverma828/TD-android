@@ -48,8 +48,11 @@ export function useNextEpisode(contentId: string | null) {
     try {
       const provider = await getActiveDebridProvider();
       if (!provider) return;
-      const apiKey = await getDebridKey(provider);
-      if (!apiKey) return;
+      let apiKey = '';
+      if (provider !== 'p2p') {
+        apiKey = (await getDebridKey(provider)) ?? '';
+        if (!apiKey) return;
+      }
 
       const addons = await getEnabledAddons();
       if (addons.length === 0) return;

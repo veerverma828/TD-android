@@ -1,6 +1,7 @@
 import { getSecureItem } from './storageService';
+import { getP2PFiles, startP2PStream } from './p2pStreamService';
 
-export type DebridProvider = 'real-debrid' | 'torbox';
+export type DebridProvider = 'real-debrid' | 'torbox' | 'p2p';
 
 export interface DebridFile {
   id: string | number;
@@ -98,7 +99,7 @@ function stalledMessage(i: number, attempts: number, verb: string): string {
 
 export async function getActiveDebridProvider(): Promise<DebridProvider | null> {
   const provider = await getSecureItem('debrid_active_provider');
-  if (provider === 'real-debrid' || provider === 'torbox') {
+  if (provider === 'real-debrid' || provider === 'torbox' || provider === 'p2p') {
     return provider as DebridProvider;
   }
   return null;
@@ -180,6 +181,10 @@ export async function checkCachedHashes(hashes: string[], service: DebridProvide
 }
 
 export async function getFiles(magnet: string, service: DebridProvider, apiKey: string, onStatus?: (stage: string) => void): Promise<DebridFilesResult> {
+  if (service === 'p2p') {
+    return getP2PFiles(magnet, onStatus);
+  }
+
   onStatus?.('Adding torrent...');
 
   if (service === 'real-debrid') {
@@ -256,6 +261,10 @@ export async function getFiles(magnet: string, service: DebridProvider, apiKey: 
 }
 
 export async function generateLink(torrentId: string | number, fileId: string | number, service: DebridProvider, apiKey: string, onStatus?: (stage: string) => void): Promise<string> {
+  if (service === 'p2p') {
+    return startP2PStream(torrentId as string, fileId, onStatus);
+  }
+
   onStatus?.('Generating link...');
 
   if (service === 'real-debrid') {

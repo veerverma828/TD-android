@@ -37,6 +37,12 @@ export default function DebridSettingsScreen() {
   }
 
   async function handleSaveDebrid() {
+    if (debridProvider === 'p2p') {
+      await saveSecureItem('debrid_active_provider', 'p2p');
+      Alert.alert('Success', 'P2P streaming is now active. No account needed.');
+      return;
+    }
+
     if (!debridKey.trim()) {
       Alert.alert('Error', 'Please enter an API key');
       return;
@@ -90,22 +96,41 @@ export default function DebridSettingsScreen() {
               >
                 <ThemedText style={{ color: debridProvider === 'torbox' ? '#fff' : colors.text, fontWeight: '600', fontSize: 13 }}>TorBox</ThemedText>
               </FocusablePressable>
+              <FocusablePressable
+                style={[settingsStyles.providerBtn, { borderColor: colors.backgroundSelected }, debridProvider === 'p2p' && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+                onPress={() => handleProviderChange('p2p')}
+                onFocus={() => registerFocusable('provider-p2p')}
+                hasTVPreferredFocus={hasPreferredFocus('provider-p2p', false)}
+                focusRingBorderRadius={6}
+                accessibilityRole="button"
+                accessibilityLabel="P2P"
+              >
+                <ThemedText style={{ color: debridProvider === 'p2p' ? '#fff' : colors.text, fontWeight: '600', fontSize: 13 }}>P2P</ThemedText>
+              </FocusablePressable>
             </View>
           </View>
 
-          <View style={[settingsStyles.row, settingsStyles.rowStack, { borderColor: colors.backgroundSelected }]}>
-            <ThemedText style={[settingsStyles.rowLabel, { marginBottom: 10 }]}>API Key</ThemedText>
-            <TextInput
-              style={[settingsStyles.input, { color: colors.text, borderColor: colors.backgroundSelected }]}
-              placeholder={`${debridProvider === 'real-debrid' ? 'Real-Debrid' : 'TorBox'} API Key`}
-              placeholderTextColor={colors.textSecondary}
-              value={debridKey}
-              onChangeText={setDebridKey}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+          {debridProvider === 'p2p' ? (
+            <View style={[settingsStyles.row, settingsStyles.rowStack, { borderColor: colors.backgroundSelected }]}>
+              <ThemedText style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 19 }}>
+                Streams directly from other peers over BitTorrent - no debrid account or API key needed. Speed depends on seeders, and there's no instant "cached" availability like Real-Debrid/TorBox provide.
+              </ThemedText>
+            </View>
+          ) : (
+            <View style={[settingsStyles.row, settingsStyles.rowStack, { borderColor: colors.backgroundSelected }]}>
+              <ThemedText style={[settingsStyles.rowLabel, { marginBottom: 10 }]}>API Key</ThemedText>
+              <TextInput
+                style={[settingsStyles.input, { color: colors.text, borderColor: colors.backgroundSelected }]}
+                placeholder={`${debridProvider === 'real-debrid' ? 'Real-Debrid' : 'TorBox'} API Key`}
+                placeholderTextColor={colors.textSecondary}
+                value={debridKey}
+                onChangeText={setDebridKey}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          )}
 
           <FocusablePressable
             style={[settingsStyles.row, { borderColor: colors.backgroundSelected }]}
@@ -115,12 +140,14 @@ export default function DebridSettingsScreen() {
             hasTVPreferredFocus={hasPreferredFocus('verify-save', false)}
             focusRingScale={false}
             accessibilityRole="button"
-            accessibilityLabel="Verify and save"
+            accessibilityLabel={debridProvider === 'p2p' ? 'Use P2P' : 'Verify and save'}
           >
             {verifying ? (
               <ActivityIndicator color={colors.accent} size="small" />
             ) : (
-              <ThemedText style={{ color: colors.accent, fontWeight: '700', fontSize: 14 }}>Verify & Save</ThemedText>
+              <ThemedText style={{ color: colors.accent, fontWeight: '700', fontSize: 14 }}>
+                {debridProvider === 'p2p' ? 'Use P2P' : 'Verify & Save'}
+              </ThemedText>
             )}
           </FocusablePressable>
 
