@@ -44,7 +44,17 @@ export interface TraktHistoryEpisodeEntry {
   watchedAt: string;
 }
 
-export type DeviceAuthResult = 'success' | 'expired' | 'denied';
+export type DeviceAuthResult = 'success' | 'expired' | 'denied' | 'network';
+
+type NetworkFailureKind = 'timeout' | 'unreachable';
+
+interface TraktNetworkError extends Error {
+  networkFailureKind: NetworkFailureKind;
+}
+
+function isNetworkError(error: any): error is TraktNetworkError {
+  return !!error?.networkFailureKind;
+}
 
 async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -52,9 +62,19 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs =
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (error: any) {
-    const isAbort = error?.name === 'AbortError' || /abort|cancel/i.test(error?.message || '');
-    if (isAbort) {
-      throw new Error('Request timed out. Check your connection and try again.');
+    const message = error?.message || '';
+    if (error?.name === 'AbortError' || /abort|cancel/i.test(message)) {
+      const e = new Error('Request timed out. Check your connection and try again.') as TraktNetworkError;
+      e.networkFailureKind = 'timeout';
+      throw e;
+    }
+    // React Native collapses DNS failures, refused connections and blocked hosts into a
+    // bare TypeError('Network request failed') - this is the only signal available that
+    // trakt.tv was never reached at all, as opposed to reached and slow.
+    if (error?.name === 'TypeError' || /network request failed|failed to fetch/i.test(message)) {
+      const e = new Error("Can't reach Trakt. Your network may be blocking trakt.tv.") as TraktNetworkError;
+      e.networkFailureKind = 'unreachable';
+      throw e;
     }
     throw error;
   } finally {
@@ -130,7 +150,13 @@ export async function startDeviceAuth(): Promise<DeviceAuthStart> {
     body: JSON.stringify({ client_id: TRAKT_CLIENT_ID }),
   });
   if (!res.ok) {
-    throw new Error('Failed to start Trakt device authorization.');
+    if (res.status === 429) {
+      throw new Error('Trakt is rate-limiting this app right now. Wait a bit and try again.');
+    }
+    if (res.status >= 500) {
+      throw new Error(`Trakt is having server trouble (HTTP ${res.status}). Try again shortly.`);
+    }
+    throw new Error(`Failed to start Trakt device authorization (HTTP ${res.status}).`);
   }
   const data = await res.json();
   return {
@@ -146,14 +172,27 @@ export interface CancellablePoll {
   cancel: () => void;
 }
 
+// Consecutive (not cumulative) network failures before giving up early. A blocked or dead
+// host won't start working between one 5s poll and the next, so there's no reason to burn
+// the full 10-minute expiry window silently before telling the user what's wrong - that
+// previously surfaced as "activation code expired", which sends them to retry the exact
+// same thing instead of fixing their network.
+const MAX_CONSECUTIVE_NETWORK_FAILURES = 3;
+
+export interface DeviceAuthOutcome {
+  result: DeviceAuthResult;
+  message?: string;
+}
+
 export function pollDeviceToken(
   deviceCode: string,
   intervalSeconds: number = DEFAULT_POLL_INTERVAL_SECONDS,
   expiresInSeconds: number = DEFAULT_POLL_EXPIRES_SECONDS
-): { promise: Promise<DeviceAuthResult>; cancel: () => void } {
+): { promise: Promise<DeviceAuthOutcome>; cancel: () => void } {
   let cancelled = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let waitSeconds = intervalSeconds;
+  let consecutiveNetworkFailures = 0;
   const startedAt = Date.now();
 
   const cancel = () => {
@@ -161,11 +200,11 @@ export function pollDeviceToken(
     if (timer) clearTimeout(timer);
   };
 
-  const promise = new Promise<DeviceAuthResult>((resolve) => {
+  const promise = new Promise<DeviceAuthOutcome>((resolve) => {
     const tick = async () => {
       if (cancelled) return;
       if (Date.now() - startedAt >= expiresInSeconds * 1000) {
-        resolve('expired');
+        resolve({ result: 'expired' });
         return;
       }
 
@@ -179,6 +218,8 @@ export function pollDeviceToken(
             client_secret: TRAKT_CLIENT_SECRET,
           }),
         });
+        // A real HTTP response - even authorization_pending - proves trakt.tv is reachable.
+        consecutiveNetworkFailures = 0;
 
         if (res.status === 200) {
           const data = await res.json();
@@ -188,7 +229,7 @@ export function pollDeviceToken(
             expires_in: data.expires_in,
             created_at: data.created_at ?? Math.floor(Date.now() / 1000),
           });
-          resolve('success');
+          resolve({ result: 'success' });
           return;
         }
 
@@ -197,23 +238,33 @@ export function pollDeviceToken(
           if (data.error === 'slow_down') {
             waitSeconds += 1;
           } else if (data.error === 'expired_token') {
-            resolve('expired');
+            resolve({ result: 'expired' });
             return;
           } else if (data.error === 'access_denied') {
-            resolve('denied');
+            resolve({ result: 'denied' });
             return;
           }
           // authorization_pending or unknown 400 — keep polling
         } else if (res.status === 410) {
-          resolve('expired');
+          resolve({ result: 'expired' });
           return;
         } else if (res.status === 403) {
-          resolve('denied');
+          resolve({ result: 'denied' });
           return;
         }
         // any other status — treat as transient, keep polling
-      } catch {
-        // network error — treat as transient, keep polling
+      } catch (error) {
+        if (isNetworkError(error)) {
+          consecutiveNetworkFailures++;
+          if (consecutiveNetworkFailures >= MAX_CONSECUTIVE_NETWORK_FAILURES) {
+            resolve({
+              result: 'network',
+              message: `${error.message} Try mobile data, a VPN, or a different DNS (e.g. 1.1.1.1), then reconnect.`,
+            });
+            return;
+          }
+        }
+        // non-network error (e.g. bad JSON) — treat as transient, keep polling
       }
 
       if (cancelled) return;

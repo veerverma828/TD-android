@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import * as traktService from '@/services/traktService';
-import { DeviceAuthResult } from '@/services/traktService';
+import { DeviceAuthOutcome } from '@/services/traktService';
 import { syncFromTrakt } from '@/services/watchedService';
 
 export type TraktAuthStatus = 'idle' | 'pending' | 'success' | 'expired' | 'denied' | 'error';
@@ -86,23 +86,27 @@ export function TraktProvider({ children }: { children: ReactNode }) {
 
       const { promise, cancel } = traktService.pollDeviceToken(device.deviceCode, device.interval, device.expiresIn);
       cancelRef.current = cancel;
-      const result: DeviceAuthResult = await promise;
+      const outcome: DeviceAuthOutcome = await promise;
       cancelRef.current = null;
 
-      if (result === 'success') {
+      if (outcome.result === 'success') {
         setAuthStatus('success');
         setDeviceAuth(null);
         setConnected(true);
         const profile = await traktService.getUserProfile();
         if (profile) setUsername(profile.username);
         syncFromTrakt();
-      } else if (result === 'expired') {
+      } else if (outcome.result === 'expired') {
         setAuthStatus('expired');
         setAuthError('The Trakt activation code expired. Try connecting again.');
         setDeviceAuth(null);
-      } else if (result === 'denied') {
+      } else if (outcome.result === 'denied') {
         setAuthStatus('denied');
         setAuthError('Trakt authorization was denied.');
+        setDeviceAuth(null);
+      } else if (outcome.result === 'network') {
+        setAuthStatus('error');
+        setAuthError(outcome.message || "Can't reach Trakt. Check your connection and try again.");
         setDeviceAuth(null);
       }
     } catch (err: any) {
