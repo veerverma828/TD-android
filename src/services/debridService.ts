@@ -331,9 +331,12 @@ export async function getFiles(magnet: string, service: DebridProvider, apiKey: 
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `magnet=${encodeURIComponent(magnet)}`,
     }, { timeoutMs: SLOW_FETCH_TIMEOUT_MS });
-    const addData = await addRes.json();
-    if (!addData.success) {
-      throw new Error("Failed to add magnet to Torbox");
+    const addData = await addRes.json().catch(() => null);
+    if (!addData?.success) {
+      // TorBox explains itself in `detail` (plan limits, active-download cap, bad key) -
+      // dropping it left every add failure looking identical and undiagnosable.
+      const detail: string = addData?.detail || addData?.error || '';
+      throw new Error(detail ? `TorBox: ${detail}` : `Failed to add magnet to TorBox (HTTP ${addRes.status}).`);
     }
     const torrentId = addData.data.torrent_id;
 
@@ -404,24 +407,39 @@ export async function generateLink(torrentId: string | number, fileId: string | 
 
   if (service === 'torbox') {
     return pollUntil<string>(async () => {
+      let res: Response;
       try {
-        const res = await fetchWithRetry(
-          // Authorization header alone is sufficient (and what Torbox needs to record
-          // live usage data against this key) - the `token` query param is documented
-          // as an alternate auth method for building shareable permalinks, not something
-          // this call needs on top of the header. Dropping it stops the API key from
-          // sitting in request logs/proxies as plain URL text alongside the header.
-          `https://api.torbox.app/v1/api/torrents/requestdl?torrent_id=${torrentId}&file_id=${fileId}`,
+        res = await fetchWithRetry(
+          // requestdl authenticates off the `token` query param, NOT the Authorization
+          // header: TorBox's own SDK documents it as "requires an API key as a parameter
+          // for the token parameter". Sending only the header makes every call fail auth,
+          // which reads as "torrent never became ready" rather than an auth problem.
+          // The header goes along too - that's what records live usage against the key.
+          `https://api.torbox.app/v1/api/torrents/requestdl?token=${encodeURIComponent(apiKey)}&torrent_id=${torrentId}&file_id=${fileId}`,
           { headers: { Authorization: `Bearer ${apiKey}` } },
           { timeoutMs: SLOW_FETCH_TIMEOUT_MS }
         );
-        const dlData = await res.json();
-        if (dlData.success && dlData.data) {
-          return dlData.data;
-        }
-      } catch {
-        // Torbox throws while the torrent is still downloading internally; keep polling.
+      } catch (error) {
+        // An unreachable host won't fix itself between polls, and a timeout here already
+        // burned its own retries - surface it instead of burying it in "still working".
+        if (isNetworkError(error)) throw error;
+        return null;
       }
+
+      const dlData = await res.json().catch(() => null);
+
+      if (dlData?.success && dlData.data) {
+        return dlData.data;
+      }
+
+      // A rejected key produces the same empty result as a torrent that isn't ready yet,
+      // so without this the user waits out all 6 polls and is then told the torrent is
+      // probably uncached - pointing them at the wrong problem entirely.
+      const detail: string = dlData?.detail || dlData?.error || '';
+      if (res.status === 401 || res.status === 403 || /auth|token/i.test(detail)) {
+        throw new Error(`TorBox rejected your API key when generating the link${detail ? ` (${detail})` : ''}. Re-check the key in Settings → Debrid.`);
+      }
+
       return null;
     }, POLL_ATTEMPTS, (i, attempts) => onStatus?.(stalledMessage(i, attempts, 'Generating link')));
   }
