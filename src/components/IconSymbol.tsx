@@ -59,6 +59,7 @@ const MAPPING = {
   'flame.fill': 'local-fire-department',
   'puzzlepiece.extension.fill': 'extension',
   'calendar': 'event',
+  'switch.2': 'swap-horiz',
 };
 
 export type IconSymbolName = keyof typeof MAPPING;

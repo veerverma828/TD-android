@@ -8,6 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useIsTV } from '@/contexts/DeviceModeContext';
 import { useTVHorizontalAutoScroll } from '@/hooks/tv/useTVHorizontalAutoScroll';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { Video } from '@/services/cinemeta';
 import { EpisodeSelectorProps, seasonLabel } from './types';
 
@@ -63,7 +64,7 @@ export function EpisodeSelectorCardCarousel({ seasons, selectedSeason, onSelectS
           >
             <View style={[styles.thumbWrap, { backgroundColor: colors.backgroundElement }]}>
               <Image
-                source={{ uri: ep.thumbnail || posterFallback || '' }}
+                source={{ uri: normalizeImageUrl(ep.thumbnail || posterFallback, 'thumbnail') }}
                 style={styles.thumb}
                 contentFit={isTV ? 'contain' : 'cover'}
                 transition={200}

@@ -5,6 +5,7 @@ const SHOW_RATING_KEY = 'settings:show_rating';
 const DISCOVER_LAYOUT_KEY = 'settings:discover_layout';
 const CONTINUE_WATCHING_SOURCE_KEY = 'settings:continue_watching_source';
 const EPISODE_LAYOUT_KEY = 'settings:episode_layout';
+const STREAMING_MODE_KEY = 'settings:streaming_mode';
 
 export type DiscoverLayout = 'railSwitch' | 'genreWall' | 'indexAccordion';
 const DEFAULT_DISCOVER_LAYOUT: DiscoverLayout = 'railSwitch';
@@ -16,6 +17,12 @@ export type EpisodeLayout = 'verticalRail' | 'numberedGrid' | 'cardCarousel' | '
 const DEFAULT_EPISODE_LAYOUT: EpisodeLayout = 'verticalRail';
 const EPISODE_LAYOUTS: EpisodeLayout[] = ['verticalRail', 'numberedGrid', 'cardCarousel', 'accordionStack', 'splitRail'];
 
+// 'direct-api': existing flow — user's own Real-Debrid/TorBox key resolves addon-supplied
+// magnets. 'addon-managed': Stremio-style — the addon itself is already configured with a
+// debrid service externally, so it returns ready-to-play links and the app stores no key.
+export type StreamingMode = 'direct-api' | 'addon-managed';
+const DEFAULT_STREAMING_MODE: StreamingMode = 'direct-api';
+
 interface SettingsContextValue {
   showRating: boolean;
   setShowRating: (value: boolean) => void;
@@ -25,6 +32,8 @@ interface SettingsContextValue {
   setContinueWatchingSource: (value: ContinueWatchingSource) => void;
   episodeLayout: EpisodeLayout;
   setEpisodeLayout: (value: EpisodeLayout) => void;
+  streamingMode: StreamingMode;
+  setStreamingMode: (value: StreamingMode) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue>({
@@ -36,6 +45,8 @@ const SettingsContext = createContext<SettingsContextValue>({
   setContinueWatchingSource: () => {},
   episodeLayout: DEFAULT_EPISODE_LAYOUT,
   setEpisodeLayout: () => {},
+  streamingMode: DEFAULT_STREAMING_MODE,
+  setStreamingMode: () => {},
 });
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -43,6 +54,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [discoverLayout, setDiscoverLayoutState] = useState<DiscoverLayout>(DEFAULT_DISCOVER_LAYOUT);
   const [continueWatchingSource, setContinueWatchingSourceState] = useState<ContinueWatchingSource>(DEFAULT_CONTINUE_WATCHING_SOURCE);
   const [episodeLayout, setEpisodeLayoutState] = useState<EpisodeLayout>(DEFAULT_EPISODE_LAYOUT);
+  const [streamingMode, setStreamingModeState] = useState<StreamingMode>(DEFAULT_STREAMING_MODE);
 
   useEffect(() => {
     AsyncStorage.getItem(SHOW_RATING_KEY).then((value) => {
@@ -61,6 +73,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     AsyncStorage.getItem(EPISODE_LAYOUT_KEY).then((value) => {
       if (value && (EPISODE_LAYOUTS as string[]).includes(value)) {
         setEpisodeLayoutState(value as EpisodeLayout);
+      }
+    });
+    AsyncStorage.getItem(STREAMING_MODE_KEY).then((value) => {
+      if (value === 'direct-api' || value === 'addon-managed') {
+        setStreamingModeState(value);
       }
     });
   }, []);
@@ -85,6 +102,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(EPISODE_LAYOUT_KEY, value);
   };
 
+  const setStreamingMode = (value: StreamingMode) => {
+    setStreamingModeState(value);
+    AsyncStorage.setItem(STREAMING_MODE_KEY, value);
+  };
+
   return (
     <SettingsContext.Provider
       value={{
@@ -96,6 +118,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setContinueWatchingSource,
         episodeLayout,
         setEpisodeLayout,
+        streamingMode,
+        setStreamingMode,
       }}
     >
       {children}

@@ -147,7 +147,7 @@ export default function CalendarScreen() {
                     focusRingScale={false}
                   >
                     <Image
-                      source={{ uri: entry.poster }}
+                      source={{ uri: normalizeImageUrl(entry.poster, 'thumbnail') }}
                       style={styles.poster}
                       contentFit="cover"
                       cachePolicy="memory-disk"

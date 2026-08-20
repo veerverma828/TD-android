@@ -145,6 +145,12 @@ class StreamHttpServer {
             pumpFile(output, stream, rangeStart, rangeEnd)
         } catch (_: IOException) {
             // Client disconnected or seeked away mid-response - not an error.
+        } catch (_: InterruptedException) {
+            // stop() calls pool.shutdownNow(), which interrupts whichever request is
+            // parked waiting for pieces. That is the normal teardown path, not a
+            // fault - logging it as one buries real failures in stack traces every
+            // time the user closes the player.
+            Thread.currentThread().interrupt()
         } catch (e: Exception) {
             // Runs on a bare Executor thread (pool.execute {} in start()) with no
             // exception handler above it - anything past IOException (e.g. a malformed
@@ -163,21 +169,31 @@ class StreamHttpServer {
 
     private fun pumpFile(output: OutputStream, stream: ActiveStream, start: Long, endInclusive: Long) {
         val pieceLength = stream.torrentInfo.pieceLength()
+        if (pieceLength <= 0) throw IOException("Malformed torrent: piece length $pieceLength")
         val fileOffsetInTorrent = stream.torrentInfo.files().fileOffset(stream.fileIndex)
-        val lastPiece = stream.torrentInfo.files().lastPieceIndexAtFile(stream.fileIndex)
 
-        // One prioritization burst per request (i.e. per seek) - not per poll tick -
-        // so we boost the requested region once and then just wait for it to land.
         prioritize(stream, fileOffsetInTorrent, pieceLength, start)
 
         RandomAccessFile(stream.filePath, "r").use { raf ->
             var pos = start
             val buffer = ByteArray(64 * 1024)
             var stallStartedAt = 0L
+            var prioritizedPiece = ((fileOffsetInTorrent + start) / pieceLength).toInt()
             while (pos <= endInclusive) {
-                val available = availableContiguousBytes(stream, fileOffsetInTorrent, pieceLength, lastPiece)
-                if (pos >= available) {
+                // Availability is measured *from the current read position*, not from
+                // the start of the file. Measuring from the file start meant a seek
+                // into an already-downloaded region still reported "nothing available"
+                // whenever any earlier piece was missing, so seeking forward stalled
+                // for the full timeout and then truncated the response.
+                val available = PieceAvailability.contiguousBytesFrom(
+                    stream.handle, stream.torrentInfo, stream.fileIndex, pos
+                )
+                if (available <= 0) {
                     if (stallStartedAt == 0L) stallStartedAt = System.currentTimeMillis()
+                    // Keep the urgent window pinned to wherever playback is actually
+                    // blocked - a single burst at request time goes stale as soon as
+                    // the read head moves past it.
+                    prioritize(stream, fileOffsetInTorrent, pieceLength, pos)
                     if (System.currentTimeMillis() - stallStartedAt > PIECE_STALL_TIMEOUT_MS) {
                         throw IOException("Timed out waiting for torrent data at offset $pos")
                     }
@@ -185,11 +201,25 @@ class StreamHttpServer {
                     continue
                 }
                 stallStartedAt = 0L
-                val toRead = minOf(buffer.size.toLong(), endInclusive - pos + 1, available - pos).toInt()
+
+                // Advance the read-ahead window as playback progresses so the pieces
+                // just past the read head stay deadline-boosted.
+                val currentPiece = ((fileOffsetInTorrent + pos) / pieceLength).toInt()
+                if (currentPiece > prioritizedPiece) {
+                    prioritizedPiece = currentPiece
+                    prioritize(stream, fileOffsetInTorrent, pieceLength, pos)
+                }
+
+                val toRead = minOf(buffer.size.toLong(), endInclusive - pos + 1, available).toInt()
                 if (toRead <= 0) continue
                 raf.seek(pos)
                 val read = raf.read(buffer, 0, toRead)
-                if (read <= 0) continue
+                if (read <= 0) {
+                    // Piece is accounted for but not yet flushed to disk - wait rather
+                    // than spinning on a zero-length read.
+                    Thread.sleep(PIECE_POLL_INTERVAL_MS)
+                    continue
+                }
                 output.write(buffer, 0, read)
                 pos += read
             }
@@ -197,31 +227,13 @@ class StreamHttpServer {
         }
     }
 
-    // Contiguous bytes readable from the start of the file, i.e. up to (but not
-    // including) the first not-yet-downloaded piece that overlaps this file.
-    private fun availableContiguousBytes(stream: ActiveStream, fileOffsetInTorrent: Long, pieceLength: Int, lastPiece: Int): Long {
-        // Plain status() leaves the piece bitfield unpopulated (zero-length) - indexing
-        // into it then segfaults native-side (SIGSEGV in bitfield_get_bit) instead of
-        // throwing. QUERY_PIECES is required to actually get a piece bitmap back.
-        val pieces = stream.handle.status(TorrentHandle.QUERY_PIECES).pieces()
-        // getBit() on an out-of-range index is a native OOB read (SIGSEGV, not a
-        // catchable exception) - bail out to "nothing available yet" instead of
-        // trusting the bitfield is sized to numPieces() on every call.
-        if (pieces.isEmpty || pieces.size() <= 0) return 0L
-        var pieceIdx = (fileOffsetInTorrent / pieceLength).toInt()
-        val maxPiece = minOf(lastPiece, pieces.size() - 1)
-        while (pieceIdx <= maxPiece && pieces.getBit(pieceIdx)) pieceIdx++
-        val boundary = pieceIdx.toLong() * pieceLength
-        val fileSize = stream.torrentInfo.files().fileSize(stream.fileIndex)
-        return (boundary - fileOffsetInTorrent).coerceIn(0, fileSize)
-    }
-
     private fun prioritize(stream: ActiveStream, fileOffsetInTorrent: Long, pieceLength: Int, atByte: Long) {
         try {
             val pieceIdx = ((fileOffsetInTorrent + atByte) / pieceLength).toInt()
+            val lastPiece = stream.torrentInfo.files().lastPieceIndexAtFile(stream.fileIndex)
             stream.handle.clearPieceDeadlines()
             var deadline = 0
-            for (p in pieceIdx..(pieceIdx + PRIORITY_WINDOW_PIECES)) {
+            for (p in pieceIdx..minOf(pieceIdx + PRIORITY_WINDOW_PIECES, lastPiece)) {
                 stream.handle.setPieceDeadline(p, deadline)
                 deadline += 200
             }

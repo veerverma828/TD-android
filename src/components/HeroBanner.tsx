@@ -5,7 +5,7 @@ import {
   StyleSheet,
   View,
   FlatList,
-  Dimensions,
+  useWindowDimensions,
   Easing,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -19,7 +19,6 @@ import { useIsTV } from '@/contexts/DeviceModeContext';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 import { FocusablePressable } from './tv/FocusablePressable';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AUTO_PLAY_INTERVAL = 6000;
 
 export interface HeroItem {
@@ -29,6 +28,10 @@ export interface HeroItem {
   imageUrl: string;
   tags: string[];
   isInMyList?: boolean;
+  // True when imageUrl fell back to a portrait poster (no real backdrop art
+  // for this title) - drives contain-vs-cover so the poster isn't cropped
+  // into an unrecognizable sliver by the landscape banner box.
+  isPosterFallback?: boolean;
 }
 
 interface HeroBannerProps {
@@ -43,17 +46,17 @@ interface HeroBannerProps {
   playButtonRef?: Ref<View>;
 }
 
-const HeroSlide = memo(function HeroSlide({ item, colors }: { item: HeroItem; colors: Record<ThemeColor, string> }) {
+const HeroSlide = memo(function HeroSlide({ item, colors, width }: { item: HeroItem; colors: Record<ThemeColor, string>; width: number }) {
   const [failed, setFailed] = useState(false);
 
   return (
-    <View style={styles.slide}>
+    <View style={[styles.slide, { width }]}>
       {item.imageUrl && !failed ? (
         <Image
           key={item.id}
           source={{ uri: item.imageUrl }}
-          style={styles.image}
-          contentFit="cover"
+          style={[styles.image, item.isPosterFallback && { backgroundColor: colors.backgroundElement }]}
+          contentFit={item.isPosterFallback ? 'contain' : 'cover'}
           transition={100}
           priority="high"
           cachePolicy="memory-disk"
@@ -222,8 +225,8 @@ function TVHeroBanner({
         <Image
           key={hero.id}
           source={{ uri: hero.imageUrl }}
-          style={styles.image}
-          contentFit="cover"
+          style={[styles.image, hero.isPosterFallback && { backgroundColor: colors.backgroundElement }]}
+          contentFit={hero.isPosterFallback ? 'contain' : 'cover'}
           transition={100}
           priority="high"
           cachePolicy="memory-disk"
@@ -295,6 +298,7 @@ function PhoneHeroBanner({
   onListPress?: (item: HeroItem) => void;
   onInfoPress?: (item: HeroItem) => void;
 }) {
+  const { width: screenWidth } = useWindowDimensions();
   const listRef = useRef<FlatList<HeroItem>>(null);
   const indexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -362,11 +366,22 @@ function PhoneHeroBanner({
 
   const handleMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!items || items.length === 0) return;
-    const index = Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH), items.length - 1));
+    const index = Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.x / screenWidth), items.length - 1));
     indexRef.current = index;
     setActiveIndex(index);
     resumeAutoplay();
-  }, [items, resumeAutoplay]);
+  }, [items, resumeAutoplay, screenWidth]);
+
+  // FlatList's contentOffset is in stale pixels after a rotation - each slide is
+  // now a different width, so the old scroll position points at the wrong item
+  // (or a boundary between two). Snap back to the current item at the new width.
+  useEffect(() => {
+    try {
+      listRef.current?.scrollToIndex({ index: indexRef.current, animated: false });
+    } catch {
+      // Prevent crash if layout is not ready
+    }
+  }, [screenWidth]);
 
   if (!items || items.length === 0) return null;
   const current = items[activeIndex] || items[0];
@@ -392,8 +407,8 @@ function PhoneHeroBanner({
             // Safe fallback
           }
         }}
-        getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
-        renderItem={({ item }) => <HeroSlide item={item} colors={colors} />}
+        getItemLayout={(_, index) => ({ length: screenWidth, offset: screenWidth * index, index })}
+        renderItem={({ item }) => <HeroSlide item={item} colors={colors} width={screenWidth} />}
         initialNumToRender={items.length}
         windowSize={items.length}
       />
@@ -484,7 +499,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   slide: {
-    width: SCREEN_WIDTH,
     height: '100%',
   },
   image: {

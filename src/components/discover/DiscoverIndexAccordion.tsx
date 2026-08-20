@@ -10,12 +10,15 @@ import { GENRES } from '@/constants/genres';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
 import { normalizeImageUrl } from '@/utils/imageUrl';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { Fonts } from '@/constants/theme';
 
 type MediaType = 'movie' | 'series';
 
 export function DiscoverIndexAccordion() {
   const { colors } = useAppTheme();
   const router = useRouter();
+  const isTV = useIsTV();
 
   const [type, setType] = useState<MediaType>('movie');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -56,9 +59,9 @@ export function DiscoverIndexAccordion() {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, isTV && tvStyles.container]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <ThemedText type="title" style={styles.title}>Discover</ThemedText>
+        <ThemedText type="title" style={[styles.title, isTV && tvStyles.title]}>Discover</ThemedText>
         <View style={styles.toggle}>
           <FocusablePressable onPress={() => changeType('movie')} focusRingBorderRadius={4} accessibilityRole="button" accessibilityState={{ selected: type === 'movie' }} accessibilityLabel="Movies">
             <ThemedText style={[styles.toggleText, { color: type === 'movie' ? colors.text : colors.textSecondary, borderBottomColor: type === 'movie' ? colors.accent : 'transparent' }]}>
@@ -79,13 +82,13 @@ export function DiscoverIndexAccordion() {
           const cacheKey = `${type}:${genre}`;
           const items = preview[cacheKey];
           return (
-            <View key={genre} style={[styles.row, { borderColor: colors.backgroundSelected }]}>
+            <View key={genre} style={[styles.row, isTV && tvStyles.row, { borderColor: colors.backgroundSelected }]}>
               <FocusablePressable style={styles.rowHead} onPress={() => toggleGenre(genre)} focusRingBorderRadius={4} accessibilityRole="button" accessibilityState={{ expanded: isOpen }} accessibilityLabel={genre}>
-                <ThemedText style={[styles.num, { color: isOpen ? colors.accent : colors.textSecondary }]}>
+                <ThemedText style={[styles.num, isTV && tvStyles.num, { color: isOpen ? colors.accent : colors.textSecondary }]}>
                   {String(i + 1).padStart(2, '0')}
                 </ThemedText>
-                <ThemedText style={[styles.name, { color: isOpen ? colors.text : colors.textSecondary }]}>{genre}</ThemedText>
-                <ThemedText style={{ color: colors.accent, fontSize: 12 }}>{isOpen ? '︿' : '﹀'}</ThemedText>
+                <ThemedText style={[styles.name, isTV && tvStyles.name, { color: isOpen ? colors.text : colors.textSecondary }]}>{genre}</ThemedText>
+                <ThemedText style={{ color: colors.accent, fontSize: isTV ? 16 : 12 }}>{isOpen ? '︿' : '﹀'}</ThemedText>
               </FocusablePressable>
 
               {isOpen && (
@@ -93,7 +96,7 @@ export function DiscoverIndexAccordion() {
                   {loadingGenre === genre ? (
                     <ActivityIndicator color={colors.accent} style={{ marginVertical: 12 }} />
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 6 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 6, paddingLeft: 4 }}>
                       {(items || []).map((item) => (
                         <FocusablePressable
                           key={item.id}
@@ -107,14 +110,14 @@ export function DiscoverIndexAccordion() {
                               ...((item.background || item.poster) ? { background: normalizeImageUrl(item.background || item.poster, 'backdrop') } : {}),
                             },
                           })}
-                          style={{ width: 78 }}
+                          style={{ width: isTV ? 130 : 78 }}
                           focusRingBorderRadius={4}
                           accessibilityRole="button"
                           accessibilityLabel={item.name}
                         >
                           <Image
-                            source={{ uri: item.poster || '' }}
-                            style={styles.previewImage}
+                            source={{ uri: normalizeImageUrl(item.poster, 'thumbnail') }}
+                            style={[styles.previewImage, isTV && tvStyles.previewImage]}
                             contentFit="cover"
                             cachePolicy="memory-disk"
                             transition={200}
@@ -123,8 +126,8 @@ export function DiscoverIndexAccordion() {
                           />
                         </FocusablePressable>
                       ))}
-                      <FocusablePressable onPress={() => goToGenre(genre)} style={styles.seeAll} focusRingBorderRadius={4} accessibilityRole="button" accessibilityLabel={`See all ${genre}`}>
-                        <ThemedText style={{ color: colors.accent, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>See{'\n'}all ›</ThemedText>
+                      <FocusablePressable onPress={() => goToGenre(genre)} style={[styles.seeAll, isTV && tvStyles.seeAll]} focusRingBorderRadius={4} accessibilityRole="button" accessibilityLabel={`See all ${genre}`}>
+                        <ThemedText style={{ color: colors.accent, fontSize: isTV ? 14 : 11, fontWeight: '700', textAlign: 'center' }}>See{'\n'}all ›</ThemedText>
                       </FocusablePressable>
                     </ScrollView>
                   )}
@@ -140,6 +143,9 @@ export function DiscoverIndexAccordion() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
+  // paddingTop gives the header row's focus ring room against the ScrollView's
+  // own vertical scroll-clip boundary (y:0) - otherwise its top edge gets cut off.
+  scrollContent: { paddingTop: 4 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -188,4 +194,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+});
+
+// TV-only style overrides, applied on top of `styles` with `isTV && tvStyles.x`.
+// Kept in their own StyleSheet so TV layout tweaks never touch mobile values above.
+const tvStyles = StyleSheet.create({
+  container: { paddingHorizontal: 32 },
+  title: { fontFamily: Fonts.serif, fontSize: 40 },
+  row: { paddingVertical: 20 },
+  num: { fontSize: 14 },
+  name: { fontSize: 26 },
+  previewImage: { width: 130, height: 186 },
+  seeAll: { width: 90, height: 186 },
 });

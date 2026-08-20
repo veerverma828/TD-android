@@ -342,11 +342,22 @@ export async function getFiles(magnet: string, service: DebridProvider, apiKey: 
 
     return pollUntil<DebridFilesResult>(async () => {
       try {
-        const listRes = await fetchWithRetry("https://api.torbox.app/v1/api/torrents/mylist", {
-          headers: { Authorization: `Bearer ${apiKey}` },
-        }, { timeoutMs: SLOW_FETCH_TIMEOUT_MS });
+        // TorBox's mylist only refreshes every 600s server-side unless bypass_cache is
+        // set (confirmed in their SDK docs) - without it, a torrent created seconds ago
+        // can be invisible for the entire poll loop, which looks like "stuck"/"failed"
+        // rather than what it is (a stale read). id= also narrows the response to this
+        // one torrent instead of the account's whole list.
+        const listRes = await fetchWithRetry(
+          `https://api.torbox.app/v1/api/torrents/mylist?id=${torrentId}&bypass_cache=true`,
+          { headers: { Authorization: `Bearer ${apiKey}` } },
+          { timeoutMs: SLOW_FETCH_TIMEOUT_MS }
+        );
         const listData = await listRes.json();
-        const torrent = listData.data?.find((t: any) => t.id === torrentId);
+        // id= is documented to return a single object rather than a list, but fall back
+        // to searching a list defensively in case that ever isn't true for some accounts.
+        const torrent = Array.isArray(listData.data)
+          ? listData.data.find((t: any) => t.id === torrentId)
+          : listData.data;
 
         if (torrent && torrent.files && torrent.files.length > 0) {
           return {

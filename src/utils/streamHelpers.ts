@@ -1,3 +1,5 @@
+import { buildMagnetUri } from './magnet';
+
 export interface TorrentioStream {
   title: string;
   filename: string | null;
@@ -172,7 +174,12 @@ export function formatTorrentio(data: any): TorrentioStream[] {
         source: source || sourceTag,
         releaseGroup,
         languages,
-        magnet: item.infoHash ? `magnet:?xt=urn:btih:${item.infoHash}` : item.url,
+        // Built with the addon's own `sources` trackers rather than as a bare
+        // infohash — see buildMagnetUri. A trackerless magnet is DHT-only, which is
+        // what made P2P playback fail to resolve for most non-blockbuster torrents.
+        magnet: item.infoHash
+          ? buildMagnetUri(item.infoHash, { name: item.behaviorHints?.filename || releaseTitle, sources: item.sources })
+          : item.url,
         isDirect: !item.infoHash && !!item.url,
         fileIdx: typeof item.fileIdx === 'number' ? item.fileIdx : null,
         infoHash: item.infoHash || null,

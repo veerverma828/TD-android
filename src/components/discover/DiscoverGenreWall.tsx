@@ -9,7 +9,10 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { fetchCatalog } from '@/services/cinemeta';
 import { GENRES } from '@/constants/genres';
 import { DARK_IMAGE_PLACEHOLDER } from '@/constants/placeholder';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
+import { useIsTV } from '@/contexts/DeviceModeContext';
+import { Fonts } from '@/constants/theme';
 
 type MediaType = 'movie' | 'series';
 
@@ -18,6 +21,8 @@ const TALL_GENRES = new Set(['Action', 'Horror']);
 export function DiscoverGenreWall() {
   const { colors } = useAppTheme();
   const router = useRouter();
+  const isTV = useIsTV();
+  const columns = isTV ? 4 : 2;
   const [type, setType] = useState<MediaType>('movie');
   const [covers, setCovers] = useState<Record<string, string>>({});
 
@@ -27,7 +32,11 @@ export function DiscoverGenreWall() {
       GENRES.map(async (genre) => {
         try {
           const data = await fetchCatalog(type, 'top', genre);
-          return [genre, data[0]?.poster || data[0]?.background] as const;
+          // These render into small (84-176dp) tiles, GENRES.length of them at once -
+          // without downsizing this was pulling full-res (up to ~3MB) Cinemeta/TMDB
+          // originals for a wall of thumbnails, all in parallel.
+          const cover = data[0]?.poster || data[0]?.background;
+          return [genre, normalizeImageUrl(cover, 'thumbnail')] as const;
         } catch {
           return [genre, undefined] as const;
         }
@@ -49,9 +58,9 @@ export function DiscoverGenreWall() {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, isTV && tvStyles.container]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <ThemedText type="title" style={styles.title}>Discover</ThemedText>
+        <ThemedText type="title" style={[styles.title, isTV && tvStyles.title]}>Discover</ThemedText>
         <View style={[styles.toggle, { backgroundColor: colors.backgroundElement }]}>
           <FocusablePressable
             style={[styles.toggleBtn, type === 'movie' && { backgroundColor: colors.accent }]}
@@ -76,19 +85,23 @@ export function DiscoverGenreWall() {
         </View>
       </View>
 
-      <View style={styles.wall}>
+      <View style={[styles.wall, isTV && tvStyles.wall]}>
         {GENRES.map((genre) => {
           const cover = covers[genre];
+          const isTall = TALL_GENRES.has(genre);
           return (
             <FocusablePressable
               key={`${type}-${genre}`}
               onPress={() => goToGenre(genre)}
               focusRingBorderRadius={6}
+              focusRingScale={false}
               accessibilityRole="button"
               accessibilityLabel={genre}
               style={({ pressed }) => [
                 styles.tile,
-                TALL_GENRES.has(genre) && styles.tileTall,
+                { width: `${100 / columns - 2}%` },
+                isTV && tvStyles.tile,
+                isTall && (isTV ? tvStyles.tileTall : styles.tileTall),
                 { backgroundColor: colors.backgroundElement, opacity: pressed ? 0.8 : 1 },
               ]}
             >
@@ -120,6 +133,9 @@ export function DiscoverGenreWall() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
+  // paddingTop gives the header row's focus ring room against the ScrollView's
+  // own vertical scroll-clip boundary (y:0) - otherwise its top edge gets cut off.
+  scrollContent: { paddingTop: 4 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -127,19 +143,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: { fontSize: 24 },
-  toggle: { flexDirection: 'row', gap: 2, borderRadius: 8, padding: 2 },
+  // padding must exceed the ring's fixed -3 margin bleed (see DiscoverRailSwitch's
+  // switch pill for the full explanation) or it gets clipped at this pill's edge.
+  toggle: { flexDirection: 'row', gap: 2, borderRadius: 8, padding: 6 },
   toggleBtn: {
     width: 28, height: 28, borderRadius: 6,
     alignItems: 'center', justifyContent: 'center',
   },
+  // paddingHorizontal gives the leftmost/rightmost tile's focus ring room against
+  // the ScrollView's clipped viewport edge, same reason as the poster grid in
+  // DiscoverRailSwitch - tiles otherwise pack flush against it with no buffer.
+  // focusRingScale bleed is ~4% of the focused tile's own size, not a fixed
+  // pixel amount, so wider tiles need more room - see tvStyles.wall below.
   wall: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     paddingBottom: 40,
+    paddingHorizontal: 8,
   },
   tile: {
-    width: '48%',
     height: 84,
     borderRadius: 6,
     overflow: 'hidden',
@@ -165,4 +188,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
+});
+
+// TV-only style overrides, applied on top of `styles` with `isTV && tvStyles.x`.
+// Kept in their own StyleSheet so TV layout tweaks never touch mobile values above.
+const tvStyles = StyleSheet.create({
+  container: { paddingHorizontal: 32 },
+  title: { fontFamily: Fonts.serif, fontSize: 40 },
+  wall: { paddingHorizontal: 16 },
+  tile: { height: 140 },
+  tileTall: { height: 292 },
 });

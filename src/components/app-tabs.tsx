@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { Pressable } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -33,6 +34,9 @@ export default function AppTabs() {
             },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
+        // Default tab button is PlatformPressable, which shows Android's ripple
+        // on tap. Swap in a plain Pressable with the ripple disabled.
+        tabBarButton: (props) => <Pressable {...(props as any)} android_ripple={null} />,
       })}>
       <Tabs.Screen
         name="index"

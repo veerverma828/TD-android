@@ -11,14 +11,14 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { getAddons, addAddon, removeAddon, setAddonEnabled, StreamAddon } from '@/services/addonService';
 
-export default function AddonsSettingsScreen() {
+export default function ManagedAddonsSettingsScreen() {
   const { colors } = useAppTheme();
   const [addons, setAddons] = useState<StreamAddon[]>([]);
   const [url, setUrl] = useState('');
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
-    setAddons(await getAddons('direct-api'));
+    setAddons(await getAddons('addon-managed'));
   }, []);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function AddonsSettingsScreen() {
     }
     setAdding(true);
     try {
-      const result = await addAddon(url.trim(), 'direct-api');
+      const result = await addAddon(url.trim(), 'addon-managed');
       if (result.success) {
         setUrl('');
         await load();
@@ -66,18 +66,18 @@ export default function AddonsSettingsScreen() {
   return (
     <ThemedView style={settingsStyles.container}>
       <SafeAreaView edges={['top']} style={settingsStyles.safeArea}>
-        <SettingsSubHeader title="Addons" />
+        <SettingsSubHeader title="Managed Addons" />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={settingsStyles.scrollContent}>
           <ThemedText style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 19, paddingHorizontal: 16, marginBottom: 18 }}>
-            Add a Stremio-compatible addon manifest URL to pull streams from it. These resolve through the debrid key configured under Settings &gt; Debrid. No addons added means no streams will show.
+            For Addon-Managed mode. Paste the manifest URL from an addon already configured with a debrid service on its own configure page (for example, Torrentio with Real-Debrid selected) — not the plain public URL. The app plays whatever it returns directly. No API key is stored in this app for these.
           </ThemedText>
 
           <View style={[settingsStyles.card, { backgroundColor: colors.backgroundElement }]}>
-            <ThemedText style={[settingsStyles.rowLabel, { marginBottom: 10 }]}>Addon Manifest URL</ThemedText>
+            <ThemedText style={[settingsStyles.rowLabel, { marginBottom: 10 }]}>Pre-configured Addon URL</ThemedText>
             <TextInput
               style={[settingsStyles.cardInput, { color: colors.text, borderColor: colors.backgroundSelected, backgroundColor: colors.background }]}
-              placeholder="https://torrentio.strem.fun/manifest.json"
+              placeholder="https://torrentio.strem.fun/<your-config>/manifest.json"
               placeholderTextColor={colors.textSecondary}
               value={url}
               onChangeText={setUrl}
@@ -108,7 +108,7 @@ export default function AddonsSettingsScreen() {
             <View style={[settingsStyles.emptyCard, { backgroundColor: colors.backgroundElement }]}>
               <IconSymbol name="tv" color={colors.textSecondary} size={32} />
               <ThemedText style={{ color: colors.textSecondary, marginTop: 10, textAlign: 'center', paddingHorizontal: 24 }}>
-                No addons added. Streams won't show until you add one.
+                No managed addons added. Streams will not show in Addon-Managed mode until you add one.
               </ThemedText>
             </View>
           ) : (

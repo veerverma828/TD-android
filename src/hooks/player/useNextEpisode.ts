@@ -5,6 +5,7 @@ import { fetchMeta, fetchEpisodeStreams } from '@/services/cinemeta';
 import { getActiveDebridProvider, getDebridKey, getFiles, generateLink } from '@/services/debridService';
 import { getEnabledAddons } from '@/services/addonService';
 import { buildContentId, parseContentId } from '@/utils/contentId';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface NextEpisodeTarget {
   season: number;
@@ -14,6 +15,7 @@ interface NextEpisodeTarget {
 
 export function useNextEpisode(contentId: string | null) {
   const router = useRouter();
+  const { streamingMode } = useSettings();
   const [next, setNext] = useState<NextEpisodeTarget | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -46,22 +48,30 @@ export function useNextEpisode(contentId: string | null) {
     if (!parsed || !next || loading) return;
     setLoading(true);
     try {
-      const provider = await getActiveDebridProvider();
-      if (!provider) return;
-      let apiKey = '';
-      if (provider !== 'p2p') {
-        apiKey = (await getDebridKey(provider)) ?? '';
-        if (!apiKey) return;
-      }
-
-      const addons = await getEnabledAddons();
+      const addons = await getEnabledAddons(streamingMode);
       if (addons.length === 0) return;
       const streams = await fetchEpisodeStreams(parsed.id, next.season, next.episode, addons);
       if (streams.length === 0) return;
 
-      const result = await getFiles(streams[0].magnet, provider, apiKey);
-      if (result.files.length === 0) return;
-      const downloadUrl = await generateLink(result.torrentId, result.files[0].id, provider, apiKey);
+      let downloadUrl: string;
+      if (streamingMode === 'addon-managed') {
+        // No in-app debrid key in this mode — only addon-pre-resolved (isDirect)
+        // streams are playable, same rule details.tsx applies to the picker list.
+        const playable = streams.find((s) => s.isDirect);
+        if (!playable) return;
+        downloadUrl = playable.magnet;
+      } else {
+        const provider = await getActiveDebridProvider();
+        if (!provider) return;
+        let apiKey = '';
+        if (provider !== 'p2p') {
+          apiKey = (await getDebridKey(provider)) ?? '';
+          if (!apiKey) return;
+        }
+        const result = await getFiles(streams[0].magnet, provider, apiKey);
+        if (result.files.length === 0) return;
+        downloadUrl = await generateLink(result.torrentId, result.files[0].id, provider, apiKey);
+      }
 
       router.replace({
         pathname: '/player',
@@ -76,7 +86,7 @@ export function useNextEpisode(contentId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [parsed, next, router, loading]);
+  }, [parsed, next, router, loading, streamingMode]);
 
   return { hasNext: !!next, nextTitle: next?.title ?? null, loading, playNext };
 }

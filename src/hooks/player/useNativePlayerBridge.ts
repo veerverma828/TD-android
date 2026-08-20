@@ -1,7 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { requireNativeModule, EventEmitter } from 'expo-modules-core';
 
-const NativePlayer = requireNativeModule('NativePlayer');
+// Native-only module - no web/iOS impl exists. Load lazily so importing this
+// file on web doesn't throw at bundle-eval time; unsupported platforms get a
+// proxy that fails calls instead of crashing on import.
+const unsupportedNativePlayer = new Proxy(
+  {},
+  {
+    get() {
+      return () => {
+        throw new Error('Native player is not supported on this platform.');
+      };
+    },
+  },
+);
+
+const NativePlayer =
+  Platform.OS === 'android' ? requireNativeModule('NativePlayer') : unsupportedNativePlayer;
 
 export interface NativePlayerLaunchConfig {
   streamUrl: string;
@@ -58,7 +74,9 @@ type NativePlayerEventsMap = {
   nativePlayerPipModeChanged: (event: PipModeChangedEvent) => void;
 };
 
-const playerEmitter = new EventEmitter<NativePlayerEventsMap>(NativePlayer);
+const playerEmitter = new EventEmitter<NativePlayerEventsMap>(
+  Platform.OS === 'android' ? (NativePlayer as any) : ({} as any),
+);
 
 export function useNativePlayerBridge(callbacks: NativePlayerBridgeCallbacks) {
   const [playback, setPlayback] = useState({ paused: true, currentTime: 0, duration: 0 });

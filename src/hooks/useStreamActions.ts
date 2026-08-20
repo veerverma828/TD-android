@@ -4,6 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useRouter } from 'expo-router';
 import { getActiveDebridProvider, getDebridKey, getFiles, generateLink, DebridProvider, DebridFile } from '@/services/debridService';
+import { cancelP2PStream } from '@/services/p2pStreamService';
 
 const ALLOWED_SCHEMES = ['http:', 'https:', 'magnet:'];
 
@@ -195,11 +196,23 @@ export function useStreamActions(meta: PlaybackMeta = {}) {
     Alert.alert("Success", "Link copied to clipboard!");
   };
 
+  // Backing out of the picker used to leave a P2P resolve running to completion in
+  // native code - up to a minute of DHT/tracker work for a stream nobody is waiting
+  // for any more, and the stale result would then try to resolve into the UI.
+  // Bumping the token drops the result; cancelP2PStream() stops the native work.
+  const cancelResolve = () => {
+    requestTokenRef.current++;
+    setResolvingId(null);
+    setResolvingStage(null);
+    cancelP2PStream().catch(() => {});
+  };
+
   return {
     play,
     playExternal,
     copyUrl,
     download,
+    cancelResolve,
     resolvingId,
     resolvingStage,
     fileSelection,

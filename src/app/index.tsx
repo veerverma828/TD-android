@@ -228,9 +228,10 @@ export default function HomeScreen() {
         id: heroSourceItem.id,
         title: heroSourceItem.name,
         subtitle: heroSourceItem.description?.substring(0, 80) + '...' || 'A journey beyond the edge of the known universe.',
-        imageUrl: normalizeImageUrl(heroSourceItem.background || heroSourceItem.poster) || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
+        imageUrl: normalizeImageUrl(heroSourceItem.background || heroSourceItem.poster, 'backdrop') || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
         tags: heroSourceItem.genres?.slice(0, 3) || ['Movie'],
         isInMyList: isInList(heroSourceItem.id, heroSourceItem.type),
+        isPosterFallback: !heroSourceItem.background,
       }
     : null;
 
@@ -240,9 +241,10 @@ export default function HomeScreen() {
         id: item.id,
         title: item.name,
         subtitle: item.description?.substring(0, 80) + '...' || 'A journey beyond the edge of the known universe.',
-        imageUrl: normalizeImageUrl(item.background || item.poster) || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
+        imageUrl: normalizeImageUrl(item.background || item.poster, 'backdrop') || 'https://images.unsplash.com/photo-1534809027769-b00d750a6bac?auto=format&fit=crop&q=80&w=600',
         tags: item.genres?.slice(0, 3) || ['Movie'],
         isInMyList: isInList(item.id, item.type),
+        isPosterFallback: !item.background,
       })),
     [heroSourceItems, isInList]
   );

@@ -25,7 +25,7 @@ interface TorrentModalProps {
 
 export function TorrentModal({ visible, onClose, options, cachedHashes, loading, error, contentTitle, contentPoster, contentBackdrop, contentId }: TorrentModalProps) {
   const { colors } = useAppTheme();
-  const { play, playExternal, copyUrl, download, resolvingId, resolvingStage, fileSelection, setFileSelection, resolveAndPlay } = useStreamActions({
+  const { play, playExternal, copyUrl, download, cancelResolve, resolvingId, resolvingStage, fileSelection, setFileSelection, resolveAndPlay } = useStreamActions({
     title: contentTitle,
     poster: contentPoster,
     backdrop: contentBackdrop,
@@ -61,6 +61,7 @@ export function TorrentModal({ visible, onClose, options, cachedHashes, loading,
   // for whatever title opens this same modal instance next - route both through this
   // so every dismissal path clears the same state the back-handler chain does.
   const handleClose = () => {
+    cancelResolve();
     setFileSelection(null);
     setExpandedId(null);
     onClose();

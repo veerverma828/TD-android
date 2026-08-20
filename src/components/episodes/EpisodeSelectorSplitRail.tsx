@@ -4,6 +4,7 @@ import { EpisodeRow } from '@/components/EpisodeRow';
 import { FocusablePressable } from '@/components/tv/FocusablePressable';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { EpisodeSelectorProps, seasonLabel } from './types';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 
 export function EpisodeSelectorSplitRail({ seasons, selectedSeason, onSelectSeason, allVideos, posterFallback, onPlayEpisode, watchedEpisodeKeys, onToggleWatched }: EpisodeSelectorProps) {
   const { colors } = useAppTheme();
@@ -36,7 +37,7 @@ export function EpisodeSelectorSplitRail({ seasons, selectedSeason, onSelectSeas
             episodeNumber={ep.episode}
             title={ep.title || `Episode ${ep.episode}`}
             duration={ep.released ? new Date(ep.released).toLocaleDateString() : ''}
-            imageUrl={ep.thumbnail || posterFallback || ''}
+            imageUrl={normalizeImageUrl(ep.thumbnail || posterFallback, 'thumbnail')}
             overview={ep.overview}
             rating={ep.rating}
             watched={watchedEpisodeKeys?.has(`${ep.season}:${ep.episode}`)}

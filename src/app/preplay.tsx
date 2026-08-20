@@ -82,7 +82,10 @@ export default function PreplayScreen() {
   }, [loaded, isFocused]);
 
   const rawArtwork = params.backdrop || params.poster;
-  const artwork = normalizeImageUrl(rawArtwork);
+  // Full-screen background (StyleSheet.absoluteFill below) - defaulting to the
+  // 'poster' size here (342px wide) and stretching it across the whole device
+  // screen is what made this look soft/pixelated.
+  const artwork = normalizeImageUrl(rawArtwork, 'backdrop');
   const title = params.title || 'Preparing playback';
   const variant = settings.preplayVariant;
 

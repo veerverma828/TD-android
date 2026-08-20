@@ -21,9 +21,14 @@ interface PosterCardProps {
   style?: ViewStyle;
   hasTVPreferredFocus?: boolean;
   onFocus?: () => void;
+  // Ring bleed from focusRingScale grows with the card's OWN size (~4% of it),
+  // not a fixed pixel amount - fine for a handful of fixed-width cards in a
+  // Carousel, but in a wide grid (e.g. Discover's numColumns grid) the leading
+  // column's ring can outgrow any reasonable fixed padding. Pass false there.
+  focusRingScale?: boolean;
 }
 
-function PosterCardImpl({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style, hasTVPreferredFocus, onFocus }: PosterCardProps, ref: Ref<View>) {
+function PosterCardImpl({ title, subtitle, imageUrl, progress, progressColor, rating, onPress, onLongPress, style, hasTVPreferredFocus, onFocus, focusRingScale }: PosterCardProps, ref: Ref<View>) {
   const { colors } = useAppTheme();
   const [failed, setFailed] = useState(false);
   const normalizedUrl = normalizeImageUrl(imageUrl);
@@ -37,6 +42,7 @@ function PosterCardImpl({ title, subtitle, imageUrl, progress, progressColor, ra
       delayLongPress={350}
       hasTVPreferredFocus={hasTVPreferredFocus}
       onFocus={onFocus}
+      focusRingScale={focusRingScale}
       focusRingBorderRadius={4}
       accessibilityRole="button"
       accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}

@@ -41,7 +41,7 @@ const TAB_LABELS: Record<TabKey, string> = {
 
 // Mounted with key={uri} by the caller so a new url remounts it fresh -
 // keeps `failed` scoped per-image without needing an effect/ref reset.
-function CoverImage({ uri, backgroundColor, iconColor }: { uri: string; backgroundColor: string; iconColor: string }) {
+function CoverImage({ uri, isPosterFallback, backgroundColor, iconColor }: { uri: string; isPosterFallback: boolean; backgroundColor: string; iconColor: string }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
@@ -52,20 +52,28 @@ function CoverImage({ uri, backgroundColor, iconColor }: { uri: string; backgrou
     );
   }
 
+  // Landscape backdrops fill the header edge-to-edge with a crop - fine, that's
+  // what they're composed for. A portrait poster forced through the same 'cover'
+  // treatment gets zoomed/cropped into an unrecognizable sliver (titles with no
+  // backdrop art fall back to their poster here). 'contain' shows the whole
+  // poster, letterboxed against the theme background instead - stretching it
+  // ('fill') to kill the letterbox distorts the art, which reads worse than bars.
   return (
-    <Image
-      source={{ uri }}
-      style={styles.coverImage}
-      contentFit="cover"
-      contentPosition="top"
-      cachePolicy="memory-disk"
-      priority="high"
-      recyclingKey={uri}
-      placeholder={DARK_IMAGE_PLACEHOLDER}
-      placeholderContentFit="cover"
-      transition={200}
-      onError={() => setFailed(true)}
-    />
+    <View style={[styles.coverImage, isPosterFallback && { backgroundColor }]}>
+      <Image
+        source={{ uri }}
+        style={styles.coverImage}
+        contentFit={isPosterFallback ? 'contain' : 'cover'}
+        contentPosition="top"
+        cachePolicy="memory-disk"
+        priority="high"
+        recyclingKey={uri}
+        placeholder={DARK_IMAGE_PLACEHOLDER}
+        placeholderContentFit="cover"
+        transition={200}
+        onError={() => setFailed(true)}
+      />
+    </View>
   );
 }
 
@@ -90,13 +98,24 @@ export default function DetailsScreen() {
   // grabs focus imperatively once per title, closing that race.
   const playButtonRef = usePushedScreenFocus<View>([id, type]);
   const { toggle: toggleMyList, isInList } = useMyList();
-  const { episodeLayout } = useSettings();
+  const { episodeLayout, streamingMode } = useSettings();
 
   const [modalVisible, setModalVisible] = useState(false);
 
+  // Shared by the hardware-back handler below and TorrentModal's own close button -
+  // both need to abort the in-flight stream fetch, not just hide the modal. Without
+  // this on the back-handler path specifically, backing out of a loading modal left
+  // its fetch running to completion in the background with nothing to stop it.
+  const closeStreamModal = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setModalVisible(false);
+  };
+
   useScreenBackHandler(() => {
     if (modalVisible) {
-      setModalVisible(false);
+      closeStreamModal();
       return true;
     }
     router.back();
@@ -131,6 +150,17 @@ export default function DetailsScreen() {
   if (tabResetKey !== `${type}:${id}`) {
     setTabResetKey(`${type}:${id}`);
     setActiveTab(type === 'series' ? 'episodes' : 'overview');
+    // Same reused-screen-instance problem as activeTab above, but worse: without this,
+    // a stream fetch/modal left open (or still in flight) for the previous title leaks
+    // into the newly-shown one - the modal can pop back open already populated with
+    // the earlier title's torrents before the user ever taps Watch on the new one.
+    setModalVisible(false);
+    setStreams([]);
+    setStreamsLoading(false);
+    setStreamError(null);
+    setCachedHashes(new Set());
+    setActiveTitle('');
+    setActiveContentId('');
   }
   const seasons = Array.from(new Set(meta?.videos?.map(v => v.season) || [])).sort((a, b) => {
     if (a === 0) return 1;
@@ -140,12 +170,15 @@ export default function DetailsScreen() {
   const visibleEpisodes = meta?.videos?.filter(v => v.season === selectedSeason) || [];
 
   useEffect(() => {
+    // Deps on [id, type] (not []) so this cleanup also fires when a reused screen
+    // instance switches titles, not just on true unmount - otherwise a stream fetch
+    // started for the previous title keeps running after the id/type change.
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, []);
+  }, [id, type]);
 
   // Guards the one-shot autoplay-from-Continue-Watching effect below. Reset per
   // id/type so a reused screen instance (screen dedup, or a future router.replace
@@ -243,7 +276,8 @@ export default function DetailsScreen() {
 
   // Resolves the debrid cache badges for a freshly-fetched stream list before
   // it's committed to state, so the fire icons land in the same render as the
-  // list itself instead of popping in a beat later.
+  // list itself instead of popping in a beat later. Addon-Managed mode has no
+  // in-app debrid key to check cache against, so this is Direct API-only.
   const resolveCachedHashes = async (data: TorrentioStream[]): Promise<Set<string>> => {
     const hashes = data.map((s) => s.infoHash).filter((h): h is string => !!h);
     if (hashes.length === 0) return new Set();
@@ -253,6 +287,37 @@ export default function DetailsScreen() {
     if (!apiKey) return new Set();
     return checkCachedHashes(hashes, provider, apiKey);
   };
+
+  // Shared tail end of both fetch handlers below: Direct API resolves debrid
+  // cache badges as before; Addon-Managed has no in-app key to resolve a bare
+  // magnet with, so only addon-pre-resolved (isDirect) streams are playable —
+  // anything else is dropped rather than left as a dead-end "API Key Missing" tap.
+  const applyFetchedStreams = (data: TorrentioStream[], controller: AbortController) => {
+    (async () => {
+      if (streamingMode === 'addon-managed') {
+        const playable = data.filter((s) => s.isDirect);
+        if (abortControllerRef.current !== controller) return;
+        if (playable.length === 0 && data.length > 0) {
+          setStreamError('This addon returned only unresolved sources (no ready-to-play link) — Addon-Managed mode has no debrid key to resolve them. Try again later or switch to Direct API mode.');
+          setStreamsLoading(false);
+          return;
+        }
+        setCachedHashes(new Set());
+        setStreams(playable);
+        setStreamsLoading(false);
+        return;
+      }
+      const cached = await resolveCachedHashes(data);
+      if (abortControllerRef.current !== controller) return; // superseded by a newer request
+      setCachedHashes(cached);
+      setStreams(data);
+      setStreamsLoading(false);
+    })();
+  };
+
+  const noAddonMessage = streamingMode === 'addon-managed'
+    ? 'No addon added. Add one in Settings > Managed Addons.'
+    : 'No addon added. Add one in Settings > Addons.';
 
   const handlePlayMovie = async () => {
     if (abortControllerRef.current) {
@@ -269,18 +334,15 @@ export default function DetailsScreen() {
     setActiveTitle(meta?.name || '');
     setActiveContentId(buildContentId(type, id));
     try {
-      const addons = await getEnabledAddons();
+      const addons = await getEnabledAddons(streamingMode);
       if (addons.length === 0) {
-        setStreamError('No addon added. Add one in Settings > Addons.');
+        setStreamError(noAddonMessage);
         setStreamsLoading(false);
         return;
       }
       const data = await fetchMovieStreams(id, addons, { signal: controller.signal });
-      const cached = await resolveCachedHashes(data);
       if (abortControllerRef.current !== controller) return; // superseded by a newer request
-      setCachedHashes(cached);
-      setStreams(data);
-      setStreamsLoading(false);
+      applyFetchedStreams(data, controller);
     } catch (err: any) {
       if (err.message === 'AbortError' || abortControllerRef.current !== controller) return;
       setStreamError(err.message === 'TimeoutError' ? 'Request timed out.' : 'Network Error');
@@ -304,18 +366,15 @@ export default function DetailsScreen() {
     setActiveTitle(episodeMeta ? `${meta?.name} — S${season}:E${episode} ${episodeMeta.title}` : meta?.name || '');
     setActiveContentId(buildContentId(type, id, season, episode));
     try {
-      const addons = await getEnabledAddons();
+      const addons = await getEnabledAddons(streamingMode);
       if (addons.length === 0) {
-        setStreamError('No addon added. Add one in Settings > Addons.');
+        setStreamError(noAddonMessage);
         setStreamsLoading(false);
         return;
       }
       const data = await fetchEpisodeStreams(id, season, episode, addons, { signal: controller.signal });
-      const cached = await resolveCachedHashes(data);
       if (abortControllerRef.current !== controller) return; // superseded by a newer request
-      setCachedHashes(cached);
-      setStreams(data);
-      setStreamsLoading(false);
+      applyFetchedStreams(data, controller);
     } catch (err: any) {
       if (err.message === 'AbortError' || abortControllerRef.current !== controller) return;
       setStreamError(err.message === 'TimeoutError' ? 'Request timed out.' : 'Network Error');
@@ -362,6 +421,9 @@ export default function DetailsScreen() {
     if (displayMeta?.poster) return normalizeImageUrl(displayMeta.poster, 'backdrop');
     return fallbackImageUrl;
   }, [paramBackground, paramPoster, displayMeta]);
+  // True when coverImageUrl above fell through to a portrait poster (no real
+  // backdrop art for this title) - drives CoverImage's contain-vs-cover choice.
+  const isCoverPosterFallback = !paramBackground && !displayMeta?.background;
 
   if (loading && !displayMeta) {
     return (
@@ -390,7 +452,7 @@ export default function DetailsScreen() {
             swallowing the whole screen; title/meta move to a solid panel
             below instead of overlaying the artwork. */}
         <View style={[styles.headerContainer, isTV && tvStyles.headerContainer, isTV && type === 'series' && tvStyles.headerContainerSeries]}>
-          <CoverImage key={coverImageUrl} uri={coverImageUrl} backgroundColor={colors.backgroundElement} iconColor={colors.textSecondary} />
+          <CoverImage key={coverImageUrl} uri={coverImageUrl} isPosterFallback={isCoverPosterFallback} backgroundColor={colors.backgroundElement} iconColor={colors.textSecondary} />
           {/* Mobile only: darkens toward the bottom so overlaid title/meta stay
               readable, then blends into the page background. TV backdrop is
               shown clean with no shade. */}
@@ -678,12 +740,7 @@ export default function DetailsScreen() {
       {/* Stream Selection Modal */}
       <TorrentModal
         visible={modalVisible}
-        onClose={() => {
-          if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-          }
-          setModalVisible(false);
-        }}
+        onClose={closeStreamModal}
         options={streams}
         cachedHashes={cachedHashes}
         loading={streamsLoading}
@@ -817,6 +874,7 @@ const styles = StyleSheet.create({
   },
   tabItemText: {
     fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
   },
   tabUnderline: {
@@ -981,16 +1039,19 @@ const tvStyles = StyleSheet.create({
   },
   tabStrip: {
     borderBottomWidth: 0,
-    gap: 10,
+    gap: 8,
     marginBottom: 6,
   },
   tabItem: {
-    paddingHorizontal: 18,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   tabItemText: {
-    fontSize: 13,
+    fontSize: 11,
+    lineHeight: 14,
   },
   tabContent: {
     paddingTop: 2,

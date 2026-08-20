@@ -9,11 +9,13 @@ import { settingsStyles } from '@/components/settings/settingsStyles';
 import { IconSymbolName } from '@/components/IconSymbol';
 import { useRestoreFocus } from '@/hooks/tv/useRestoreFocus';
 import { useIsTV } from '@/contexts/DeviceModeContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Fonts } from '@/constants/theme';
 
-const CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route: string }[] = [
-  { icon: 'lock.fill', label: 'Debrid', subtitle: 'Provider, API key', route: '/settings/debrid' },
-  { icon: 'puzzlepiece.extension.fill', label: 'Addons', subtitle: 'Stream sources', route: '/settings/addons' },
+const STATIC_CATEGORIES: { icon: IconSymbolName; label: string; subtitle: string; route: string }[] = [
+  { icon: 'lock.fill', label: 'Debrid', subtitle: 'Direct API key', route: '/settings/debrid' },
+  { icon: 'puzzlepiece.extension.fill', label: 'Addons', subtitle: 'Direct API stream sources', route: '/settings/addons' },
+  { icon: 'puzzlepiece.extension.fill', label: 'Managed Addons', subtitle: 'Addon-Managed stream sources', route: '/settings/managed-addons' },
   { icon: 'bell', label: 'Notifications', subtitle: 'New episode alerts', route: '/settings/notifications' },
   { icon: 'goforward', label: 'Continue watching', subtitle: 'Resume, autoplay, position', route: '/settings/continue-watching' },
   { icon: 'photo', label: 'Pre-play screen', subtitle: 'Landscape loading screen layout', route: '/settings/preplay' },
@@ -26,6 +28,17 @@ export default function SettingsScreen() {
   const router = useRouter();
   const isTV = useIsTV();
   const { hasPreferredFocus, registerFocusable } = useRestoreFocus('settings');
+  const { streamingMode } = useSettings();
+
+  const CATEGORIES = [
+    {
+      icon: 'switch.2' as IconSymbolName,
+      label: 'Streaming Mode',
+      subtitle: streamingMode === 'addon-managed' ? 'Addon-Managed' : 'Direct API',
+      route: '/settings/streaming-mode',
+    },
+    ...STATIC_CATEGORIES,
+  ];
 
   return (
     <ThemedView style={settingsStyles.container}>

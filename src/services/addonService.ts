@@ -8,6 +8,12 @@ const SEEDED_KEY = 'stream_addons_seeded_v1';
 
 const TORRENTIO_MANIFEST_URL = 'https://torrentio.strem.fun/manifest.json';
 
+// 'direct-api': plain addon, its magnet/infoHash streams get resolved by the user's own
+// debrid key (see debridService.ts). 'addon-managed': addon already has a debrid service
+// configured externally and returns ready-to-play links — the app never sees a key for these.
+export type StreamAddonMode = 'direct-api' | 'addon-managed';
+const DEFAULT_ADDON_MODE: StreamAddonMode = 'direct-api';
+
 export interface StreamAddon {
   id: string;
   url: string;
@@ -15,6 +21,7 @@ export interface StreamAddon {
   name: string;
   version: string | null;
   enabled: boolean;
+  mode: StreamAddonMode;
 }
 
 function toManifestUrl(rawUrl: string): string {
@@ -74,6 +81,7 @@ async function readAll(): Promise<StreamAddon[]> {
             name: 'Torrentio',
             version: null,
             enabled: true,
+            mode: DEFAULT_ADDON_MODE,
           },
         ];
         await AsyncStorage.setItem(ADDONS_KEY, JSON.stringify(seeded));
@@ -83,7 +91,11 @@ async function readAll(): Promise<StreamAddon[]> {
       return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    // Addons saved before `mode` existed have none on disk — treat them as
+    // 'direct-api' (the only mode that existed then) so existing installs keep
+    // working unchanged instead of vanishing from both mode's addon lists.
+    return parsed.map((a: any) => ({ ...a, mode: a.mode === 'addon-managed' ? 'addon-managed' : DEFAULT_ADDON_MODE }));
   } catch {
     return [];
   }
@@ -93,13 +105,14 @@ async function writeAll(addons: StreamAddon[]): Promise<void> {
   await AsyncStorage.setItem(ADDONS_KEY, JSON.stringify(addons));
 }
 
-export async function getAddons(): Promise<StreamAddon[]> {
-  return readAll();
+export async function getAddons(mode?: StreamAddonMode): Promise<StreamAddon[]> {
+  const addons = await readAll();
+  return mode ? addons.filter((a) => a.mode === mode) : addons;
 }
 
-export async function getEnabledAddons(): Promise<StreamAddon[]> {
+export async function getEnabledAddons(mode?: StreamAddonMode): Promise<StreamAddon[]> {
   const addons = await readAll();
-  return addons.filter((a) => a.enabled);
+  return addons.filter((a) => a.enabled && (!mode || a.mode === mode));
 }
 
 export interface ValidateAddonResult {
@@ -138,7 +151,7 @@ export async function validateAddonUrl(rawUrl: string): Promise<ValidateAddonRes
   }
 }
 
-export async function addAddon(rawUrl: string): Promise<{ success: boolean; message?: string }> {
+export async function addAddon(rawUrl: string, mode: StreamAddonMode = DEFAULT_ADDON_MODE): Promise<{ success: boolean; message?: string }> {
   const manifestUrl = toManifestUrl(rawUrl);
   const addons = await readAll();
   if (addons.some((a) => a.manifestUrl === manifestUrl)) {
@@ -157,6 +170,7 @@ export async function addAddon(rawUrl: string): Promise<{ success: boolean; mess
     name: result.name || manifestUrl,
     version: result.version || null,
     enabled: true,
+    mode,
   };
   await writeAll([...addons, addon]);
   return { success: true };

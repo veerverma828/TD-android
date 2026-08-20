@@ -4,5 +4,29 @@
       "mcp__codegraph__*"
     ]
   },
-  "enabledPlugins": {}
+  "enabledPlugins": {},
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/require-graphify.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/require-graphify.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
 }
